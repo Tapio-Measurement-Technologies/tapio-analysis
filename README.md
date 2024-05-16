@@ -56,12 +56,12 @@ While Tapio Analysis is free and open-source, we offer a range of professional s
 - **Personalized Support**: One-on-one or group training and support sessions, both on-site and remote are available.
 
 ### Measurement Services
-- **Measurement service for all paper and board grades and other rolled products**: Tapio Measurement Technologies provides measurement service for customer provided CD strips or MD rolls at our lab in Espoo, Finland. The data is provided to customers after measurement. <br><img src="tapio-cd-md-samples.png" alt="Tapio Measurement from CD strips or MD rolls" width="400"><br><small>Tapio Analyzer measurement from CD strips or MD rolls.</small><br>
+- **Measurement service for all paper and board grades and other rolled products**: Tapio Measurement Technologies provides measurement service for customer provided CD strips or MD rolls at our lab in Espoo, Finland. The data is provided to customers after measurement. <br><img src="tapio-cd-md-samples.png" alt="Tapio Measurement from CD strips or MD rolls" width="400"><br><small></small><br>
 - **Expert analysis and detailed reporting**: Tapio experts can analyze the findings and provide a detailed report on the observations in the measured samples.
 
 Contact us to discuss how we can help you optimize your production process.
 - Email: [info@tapiotechnologies.com](mailto:info@tapiotechnologies.com)
-- Visit: [www.tapiotechnologies.com](www.tapiotechnologies.com)
+- Visit: [https://www.tapiotechnologies.com](https://www.tapiotechnologies.com)
 
 
 # License
