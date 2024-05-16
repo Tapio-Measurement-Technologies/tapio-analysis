@@ -1,0 +1,166 @@
+{
+    "report_title": "Test Report",
+    "sections": [
+        {
+            "section_name": "Section 1",
+            "analyses": [
+                {
+                    "analysis": "profile",
+                    "type": "CD",
+                    "channel": "Caliper",
+                    "analysis_range_low": 0,
+                    "analysis_range_high": 6,
+                    "band_pass_low": 0,
+                    "band_pass_high": 4,
+                    "show_individual_profiles": true,
+                    "show_min_max": true,
+                    "show_legend": true
+                },
+                {
+                    "analysis": "profile_waterfall",
+                    "type": "CD",
+                    "channel": "BW",
+                    "analysis_range_low": 1,
+                    "analysis_range_high": 7,
+                    "band_pass_low": 1,
+                    "band_pass_high": 5,
+                    "show_individual_profiles": false,
+                    "show_min_max": true,
+                    "show_legend": true
+                },
+                {
+                    "analysis": "spectrum",
+                    "type": "CD",
+                    "channel": "Caliper",
+                    "analysis_range_low": 1,
+                    "analysis_range_high": 7,
+                    "frequency_range_low": 0,
+                    "frequency_range_high": 3001,
+                    "selected_frequency": 151,
+                    "nperseg": 301,
+                    "show_wavelength_labels": true
+                },
+                {
+                    "analysis": "spectrogram",
+                    "type": "CD",
+                    "channel": "BW",
+                    "analysis_range_low": 1,
+                    "analysis_range_high": 7,
+                    "frequency_range_low": 0,
+                    "frequency_range_high": 3001,
+                    "selected_frequency": 151,
+                    "nperseg": 301,
+                    "show_wavelength_labels": true
+                }
+            ]
+        },
+        {
+            "section_name": "Section 2",
+            "analyses": [
+                {
+                    "analysis": "channel_correlation",
+                    "type": "CD",
+                    "channel1": "Caliper",
+                    "channel2": "BW",
+                    "analysis_range_low": 1,
+                    "analysis_range_high": 7,
+                    "band_pass_low": 0,
+                    "band_pass_high": 4,
+                    "show_unfiltered_data": true
+                },
+                {
+                    "analysis": "correlation_matrix",
+                    "type": "CD",
+                    "analysis_range_low": 1,
+                    "analysis_range_high": 7,
+                    "band_pass_low": 0,
+                    "band_pass_high": 4
+                },
+                {
+                    "analysis": "vca",
+                    "type": "CD",
+                    "channel": "Caliper",
+                    "analysis_range_low": 1,
+                    "analysis_range_high": 7,
+                    "band_pass_low": 0,
+                    "band_pass_high": 4
+                },
+                {
+                    "analysis": "formation",
+                    "type": "CD",
+                    "channel": "Caliper",
+                    "analysis_range_low": 1,
+                    "analysis_range_high": 7,
+                    "show_individual_profiles": true
+                }
+            ]
+        },
+        {
+            "section_name": "Section 3 (MD)",
+            "analyses": [
+                {
+                    "analysis": "time_domain",
+                    "type": "MD",
+                    "channel": "BW",
+                    "analysis_range_low": 0,
+                    "analysis_range_high": 6,
+                    "band_pass_low": 0,
+                    "band_pass_high": 4,
+                    "show_unfiltered_data": true
+                },
+                {
+                    "analysis": "spectrum",
+                    "type": "MD",
+                    "channel": "Caliper",
+                    "analysis_range_low": 1,
+                    "analysis_range_high": 7,
+                    "machine_speed": 1701,
+                    "frequency_range_low": 0,
+                    "frequency_range_high": 301,
+                    "selected_frequency": 151,
+                    "nperseg": 3001,
+                    "show_wavelength_labels": true
+                },
+                {
+                    "analysis": "spectrogram",
+                    "type": "MD",
+                    "channel": "BW",
+                    "analysis_range_low": 1,
+                    "analysis_range_high": 7,
+                    "machine_speed": 1701,
+                    "frequency_range_low": 0,
+                    "frequency_range_high": 301,
+                    "selected_frequency": 151,
+                    "nperseg": 3001,
+                    "show_wavelength_labels": true
+                },
+                {
+                    "analysis": "channel_correlation",
+                    "type": "MD",
+                    "channel1": "Caliper",
+                    "channel2": "BW",
+                    "analysis_range_low": 1,
+                    "analysis_range_high": 7,
+                    "band_pass_low": 0,
+                    "band_pass_high": 4,
+                    "show_unfiltered_data": true
+                },
+                {
+                    "analysis": "correlation_matrix",
+                    "type": "MD",
+                    "analysis_range_low": 1,
+                    "analysis_range_high": 7,
+                    "band_pass_low": 0,
+                    "band_pass_high": 4
+                },
+                {
+                    "analysis": "formation",
+                    "type": "MD",
+                    "channel": "Caliper",
+                    "analysis_range_low": 1,
+                    "analysis_range_high": 7
+                }
+            ]
+        }
+    ]
+}

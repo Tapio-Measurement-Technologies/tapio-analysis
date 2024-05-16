@@ -1,0 +1,80 @@
+{
+    "MD": [
+        {
+            "groupName": "Guide rolls",
+            "elements": [
+                {
+                    "name": "Wire 1",
+                    "diameter": 0.200
+                }
+            ]
+        },
+        {
+            "groupName": "Size press rolls",
+            "elements": [
+                {
+                    "name": "Size 1",
+                    "diameter": 0.320
+                },
+                {
+                    "name": "Size 2",
+                    "diameter": 0.395
+                },
+                {
+                    "name": "Size 3",
+                    "diameter": 0.403
+                }
+            ]
+        },
+        {
+            "elements": [
+                {
+                    "name": "Breast roll",
+                    "diameter": 0.200
+                },
+                {
+                    "name": "Press rolls",
+                    "diameter": 0.200
+                },
+                {
+                    "name": "Dryer",
+                    "diameter": 0.403
+                },
+                {
+                    "name": "Couch roll",
+                    "diameter": 0.263
+                },
+                {
+                    "name": "Reel",
+                    "diameter": 0.317
+                },
+                {
+                    "name": "Hard nip calander",
+                    "diameter": 0.263
+                }
+            ]
+        }
+    ],
+    "CD": [
+        {
+            "elements": [{
+                "name": "Sprays",
+                "length": 0.6
+            },
+            {
+                "name": "Wire spacing",
+                "length": "0.1"
+            }
+            ]
+        },
+        {
+            "groupName": "Group 1",
+            "elements": [
+                {
+                    "name": "Headbox lip actuators",
+                    "length": 0.200
+                }
+            ]
+        }
+    ]
+}

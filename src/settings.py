@@ -1,0 +1,152 @@
+DEBUG = True
+
+# Meters per minute
+PAPER_MACHINE_SPEED_DEFAULT = 1600
+
+ANALYSES = {
+    "cd": {
+        "profile":              { "label": "CD Profile" },
+        "profile_waterfall":    { "label": "CD Profile waterfall" },
+        "spectrum":             { "label": "CD Spectrum" },
+        "spectrogram":          { "label": "CD Spectrogram" },
+        "channel_correlation":  { "label": "CD Channel correlation" },
+        "correlation_matrix":   { "label": "CD Correlation matrix" },
+        "vca":                  { "label": "Variable component analysis" },
+        "formation":            { "label": "CD Formation" }
+    },
+    "md": {
+        "time_domain":          { "label": "Time domain" },
+        "spectrum":             { "label": "Spectrum" },
+        "spectrogram":          { "label": "Spectrogram" },
+        "channel_correlation":  { "label": "Channel correlation" },
+        "correlation_matrix":   { "label": "Correlation matrix" },
+        "formation":            { "label": "Formation" }
+    }
+}
+
+UPDATE_ON_SLIDE = False
+IGNORE_CHANNELS = ["Density"]
+CORRELATION_MATRIX_SAMPLE_LIMIT = 1000
+
+# Formation analysis settings
+FORMATION_TRANSMISSION_CHANNEL = "Transmission"
+FORMATION_BW_CHANNEL = "BW"
+
+SPECTROGRAM_COLORMAP = "viridis"
+
+MAX_HARMONICS = 10
+# CD Find samples settings
+TAPE_WIDTH_MM = 50
+CD_SAMPLE_MIN_LENGTH_M = 4
+
+# Time domain default values
+TIME_DOMAIN_BAND_PASS_LOW_DEFAULT_1M = 0
+TIME_DOMAIN_BAND_PASS_HIGH_DEFAULT_1M = 30
+TIME_DOMAIN_ANALYSIS_RANGE_LOW_DEFAULT = 0
+TIME_DOMAIN_ANALYSIS_RANGE_HIGH_DEFAULT = 0.1
+
+# MD (Machine Direction) Spectrum Analysis Settings
+MD_SPECTRUM_DEFAULT_LENGTH = 5000
+MD_SPECTRUM_FREQUENCY_RANGE_MIN_DEFAULT = 0.0
+MD_SPECTRUM_FREQUENCY_RANGE_MAX_DEFAULT = 0.5
+MD_SPECTRUM_ANALYSIS_RANGE_LOW_DEFAULT = 0
+MD_SPECTRUM_ANALYSIS_RANGE_HIGH_DEFAULT = 1
+MD_SPECTRUM_OVERLAP = 0.75
+
+MD_SPECTRUM_LENGTH_SLIDER_MIN = 1000
+MD_SPECTRUM_LENGTH_SLIDER_MAX = 100000
+MD_SPECTROGRAM_OVERLAP = 0.75
+
+MD_SPECTROGRAM_DEFAULT_LENGTH = 5000
+MD_SPECTROGRAM_FREQUENCY_RANGE_MIN_DEFAULT = 0.0
+MD_SPECTROGRAM_FREQUENCY_RANGE_MAX_DEFAULT = 0.5
+MD_SPECTROGRAM_ANALYSIS_RANGE_LOW_DEFAULT = 0
+MD_SPECTROGRAM_ANALYSIS_RANGE_HIGH_DEFAULT = 1
+MD_SPECTROGRAM_OVERLAP = 0.75
+
+MD_SPECTROGRAM_LENGTH_SLIDER_MIN = 1000
+MD_SPECTROGRAM_LENGTH_SLIDER_MAX = 100000
+MD_SPECTROGRAM_OVERLAP = 0.75
+
+# CD (Cross Direction) Spectrum Analysis Settings
+CD_SPECTRUM_DEFAULT_LENGTH = 5000
+CD_SPECTRUM_FREQUENCY_RANGE_MIN_DEFAULT = 0.0
+CD_SPECTRUM_FREQUENCY_RANGE_MAX_DEFAULT = 0.5
+CD_SPECTRUM_ANALYSIS_RANGE_LOW_DEFAULT = 0
+CD_SPECTRUM_ANALYSIS_RANGE_HIGH_DEFAULT = 1
+CD_SPECTRUM_OVERLAP = 0.85
+# fraction of points by which consecutive segments overlap
+
+CD_SPECTRUM_LENGTH_SLIDER_MIN = 1000
+CD_SPECTRUM_LENGTH_SLIDER_MAX = 10000
+
+# CD (Cross Direction) Spectrum Analysis Settings
+CD_SPECTROGRAM_DEFAULT_LENGTH = 500
+CD_SPECTROGRAM_FREQUENCY_RANGE_MIN_DEFAULT = 0.0
+CD_SPECTROGRAM_FREQUENCY_RANGE_MAX_DEFAULT = 0.3
+CD_SPECTROGRAM_ANALYSIS_RANGE_LOW_DEFAULT = 0
+CD_SPECTROGRAM_ANALYSIS_RANGE_HIGH_DEFAULT = 1
+CD_SPECTROGRAM_OVERLAP = 0.99
+# fraction of points by which consecutive segments overlap
+
+CD_SPECTROGRAM_LENGTH_SLIDER_MIN = 100
+CD_SPECTROGRAM_LENGTH_SLIDER_MAX = 10000
+
+# MD Correlation matrix settings
+MD_CORRELATION_BAND_PASS_LOW_DEFAULT_1M = 0
+MD_CORRELATION_BAND_PASS_HIGH_DEFAULT_1M = 30
+MD_CORRELATION_ANALYSIS_RANGE_LOW_DEFAULT = 0
+MD_CORRELATION_ANALYSIS_RANGE_HIGH_DEFAULT = 1
+
+# CD Correlation matrix settings
+CD_CORRELATION_BAND_PASS_LOW_DEFAULT_1M = 0
+CD_CORRELATION_BAND_PASS_HIGH_DEFAULT_1M = 30
+CD_CORRELATION_ANALYSIS_RANGE_LOW_DEFAULT = 0
+CD_CORRELATION_ANALYSIS_RANGE_HIGH_DEFAULT = 1
+
+# Channel correlation settings
+MD_CHANNEL_CORRELATION_BAND_PASS_LOW_DEFAULT_1M = 0
+MD_CHANNEL_CORRELATION_BAND_PASS_HIGH_DEFAULT_1M = 30
+MD_CHANNEL_CORRELATION_ANALYSIS_RANGE_LOW_DEFAULT = 0
+MD_CHANNEL_CORRELATION_ANALYSIS_RANGE_HIGH_DEFAULT = 0.1
+
+CD_CHANNEL_CORRELATION_BAND_PASS_LOW_DEFAULT_1M = 0
+CD_CHANNEL_CORRELATION_BAND_PASS_HIGH_DEFAULT_1M = 30
+CD_CHANNEL_CORRELATION_ANALYSIS_RANGE_LOW_DEFAULT = 0
+CD_CHANNEL_CORRELATION_ANALYSIS_RANGE_HIGH_DEFAULT = 1
+
+MD_FORMATION_RANGE_LOW_DEFAULT = 0
+MD_FORMATION_RANGE_HIGH_DEFAULT = 0.1
+
+CD_FORMATION_RANGE_LOW_DEFAULT = 0
+CD_FORMATION_RANGE_HIGH_DEFAULT = 1
+
+# These settings are for MD and CD spectral analysis, how many harmonics to consider in fundamental frequency estimation
+NLS_MODEL_ORDER = 1
+NLS_STEP = 0.001
+NLS_RANGE = 0.1
+
+# CD Profile settings
+CD_PROFILE_BAND_PASS_LOW_DEFAULT_1M = 0
+CD_PROFILE_BAND_PASS_HIGH_DEFAULT_1M = 30
+CD_PROFILE_RANGE_LOW_DEFAULT = 0
+CD_PROFILE_RANGE_HIGH_DEFAULT = 1
+
+# VCA settings
+VCA_BAND_PASS_LOW_DEFAULT_1M = 0
+VCA_BAND_PASS_HIGH_DEFAULT_1M = 30
+VCA_RANGE_LOW_DEFAULT = 0
+VCA_RANGE_HIGH_DEFAULT = 1
+VCA_COLORMAP = "viridis"
+# VCA_COLORMAP = "gray"
+
+import os
+script_dir = os.path.dirname(os.path.abspath(__file__))
+ASSETS_DIR = os.path.join(script_dir, "assets")
+
+
+try:
+    from local_settings import *
+except:
+    pass
+
