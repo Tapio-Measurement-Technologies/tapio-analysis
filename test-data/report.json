@@ -35,9 +35,9 @@
                     "analysis_range_low": 1,
                     "analysis_range_high": 7,
                     "frequency_range_low": 0,
-                    "frequency_range_high": 3001,
+                    "frequency_range_high": 301,
                     "selected_frequency": 151,
-                    "nperseg": 301,
+                    "nperseg": 3001,
                     "show_wavelength_labels": true
                 },
                 {
@@ -47,9 +47,9 @@
                     "analysis_range_low": 1,
                     "analysis_range_high": 7,
                     "frequency_range_low": 0,
-                    "frequency_range_high": 3001,
+                    "frequency_range_high": 301,
                     "selected_frequency": 151,
-                    "nperseg": 301,
+                    "nperseg": 3001,
                     "show_wavelength_labels": true
                 }
             ]
