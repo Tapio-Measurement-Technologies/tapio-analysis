@@ -259,7 +259,7 @@ class ShowUnfilteredMixin:
     def initShowUnfilteredCheckbox(self, block_signals=False):
         # Prevent recursive refresh calls when updating values elsewhere
         self.showUnfilteredCheckBox.blockSignals(block_signals)
-        show_unfiltered_data = self.controller.show_unfiltered
+        show_unfiltered_data = self.controller.show_unfiltered_data
         self.showUnfilteredCheckBox.setChecked(show_unfiltered_data)
         self.showUnfilteredCheckBox.blockSignals(False)
 
@@ -271,7 +271,7 @@ class ShowUnfilteredMixin:
 
     def update_show_unfiltered(self):
         state = self.showUnfilteredCheckBox.isChecked()
-        self.controller.show_unfiltered = state
+        self.controller.show_unfiltered_data = state
         self.refresh()
 
 class ShowWavelengthMixin:
