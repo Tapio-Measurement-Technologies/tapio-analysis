@@ -1,7 +1,7 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QCheckBox, QLabel, QMenuBar, QPushButton
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QMenuBar, QPushButton
 from PyQt6.QtGui import QAction
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-from gui.components import AnalysisRangeMixin, ChannelMixin, FrequencyRangeMixin, MachineSpeedMixin, SampleSelectMixin, SpectrumLengthMixin
+from gui.components import AnalysisRangeMixin, ChannelMixin, FrequencyRangeMixin, MachineSpeedMixin, SampleSelectMixin, SpectrumLengthMixin, ShowWavelengthMixin
 from utils.data_loader import DataMixin
 from gui.paper_machine_data import PaperMachineDataWindow
 from gui.sos_analysis import SOSAnalysisWindow
@@ -10,7 +10,7 @@ from controllers import SpectrogramController
 import settings
 
 
-class SpectrogramWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, FrequencyRangeMixin, MachineSpeedMixin, SampleSelectMixin, SpectrumLengthMixin):
+class SpectrogramWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, FrequencyRangeMixin, MachineSpeedMixin, SampleSelectMixin, SpectrumLengthMixin, ShowWavelengthMixin):
 
     def __init__(self, window_type="MD", controller: SpectrogramController | None = None):
         super().__init__()
@@ -112,10 +112,7 @@ class SpectrogramWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Fr
         self.addFrequencyRangeSlider(mainLayout)
 
         if self.window_type == "MD":
-            self.wavelengthCheckbox = QCheckBox("Wavelength labels", self)
-            mainLayout.addWidget(self.wavelengthCheckbox)
-            self.wavelengthCheckbox.setChecked(self.controller.show_wavelength)
-            self.wavelengthCheckbox.stateChanged.connect(self.update_show_wavelength)
+            self.addShowWavelengthCheckbox(mainLayout)
 
         self.selectedFrequencyLabel = QLabel("Selected frequency: None")
         mainLayout.addWidget(self.selectedFrequencyLabel)
@@ -136,11 +133,6 @@ class SpectrogramWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Fr
 
         self.plot.mpl_connect('button_press_event', self.onclick)
 
-        self.refresh()
-
-    def update_show_wavelength(self):
-        state = self.wavelengthCheckbox.isChecked()
-        self.controller.show_wavelength = state
         self.refresh()
 
     def clearFrequency(self):
@@ -194,8 +186,18 @@ class SpectrogramWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Fr
             if self.sosAnalysisWindow:
                 self.sosAnalysisWindow.refresh()
 
+    def refresh_widgets(self):
+        self.initAnalysisRangeSlider(block_signals=True)
+        self.initChannelSelector(block_signals=True)
+        self.initFrequencyRangeSlider(block_signals=True)
+        self.initSpectrumLengthSlider(block_signals=True)
+        if self.window_type == "MD":
+            self.initShowWavelengthCheckbox(block_signals=True)
+            self.initMachineSpeedSpinner(block_signals=True)
+
     def refresh(self, restore_lim=False):
         self.controller.plot()
+        self.refresh_widgets()
         machine_speed = self.controller.machine_speed
         selected_freq = self.controller.selected_freq
         if selected_freq:

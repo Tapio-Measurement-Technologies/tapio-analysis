@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QComboBox, QLabel, QDoubleSpinBox, QFileDialog
+from PyQt6.QtWidgets import QComboBox, QLabel, QDoubleSpinBox, QFileDialog, QCheckBox, QHBoxLayout
 from PyQt6.QtGui import QAction
 from qtpy.QtCore import Qt, Signal
 from superqt import QLabeledDoubleRangeSlider, QLabeledSlider
@@ -23,16 +23,21 @@ class ExtraQLabeledDoubleRangeSlider(QLabeledDoubleRangeSlider):
 
 
 class MachineSpeedMixin:
+    def initMachineSpeedSpinner(self, block_signals=False):
+        # Prevent recursive refresh calls when updating values elsewhere
+        self.machineSpeedSpinBox.blockSignals(block_signals)
+        self.machineSpeedSpinBox.setMinimum(0.0)
+        self.machineSpeedSpinBox.setMaximum(3000)
+        self.machineSpeedSpinBox.setSingleStep(0.1)
+        self.machineSpeedSpinBox.setValue(self.controller.machine_speed)
+        self.machineSpeedSpinBox.blockSignals(False)
 
     def addMachineSpeedSpinner(self, layout):
         self.machineSpeedLabel = QLabel("Machine Speed [m/min]:")
         layout.addWidget(self.machineSpeedLabel)
         self.machineSpeedSpinBox = QDoubleSpinBox()
+        self.initMachineSpeedSpinner()
 
-        self.machineSpeedSpinBox.setMinimum(0.0)
-        self.machineSpeedSpinBox.setMaximum(3000)
-        self.machineSpeedSpinBox.setSingleStep(0.1)
-        self.machineSpeedSpinBox.setValue(self.controller.machine_speed)
         layout.addWidget(self.machineSpeedSpinBox)
         self.machineSpeedSpinBox.valueChanged.connect(self.machineSpeedChanged)
 
@@ -42,14 +47,19 @@ class MachineSpeedMixin:
 
 
 class FrequencyRangeMixin:
+    def initFrequencyRangeSlider(self, block_signals=False):
+        # Prevent recursive refresh calls when updating values elsewhere
+        self.frequencyRangeSlider.blockSignals(block_signals)
+        self.frequencyRangeSlider.setDecimals(1)
+        self.frequencyRangeSlider.setRange(0, self.controller.max_freq)
+        self.frequencyRangeSlider.setValue((self.controller.frequency_range_low, self.controller.frequency_range_high))
+        self.frequencyRangeSlider.blockSignals(False)
 
     def addFrequencyRangeSlider(self, layout, live_update=settings.UPDATE_ON_SLIDE):
         self.frequencyRangeLabel = QLabel("Frequency range [1/m]")
         layout.addWidget(self.frequencyRangeLabel)
         self.frequencyRangeSlider = ExtraQLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
-        self.frequencyRangeSlider.setDecimals(1)
-        self.frequencyRangeSlider.setRange(0, self.controller.max_freq)
-        self.frequencyRangeSlider.setValue((self.controller.frequency_range_low, self.controller.frequency_range_high))
+        self.initFrequencyRangeSlider()
 
         if live_update:
             self.frequencyRangeSlider.valueChanged.connect(self.frequencyRangeChanged)
@@ -63,16 +73,21 @@ class FrequencyRangeMixin:
         self.refresh()  # Optionally refresh the plot if needed
 
 class AnalysisRangeMixin:
-
-    def addAnalysisRangeSlider(self, layout, live_update=settings.UPDATE_ON_SLIDE):
-        self.analysisRangeLabel = QLabel("Analysis range [m]")
-        layout.addWidget(self.analysisRangeLabel)
-        self.analysisRangeSlider = ExtraQLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
+    def initAnalysisRangeSlider(self, block_signals=False):
+        # Prevent recursive refresh calls when updating values elsewhere
+        self.analysisRangeSlider.blockSignals(block_signals)
         self.analysisRangeSlider.setDecimals(1)
         # Ensure dataMixin is accessible
         # self.max_dist = np.max(self.dataMixin.distances)
         self.analysisRangeSlider.setRange(0, self.controller.max_dist)
         self.analysisRangeSlider.setValue((self.controller.analysis_range_low, self.controller.analysis_range_high))
+        self.analysisRangeSlider.blockSignals(False)
+
+    def addAnalysisRangeSlider(self, layout, live_update=settings.UPDATE_ON_SLIDE):
+        self.analysisRangeLabel = QLabel("Analysis range [m]")
+        layout.addWidget(self.analysisRangeLabel)
+        self.analysisRangeSlider = ExtraQLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
+        self.initAnalysisRangeSlider()
 
         if live_update:
             self.analysisRangeSlider.valueChanged.connect(self.analysisRangeChanged)
@@ -87,22 +102,66 @@ class AnalysisRangeMixin:
 
 
 class ChannelMixin:
-
-    def addChannelSelector(self, layout):
-        self.channelComboBox = QComboBox()
-        self.channelComboBox.addItems(self.dataMixin.channels)
+    def initChannelSelector(self, block_signals=False):
+        # Prevent recursive refresh calls when updating values elsewhere
+        self.channelComboBox.blockSignals(block_signals)
         initial_channel = self.controller.channel
-
         if initial_channel is not None and initial_channel in self.dataMixin.channels:
             initial_index = self.channelComboBox.findText(initial_channel)
             if initial_index >= 0:  # Ensure the text was found
                 self.channelComboBox.setCurrentIndex(initial_index)
+        self.channelComboBox.blockSignals(False)
 
+    def addChannelSelector(self, layout):
+        self.channelComboBox = QComboBox()
+        self.channelComboBox.addItems(self.dataMixin.channels)
+        self.initChannelSelector()
         layout.addWidget(self.channelComboBox)
         self.channelComboBox.currentIndexChanged.connect(self.channelChanged)
 
     def channelChanged(self):
         self.controller.channel = self.channelComboBox.currentText()
+        self.refresh()
+
+class DoubleChannelMixin:
+    def initChannelSelectors(self, block_signals=False):
+        # Prevent recursive refresh calls when updating values elsewhere
+        self.channelSelector1.blockSignals(block_signals)
+        self.channelSelector2.blockSignals(block_signals)
+        for channel in self.controller.channels:
+            self.channelSelector1.addItem(channel)
+            self.channelSelector2.addItem(channel)
+
+        channel1 = self.controller.channel1
+        channel2 = self.controller.channel2
+        if channel1 is not None and channel1 in self.controller.channels:
+            index = self.channelSelector1.findText(channel1)
+            if index >= 0:  # Ensure the text was found
+                self.channelSelector1.setCurrentIndex(index)
+
+        if channel2 is not None and channel2 in self.controller.channels:
+            index = self.channelSelector2.findText(channel2)
+            if index >= 0:  # Ensure the text was found
+                self.channelSelector2.setCurrentIndex(index)
+
+        self.channelSelector1.blockSignals(False)
+        self.channelSelector2.blockSignals(False)
+
+    def addChannelSelectors(self, layout):
+        # Channel selectors
+        channelSelectorLayout = QHBoxLayout()
+        self.channelSelector1 = QComboBox()
+        self.channelSelector2 = QComboBox()
+        self.initChannelSelectors()
+        self.channelSelector1.currentIndexChanged.connect(self.channelsChanged)
+        self.channelSelector2.currentIndexChanged.connect(self.channelsChanged)
+        channelSelectorLayout.addWidget(self.channelSelector1)
+        channelSelectorLayout.addWidget(self.channelSelector2)
+        layout.addLayout(channelSelectorLayout)
+
+    def channelsChanged(self):
+        self.controller.channel1 = self.channelSelector1.currentText()
+        self.controller.channel2 = self.channelSelector2.currentText()
         self.refresh()
 
 
@@ -120,14 +179,18 @@ class ExtraQLabeledSlider(QLabeledSlider):
     #     self.sliderReleased.emit(value)
 
 class SpectrumLengthMixin:
-
-
-    def addSpectrumLengthSlider(self, layout, live_update=settings.UPDATE_ON_SLIDE):
-        self.spectrumLengthSlider = ExtraQLabeledSlider(Qt.Orientation.Horizontal)
+    def initSpectrumLengthSlider(self, block_signals=False):
+        # Prevent recursive refresh calls when updating values elsewhere
+        self.spectrumLengthSlider.blockSignals(block_signals)
         self.spectrumLengthSlider.setMinimum(self.controller.spectrum_length_slider_min)
         self.spectrumLengthSlider.setMaximum(self.controller.spectrum_length_slider_max)
         self.spectrumLengthSlider.setSingleStep(1000)
         self.spectrumLengthSlider.setValue(self.controller.nperseg)
+        self.spectrumLengthSlider.blockSignals(False)
+
+    def addSpectrumLengthSlider(self, layout, live_update=settings.UPDATE_ON_SLIDE):
+        self.spectrumLengthSlider = ExtraQLabeledSlider(Qt.Orientation.Horizontal)
+        self.initSpectrumLengthSlider()
         layout.addWidget(self.spectrumLengthSlider)
 
         if live_update:
@@ -147,13 +210,19 @@ class BandPassFilterMixin:
         self.controller.band_pass_low, self.controller.band_pass_high = self.bandPassFilterSlider.value()
         self.refresh()
 
+    def initBandPassRangeSlider(self, block_signals=False):
+        # Prevent recursive refresh calls when updating values elsewhere
+        self.bandPassFilterSlider.blockSignals(block_signals)
+        self.bandPassFilterSlider.setRange(0, self.controller.fs / 2 - 1)
+        self.bandPassFilterSlider.setValue((self.controller.band_pass_low, self.controller.band_pass_high))
+        self.bandPassFilterSlider.blockSignals(False)
+
     def addBandPassRangeSlider(self, layout, live_update=settings.UPDATE_ON_SLIDE):
         # Band pass filter range slider
         self.bandPassFilterLabel = QLabel("Band pass filter [1/m]")
         layout.addWidget(self.bandPassFilterLabel)
         self.bandPassFilterSlider = ExtraQLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
-        self.bandPassFilterSlider.setRange(0, self.controller.fs / 2 - 1)
-        self.bandPassFilterSlider.setValue((self.controller.band_pass_low, self.controller.band_pass_high))
+        self.initBandPassRangeSlider()
 
         if live_update:
             self.bandPassFilterSlider.valueChanged.connect(self.bandPassFilterRangeChanged)
@@ -186,6 +255,100 @@ class SampleSelectMixin:
         print(self.controller.selected_samples)
         self.refresh()
 
+class ShowUnfilteredMixin:
+    def initShowUnfilteredCheckbox(self, block_signals=False):
+        # Prevent recursive refresh calls when updating values elsewhere
+        self.showUnfilteredCheckBox.blockSignals(block_signals)
+        show_unfiltered_data = self.controller.show_unfiltered
+        self.showUnfilteredCheckBox.setChecked(show_unfiltered_data)
+        self.showUnfilteredCheckBox.blockSignals(False)
+
+    def addShowUnfilteredCheckbox(self, layout):
+        self.showUnfilteredCheckBox = QCheckBox("Show unfiltered data", self)
+        self.initShowUnfilteredCheckbox()
+        self.showUnfilteredCheckBox.stateChanged.connect(self.update_show_unfiltered)
+        layout.addWidget(self.showUnfilteredCheckBox)
+
+    def update_show_unfiltered(self):
+        state = self.showUnfilteredCheckBox.isChecked()
+        self.controller.show_unfiltered = state
+        self.refresh()
+
+class ShowWavelengthMixin:
+    def initShowWavelengthCheckbox(self, block_signals=False):
+        # Prevent recursive refresh calls when updating values elsewhere
+        self.wavelengthCheckbox.blockSignals(block_signals)
+        show_wavelength = self.controller.show_wavelength
+        self.wavelengthCheckbox.setChecked(show_wavelength)
+        self.wavelengthCheckbox.blockSignals(False)
+
+    def addShowWavelengthCheckbox(self, layout):
+        self.wavelengthCheckbox = QCheckBox("Wavelength labels", self)
+        self.initShowWavelengthCheckbox()
+        self.wavelengthCheckbox.stateChanged.connect(self.update_show_wavelength)
+        layout.addWidget(self.wavelengthCheckbox)
+
+    def update_show_wavelength(self):
+        state = self.wavelengthCheckbox.isChecked()
+        self.controller.show_wavelength = state
+        self.refresh()
+
+class ShowProfilesMixin:
+    def initShowProfilesCheckbox(self, block_signals=False):
+        # Prevent recursive refresh calls when updating values elsewhere
+        self.showProfilesCheckBox.blockSignals(block_signals)
+        show_profiles = self.controller.show_profiles
+        self.showProfilesCheckBox.setChecked(show_profiles)
+        self.showProfilesCheckBox.blockSignals(False)
+
+    def addShowProfilesCheckbox(self, layout):
+        self.showProfilesCheckBox = QCheckBox("Show individual profiles", self)
+        self.initShowProfilesCheckbox()
+        self.showProfilesCheckBox.stateChanged.connect(self.update_show_profiles)
+        layout.addWidget(self.showProfilesCheckBox)
+
+    def update_show_profiles(self):
+        state = self.showProfilesCheckBox.isChecked()
+        self.controller.show_profiles = state
+        self.refresh()
+
+class ShowMinMaxMixin:
+    def initShowMinMaxCheckbox(self, block_signals=False):
+        # Prevent recursive refresh calls when updating values elsewhere
+        self.showMinMaxCheckBox.blockSignals(block_signals)
+        show_min_max = self.controller.show_min_max
+        self.showMinMaxCheckBox.setChecked(show_min_max)
+        self.showMinMaxCheckBox.blockSignals(False)
+
+    def addShowMinMaxCheckbox(self, layout):
+        self.showMinMaxCheckBox = QCheckBox("Show min/max", self)
+        self.initShowMinMaxCheckbox()
+        self.showMinMaxCheckBox.stateChanged.connect(self.update_show_min_max)
+        layout.addWidget(self.showMinMaxCheckBox)
+
+    def update_show_min_max(self):
+        state = self.showMinMaxCheckBox.isChecked()
+        self.controller.show_min_max = state
+        self.refresh()
+
+class ShowLegendMixin:
+    def initShowLegendCheckbox(self, block_signals=False):
+        # Prevent recursive refresh calls when updating values elsewhere
+        self.showLegendCheckBox.blockSignals(block_signals)
+        show_legend = self.controller.show_legend
+        self.showLegendCheckBox.setChecked(show_legend)
+        self.showLegendCheckBox.blockSignals(False)
+
+    def addShowLegendCheckbox(self, layout):
+        self.showLegendCheckBox = QCheckBox("Show legend", self)
+        self.initShowLegendCheckbox()
+        self.showLegendCheckBox.stateChanged.connect(self.update_show_legend)
+        layout.addWidget(self.showLegendCheckBox)
+
+    def update_show_legend(self):
+        state = self.showLegendCheckBox.isChecked()
+        self.controller.show_legend = state
+        self.refresh()
 
 class ExportMixin:
 

@@ -1,11 +1,11 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QCheckBox, QHBoxLayout, QComboBox, QMenuBar
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QMenuBar
 from PyQt6.QtGui import QAction
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from utils.data_loader import DataMixin
-from gui.components import AnalysisRangeMixin, BandPassFilterMixin, SampleSelectMixin
+from gui.components import AnalysisRangeMixin, BandPassFilterMixin, SampleSelectMixin, ShowUnfilteredMixin, DoubleChannelMixin
 from controllers import ChannelCorrelationController
 
-class ChannelCorrelationWindow(QWidget, DataMixin, AnalysisRangeMixin, BandPassFilterMixin, SampleSelectMixin):
+class ChannelCorrelationWindow(QWidget, DataMixin, AnalysisRangeMixin, BandPassFilterMixin, SampleSelectMixin, ShowUnfilteredMixin, DoubleChannelMixin):
     def __init__(self, window_type="MD", controller: ChannelCorrelationController | None = None):
         super().__init__()
         self.window_type = window_type
@@ -26,30 +26,14 @@ class ChannelCorrelationWindow(QWidget, DataMixin, AnalysisRangeMixin, BandPassF
             self.initMenuBar(mainLayout)
 
         # Channel selectors
-        channelSelectorLayout = QHBoxLayout()
-        self.channelSelector1 = QComboBox()
-        self.channelSelector2 = QComboBox()
-        for channel in self.controller.channels:
-            self.channelSelector1.addItem(channel)
-            self.channelSelector2.addItem(channel)
-        self.channelSelector1.currentIndexChanged.connect(
-            self.channelSelectionChanged)
-        self.channelSelector2.currentIndexChanged.connect(
-            self.channelSelectionChanged)
-
-        channelSelectorLayout.addWidget(self.channelSelector1)
-        channelSelectorLayout.addWidget(self.channelSelector2)
-        mainLayout.addLayout(channelSelectorLayout)
+        self.addChannelSelectors(mainLayout)
 
         # Analysis range slider
         self.addAnalysisRangeSlider(mainLayout)
         self.addBandPassRangeSlider(mainLayout)
 
         # Show unfiltered data checkbox
-        self.showUnfilteredCheckBox = QCheckBox("Show unfiltered data", self)
-        mainLayout.addWidget(self.showUnfilteredCheckBox)
-        self.showUnfilteredCheckBox.setChecked(self.controller.show_unfiltered)
-        self.showUnfilteredCheckBox.stateChanged.connect(self.update_show_unfiltered)
+        self.addShowUnfilteredCheckbox(mainLayout)
 
         # Matplotlib figure and canvas
         self.plot = self.controller.plot()
@@ -68,15 +52,12 @@ class ChannelCorrelationWindow(QWidget, DataMixin, AnalysisRangeMixin, BandPassF
         self.selectSamplesAction.triggered.connect(
             self.toggleSelectSamples)
 
-    def channelSelectionChanged(self, index):
-        self.controller.channel1 = self.channelSelector1.currentText()
-        self.controller.channel2 = self.channelSelector2.currentText()
-        self.refresh()
-
-    def update_show_unfiltered(self):
-        state = self.showUnfilteredCheckBox.isChecked()
-        self.controller.show_unfiltered = state
-        self.refresh()
+    def refresh_widgets(self):
+        self.initAnalysisRangeSlider(block_signals=True)
+        self.initBandPassRangeSlider(block_signals=True)
+        self.initShowUnfilteredCheckbox(block_signals=True)
+        self.initChannelSelectors(block_signals=True)
 
     def refresh(self):
         self.controller.plot()
+        self.refresh_widgets()

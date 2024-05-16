@@ -96,8 +96,14 @@ class VCAWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, BandPassFi
 
         self.refresh()
 
+    def refresh_widgets(self):
+        self.initAnalysisRangeSlider(block_signals=True)
+        self.initBandPassRangeSlider(block_signals=True)
+        self.initChannelSelector(block_signals=True)
+
     def refresh(self):
         self.controller.plot()
+        self.refresh_widgets()
         self.updateVCAStatistics(self.controller.filtered_data)
 
     def updateVCAStatistics(self, data):

@@ -1,12 +1,12 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QCheckBox, QLabel, QMenuBar
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QMenuBar
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from utils.data_loader import DataMixin
 from qtpy.QtCore import Qt
 
-from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, StatsMixin
+from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, StatsMixin, ShowUnfilteredMixin
 from controllers import TimeDomainController
 
-class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, StatsMixin):
+class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, StatsMixin, ShowUnfilteredMixin):
     def __init__(self, controller: TimeDomainController | None = None):
         super().__init__()
         self.dataMixin = DataMixin.getInstance()
@@ -41,11 +41,7 @@ class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilter
 
         self.addBandPassRangeSlider(mainLayout)
 
-        self.showUnfilteredCheckBox = QCheckBox("Show unfiltered data", self)
-        mainLayout.addWidget(self.showUnfilteredCheckBox)
-        show_unfiltered_data = self.controller.show_unfiltered_data
-        self.showUnfilteredCheckBox.setChecked(show_unfiltered_data)
-        self.showUnfilteredCheckBox.stateChanged.connect(self.update_show_unfiltered)
+        self.addShowUnfilteredCheckbox(mainLayout)
 
         # Add statistics labels
         statsLayout = QVBoxLayout()  # Separate layout for statistics labels
@@ -73,11 +69,13 @@ class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilter
 
         self.refresh()
 
+    def refresh_widgets(self):
+        self.initAnalysisRangeSlider(block_signals=True)
+        self.initBandPassRangeSlider(block_signals=True)
+        self.initChannelSelector(block_signals=True)
+        self.initShowUnfilteredCheckbox(block_signals=True)
+
     def refresh(self):
         self.controller.plot()
+        self.refresh_widgets()
         self.updateStatistics(self.controller.data)
-
-    def update_show_unfiltered(self):
-        state = self.showUnfilteredCheckBox.isChecked()
-        self.controller.show_unfiltered_data = state
-        self.refresh()

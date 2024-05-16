@@ -1,12 +1,12 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QCheckBox, QLabel, QMenuBar
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QMenuBar
 from PyQt6.QtGui import QAction
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from qtpy.QtCore import Qt
 from utils.data_loader import DataMixin
-from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin
+from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowMinMaxMixin, ShowLegendMixin
 from controllers import CDProfileController
 
-class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin):
+class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowMinMaxMixin, ShowLegendMixin):
     def __init__(self, window_type="waterfall", controller: CDProfileController | None = None):
         super().__init__()
         self.dataMixin = DataMixin.getInstance()
@@ -51,21 +51,9 @@ class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Band
         # self.showUnfilteredCheckBox.stateChanged.connect(self.refresh)
 
         if not self.window_type == "waterfall":
-            self.showProfilesCheckBox = QCheckBox(
-                "Show individual profes", self)
-            mainLayout.addWidget(self.showProfilesCheckBox)
-            self.showProfilesCheckBox.setChecked(self.controller.show_profiles)
-            self.showProfilesCheckBox.stateChanged.connect(self.update_show_profiles)
-
-            self.showMinMaxCheckBox = QCheckBox("Show min/max", self)
-            mainLayout.addWidget(self.showMinMaxCheckBox)
-            self.showMinMaxCheckBox.setChecked(self.controller.show_min_max)
-            self.showMinMaxCheckBox.stateChanged.connect(self.update_show_min_max)
-
-            self.showLegendCheckBox = QCheckBox("Show legend", self)
-            mainLayout.addWidget(self.showLegendCheckBox)
-            self.showLegendCheckBox.setChecked(self.controller.show_legend)
-            self.showLegendCheckBox.stateChanged.connect(self.update_show_legend)
+            self.addShowProfilesCheckbox(mainLayout)
+            self.addShowMinMaxCheckbox(mainLayout)
+            self.addShowLegendCheckbox(mainLayout)
 
         # Add statistics labels
         statsLayout = QVBoxLayout()  # Separate layout for statistics labels
@@ -89,22 +77,17 @@ class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Band
 
         self.refresh()
 
+    def refresh_widgets(self):
+        self.initAnalysisRangeSlider(block_signals=True)
+        self.initBandPassRangeSlider(block_signals=True)
+        self.initChannelSelector(block_signals=True)
+        if not self.window_type == "waterfall":
+            self.initShowLegendCheckbox(block_signals=True)
+            self.initShowMinMaxCheckbox(block_signals=True)
+            self.initShowProfilesCheckbox(block_signals=True)
+
     def refresh(self):
         # logging.info("Refresh")
         self.controller.plot()
+        self.refresh_widgets()
         self.updateStatistics(self.controller.mean_profile)
-
-    def update_show_profiles(self):
-        state = self.showProfilesCheckBox.isChecked()
-        self.controller.show_profiles = state
-        self.refresh()
-
-    def update_show_min_max(self):
-        state = self.showMinMaxCheckBox.isChecked()
-        self.controller.show_min_max = state
-        self.refresh()
-
-    def update_show_legend(self):
-        state = self.showLegendCheckBox.isChecked()
-        self.controller.show_legend = state
-        self.refresh()
