@@ -1,4 +1,4 @@
-DEBUG = True
+DEBUG = False
 
 # Meters per minute
 PAPER_MACHINE_SPEED_DEFAULT = 1600

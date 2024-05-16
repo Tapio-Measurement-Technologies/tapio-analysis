@@ -295,7 +295,6 @@ class MainWindow(QMainWindow, DataMixin):
 
         self.MDReportButton = QPushButton("MD report", self)
         reportLayout.addWidget(self.MDReportButton)
-        # self.MDReportButton.clicked.connect(self.openTimeDomainAnalysis)
 
         self.CDReportButton = QPushButton("CD report", self)
         reportLayout.addWidget(self.CDReportButton)
@@ -303,7 +302,6 @@ class MainWindow(QMainWindow, DataMixin):
 
         self.CustomReportButton = QPushButton("Custom report", self)
         reportLayout.addWidget(self.CustomReportButton)
-        # self.CustomReportButton.clicked.connect(self.openTimeDomainAnalysis)
 
         reportLayout.addStretch(1)  # Add stretch to push everything to the top
 
@@ -315,46 +313,6 @@ class MainWindow(QMainWindow, DataMixin):
 
         layout.addLayout(columnsLayout)
 
-        if settings.DEBUG:
-            self.dataMixin.pm_file_path = '../test-data/NC State test data 2/nc_pm_rolls.json'
-            self.dataMixin.load_pm_file()
-
-            # CD Sample
-            if True:
-                self.dataMixin.calibration_file_path = '../test-data/test_CD_20211111.ca2'
-                self.dataMixin.data_file_path = '../test-data/test_CD_20211111.da2'
-                self.dataMixin.header_file_path = '../test-data/test_CD_20211111.pk2'
-
-            if False:
-                # MD Sample with long sampling interval
-                self.dataMixin.calibration_file_path = '../test-data/test_MD_L_1.ca2'
-                self.dataMixin.data_file_path = '../test-data/test_MD_L_1.da2'
-                self.dataMixin.header_file_path = '../test-data/test_MD_L_1.pk2'
-
-            if False:
-                # MD Sample with short sampling interval
-                self.dataMixin.calibration_file_path = '../test-data/NC_State_MD.ca2'
-                self.dataMixin.data_file_path = '../test-data/NC_State_MD.da2'
-                self.dataMixin.header_file_path = '../test-data/NC_State_MD.pk2'
-
-            self.dataMixin.load_legacy_data()
-
-            self.dataMixin.pm_file_path = '../test-data/example_pm_file.json'
-            self.dataMixin.pm_file_path = '../test-data/nc_state_pm_data.json'
-            self.dataMixin.load_pm_file()
-
-            self.dataMixin.samples_file_path = '../test-data/test_samples.samples.json'
-            self.dataMixin.load_cd_samples_data()
-
-            # self.openCDProfileAnalysis(window_type="2d")
-            # self.openVCA()
-            # self.openTimeDomainAnalysis()
-            # self.openCorrelationAnalysis()
-            # self.openSpectrumAnalysis(window_type="CD")
-            openSpectroGram(self, window_type="CD")
-
-            # self.openFormationAnalysis()
-            # self.openFindSamples()
 
 
 def main():
