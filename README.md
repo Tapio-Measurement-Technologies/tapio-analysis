@@ -35,6 +35,7 @@ To install Tapio Analysis, follow the steps below:
 
 Run the following in a command prompt:
 ```bash
+# First navigate to the preferred installation folder
 # Clone the repository
 git clone https://github.com/Tapio-Measurement-Technologies/tapio-analysis
 # Navigate to the project directory
