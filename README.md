@@ -19,6 +19,7 @@ Tapio Analysis is an open-source software developed by Tapio Measurement Technol
 - **MD Formation**: Long-term variations in formation index, an indicator describing short-term basis weight variation.
 - **CD Profile**: True CD profile from actual CD strips with tools for filtering, mean profile calculation and statistics. Accurate data with sub-millimeter resolution.
 - **CD Spectrum**: Quantify and find root cause of periodic CD variations originating from CD controls, actuators etc.
+- **Spectrogram**: Study the stability of the periodic content in the sample along the length of the sample.
 - **CD Formation**: Visualize formation index in different CD locations
 - **Variance Component Analysis (VCA)**: Separate variation in MD and CD direction from random variations.
 - **Correlation analysis tools**: Tapio Analyzers measure the exact same spot with each sensor, enabling the study of correlations between different quality parameters. The software allows studying correlations between different channels in CD profiles and MD profiles in the correlation matrix and channel-to-channel correlation tools.
