@@ -47,7 +47,7 @@ Tapio Analysis successfully installed.
 - A shortcut to launch Tapio Analysis has been created in this directory. Move or copy it to a suitable location.
 - Override default settings defined in settings.py by editing local_settings.py at:
 $localSettingsPath
-- For support contact info@tapiotechnologies.com
+- For support, training and customizations contact info@tapiotechnologies.com
 
 
 $frame
