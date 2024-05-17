@@ -55,7 +55,8 @@ class SpectrogramWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Fr
             self.paperMachineDataWindow = PaperMachineDataWindow(
                 self.updateElements, self.window_type)
             self.paperMachineDataWindow.show()
-            self.paperMachineDataWindow.refresh_pm_data(self.controller.machine_speed)
+            self.paperMachineDataWindow.refresh_pm_data(
+                self.controller.machine_speed)
             self.paperMachineDataWindow.closed.connect(
                 self.onPaperMachineDataClosed)
             self.paperMachineDataAction.setChecked(True)
@@ -151,7 +152,8 @@ class SpectrogramWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Fr
         import time
         start_time = time.time()  # Capture start time
 
-        plot_min = self.controller.ax.get_ylim()[0] if self.controller.ax.get_ylim()[0] > 0 else 0
+        plot_min = self.controller.ax.get_ylim()[0] if self.controller.ax.get_ylim()[
+            0] > 0 else 0
         plot_max = self.controller.ax.get_ylim()[1]
         wrange = (plot_max - plot_min) * 0.01
 
@@ -205,11 +207,11 @@ class SpectrogramWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Fr
             if self.window_type == "MD":
                 frequency_in_hz = selected_freq * machine_speed / 60
                 self.selectedFrequencyLabel.setText(
-                    f"Selected frequency: {selected_freq:.2f} 1/m ({frequency_in_hz:.2f} Hz) λ = {wavelength:.3f} m")
+                    f"Selected frequency: {selected_freq:.2f} 1/m ({frequency_in_hz:.2f} Hz) λ = {100*wavelength:.2f} cm")
 
             elif self.window_type == "CD":
                 self.selectedFrequencyLabel.setText(
-                    f"Selected frequency: {selected_freq:.2f} 1/m (λ = {wavelength:.3f} m)")
+                    f"Selected frequency: {selected_freq:.2f} 1/m (λ = {100*wavelength:.2f} cm)")
 
         if self.paperMachineDataWindow:
             self.paperMachineDataWindow.refresh_pm_data(machine_speed)
