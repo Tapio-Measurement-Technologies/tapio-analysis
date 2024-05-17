@@ -238,10 +238,10 @@ class SpectrumController(QObject, ExportMixin):
             if self.window_type == "MD":
                 frequency_in_hz = self.selected_freq * self.machine_speed / 60
                 stats.append(["Frequency:", f"{self.selected_freq:.2f} 1/m ({frequency_in_hz:.2f} Hz)"])
-                stats.append(["Wavelength:", f"{wavelength:.2f} m"])
+                stats.append(["Wavelength:", f"{100*wavelength:.2f} cm"])
             elif self.window_type == "CD":
                 stats.append(["Frequency:", f"{self.selected_freq:.2f} 1/m"])
-                stats.append(["Wavelength:", f"{wavelength:.3f} m"])
+                stats.append(["Wavelength:", f"{100*wavelength:.2f} cm"])
         return stats
 
     def getExportData(self):

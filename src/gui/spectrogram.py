@@ -205,7 +205,7 @@ class SpectrogramWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Fr
             if self.window_type == "MD":
                 frequency_in_hz = selected_freq * machine_speed / 60
                 self.selectedFrequencyLabel.setText(
-                    f"Selected frequency: {selected_freq:.2f} 1/m ({frequency_in_hz:.2f} Hz) λ = {wavelength:.2f} m")
+                    f"Selected frequency: {selected_freq:.2f} 1/m ({frequency_in_hz:.2f} Hz) λ = {wavelength:.3f} m")
 
             elif self.window_type == "CD":
                 self.selectedFrequencyLabel.setText(
