@@ -23,6 +23,7 @@ class ReportWindow(QWidget, DataMixin):
         self.window_type = window_type
         self.report_title = f"{window_type} Report"
         self.section_widgets = []
+        self.header_image_path = ""
 
         # Main layout
         self.main_layout = QVBoxLayout()
@@ -40,6 +41,17 @@ class ReportWindow(QWidget, DataMixin):
         self.title_layout.addWidget(self.title_label)
         self.title_layout.addWidget(self.title_input)
         self.main_layout.addLayout(self.title_layout)
+
+        # Image input
+        self.header_image_layout = QHBoxLayout()
+        self.header_image_label = QLabel("Header Image:")
+        self.header_image_path_input = QLineEdit()
+        self.header_image_path_button = QPushButton("Choose Image")
+        self.header_image_path_button.clicked.connect(self.choose_image)
+        self.header_image_layout.addWidget(self.header_image_label)
+        self.header_image_layout.addWidget(self.header_image_path_input)
+        self.header_image_layout.addWidget(self.header_image_path_button)
+        self.main_layout.addLayout(self.header_image_layout)
 
         # Scroll area
         self.scroll_area = QScrollArea(self)
@@ -95,6 +107,14 @@ class ReportWindow(QWidget, DataMixin):
         self.report_title = title
         self.title_input.setText(self.report_title)
 
+    def choose_image(self):
+        dialog = QFileDialog(self)
+        options = QFileDialog.options(dialog)
+        file_name, _ = QFileDialog.getOpenFileName(self, "Choose Image", "", "Image Files (*.png *.jpg *.bmp *.gif)", options=options)
+        if file_name:
+            self.header_image_path = file_name
+            self.header_image_path_input.setText(file_name)
+
     def generate_report(self):
         doc = Document()
         margin = Cm(1)
@@ -103,7 +123,19 @@ class ReportWindow(QWidget, DataMixin):
             section.bottom_margin = margin
             section.left_margin = margin
             section.right_margin = margin
-        doc.add_heading(self.report_title, 0)
+
+        header = doc.sections[0].header
+        paragraph = header.paragraphs[0]
+
+        if self.header_image_path:
+            # Add image to the header of the first section
+            run = paragraph.add_run()
+            run.add_picture(self.header_image_path, width=Mm(50))  # Adjust width as needed
+
+        run = paragraph.add_run(f"{self.report_title}")
+        paragraph.style = "Title"
+        paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
+
         doc.add_paragraph(f"Generated {str(datetime.datetime.now())}")
 
         def get_text_width(document):
