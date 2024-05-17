@@ -7,20 +7,21 @@ from utils.windows import *
 import settings
 import datetime
 from docx import Document
-from docx.shared import Mm, Cm, Pt, Inches
+from docx.shared import Mm, Cm, Pt
 from docx.enum.table import WD_ALIGN_VERTICAL
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 import numpy as np
 import json
 
-class CDReportWindow(QWidget, DataMixin):
-    def __init__(self, main_window):
+class ReportWindow(QWidget, DataMixin):
+    def __init__(self, main_window, window_type="MD"):
         super().__init__()
         self.dataMixin = DataMixin.getInstance()
-        self.setWindowTitle(f"Generate CD Report ({self.dataMixin.measurement_label})")
+        self.setWindowTitle(f"Generate {window_type} Report ({self.dataMixin.measurement_label})")
         self.setGeometry(100, 100, 700, 800)
         self.main_window = main_window
-        self.report_title = "CD Report"
+        self.window_type = window_type
+        self.report_title = f"{window_type} Report"
         self.section_widgets = []
 
         # Main layout
@@ -84,7 +85,7 @@ class CDReportWindow(QWidget, DataMixin):
         fileMenu.addAction(loadFileAction)
 
     def add_section(self, section_name = "Section"):
-        section_widget = ReportSectionWidget(self.main_window, section_name)
+        section_widget = ReportSectionWidget(self.main_window, section_name, self.window_type)
         self.section_widgets.append(section_widget)
         section_widget.destroyed.connect(lambda: self.section_widgets.remove(section_widget))
         self.sections_container.addWidget(section_widget)
@@ -92,6 +93,7 @@ class CDReportWindow(QWidget, DataMixin):
 
     def update_report_title(self, title):
         self.report_title = title
+        self.title_input.setText(self.report_title)
 
     def generate_report(self):
         doc = Document()
@@ -117,8 +119,8 @@ class CDReportWindow(QWidget, DataMixin):
                 doc.add_heading(f"{analysis.analysis_name} {analysis.get_channel_text()}", 2)
 
                 # Add table with image and stats table
-                img_col_width = Mm(get_text_width(doc) * (3/4))
-                stats_col_width = Mm(get_text_width(doc) * (1/4))
+                img_col_width = Mm(get_text_width(doc) * (3/5))
+                stats_col_width = Mm(get_text_width(doc) * (2/5))
                 table = doc.add_table(rows=1, cols=2)
                 table.autofit = True
 
@@ -180,54 +182,55 @@ class CDReportWindow(QWidget, DataMixin):
             options=options)
         if fileName:
             with open(fileName, 'r') as file:
-                data = json.load(file)
-                self.title_input.setText(data["report_title"])
-                sections = data["sections"]
-                for section in sections:
-                    section_name = section["section_name"]
-                    section_widget = self.add_section(section_name)
-                    analyses = section["analyses"]
-                    for analysis in analyses:
-                        if analysis["type"].lower() != "cd":
-                            continue
-                        analysis_name = settings.ANALYSES["cd"][analysis["analysis"]]["label"]
-                        widget = AnalysisWidget(self.main_window, analysis_name)
-                        if "channel" in analysis:
-                            widget.controller.channel = analysis["channel"]
-                        if "channel1" in analysis:
-                            widget.controller.channel1 = analysis["channel1"]
-                        if "channel2" in analysis:
-                            widget.controller.channel2 = analysis["channel2"]
-                        if "analysis_range_low" in analysis:
-                            widget.controller.analysis_range_low = analysis["analysis_range_low"]
-                        if "analysis_range_high" in analysis:
-                            widget.controller.analysis_range_high = analysis["analysis_range_high"]
-                        if "band_pass_low" in analysis:
-                            widget.controller.band_pass_low = analysis["band_pass_low"]
-                        if "band_pass_high" in analysis:
-                            widget.controller.band_pass_high = analysis["band_pass_high"]
-                        if "show_individual_profiles" in analysis:
-                            widget.controller.show_profiles = analysis["show_individual_profiles"]
-                        if "show_min_max" in analysis:
-                            widget.controller.show_min_max = analysis["show_min_max"]
-                        if "show_legend" in analysis:
-                            widget.controller.show_legend = analysis["show_legend"]
-                        if "show_wavelength_labels" in analysis:
-                            widget.controller.show_wavelength = analysis["show_wavelength_labels"]
-                        if "show_unfiltered_data" in analysis:
-                            widget.controller.show_unfiltered_data = analysis["show_unfiltered_data"]
-                        if "machine_speed" in analysis:
-                            widget.controller.machine_speed = analysis["machine_speed"]
-                        if "frequency_range_low" in analysis:
-                            widget.controller.frequency_range_low = analysis["frequency_range_low"]
-                        if "frequency_range_high" in analysis:
-                            widget.controller.frequency_range_high = analysis["frequency_range_high"]
-                        if "selected_frequency" in analysis:
-                            widget.controller.selected_freq = analysis["selected_frequency"]
-                        if "nperseg" in analysis:
-                            widget.controller.nperseg = analysis["nperseg"]
-                        widget.preview_window.refresh()
-                        section_widget.add_analysis(widget)
+                try:
+                    data = json.load(file)
+                    self.update_report_title(data["report_title"])
+                    sections = data["sections"][self.window_type]
+                    for section in sections:
+                        section_name = section["section_name"]
+                        section_widget = self.add_section(section_name)
+                        analyses = section["analyses"]
+                        for analysis in analyses:
+                            analysis_name = settings.ANALYSES[self.window_type][analysis["analysis"]]["label"]
+                            widget = AnalysisWidget(self.main_window, analysis_name, self.window_type)
+                            if "channel" in analysis:
+                                widget.controller.channel = analysis["channel"]
+                            if "channel1" in analysis:
+                                widget.controller.channel1 = analysis["channel1"]
+                            if "channel2" in analysis:
+                                widget.controller.channel2 = analysis["channel2"]
+                            if "analysis_range_low" in analysis:
+                                widget.controller.analysis_range_low = analysis["analysis_range_low"]
+                            if "analysis_range_high" in analysis:
+                                widget.controller.analysis_range_high = analysis["analysis_range_high"]
+                            if "band_pass_low" in analysis:
+                                widget.controller.band_pass_low = analysis["band_pass_low"]
+                            if "band_pass_high" in analysis:
+                                widget.controller.band_pass_high = analysis["band_pass_high"]
+                            if "show_individual_profiles" in analysis:
+                                widget.controller.show_profiles = analysis["show_individual_profiles"]
+                            if "show_min_max" in analysis:
+                                widget.controller.show_min_max = analysis["show_min_max"]
+                            if "show_legend" in analysis:
+                                widget.controller.show_legend = analysis["show_legend"]
+                            if "show_wavelength_labels" in analysis:
+                                widget.controller.show_wavelength = analysis["show_wavelength_labels"]
+                            if "show_unfiltered_data" in analysis:
+                                widget.controller.show_unfiltered_data = analysis["show_unfiltered_data"]
+                            if "machine_speed" in analysis:
+                                widget.controller.machine_speed = analysis["machine_speed"]
+                            if "frequency_range_low" in analysis:
+                                widget.controller.frequency_range_low = analysis["frequency_range_low"]
+                            if "frequency_range_high" in analysis:
+                                widget.controller.frequency_range_high = analysis["frequency_range_high"]
+                            if "selected_frequency" in analysis:
+                                widget.controller.selected_freq = analysis["selected_frequency"]
+                            if "nperseg" in analysis:
+                                widget.controller.nperseg = analysis["nperseg"]
+                            widget.preview_window.refresh()
+                            section_widget.add_analysis(widget)
+                except:
+                    print("Error loading JSON file")
 
     def closeEvent(self, event):
         for widget in self.section_widgets:
@@ -235,10 +238,11 @@ class CDReportWindow(QWidget, DataMixin):
         event.accept()
 
 class ReportSectionWidget(QFrame):
-    def __init__(self, main_window, section_name = "Section"):
+    def __init__(self, main_window, section_name="Section", window_type="MD"):
         super().__init__()
         self.main_window = main_window
         self.section_name = section_name
+        self.window_type = window_type
         self.analysis_widgets = []
 
         self.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Plain)
@@ -277,8 +281,8 @@ class ReportSectionWidget(QFrame):
 
         # ComboBox for analysis items
         self.analysis_combobox = QComboBox()
-        self.cd_analyses = settings.ANALYSES["cd"]
-        labels = [analysis["label"] for analysis in self.cd_analyses.values()]
+        self.analyses = settings.ANALYSES[self.window_type]
+        labels = [analysis["label"] for analysis in self.analyses.values()]
         self.setup_combobox(self.analysis_combobox, labels)
         self.analysis_combobox.currentIndexChanged.connect(self.add_new_analysis)
         self.layout.addWidget(self.analysis_combobox)
@@ -304,7 +308,7 @@ class ReportSectionWidget(QFrame):
 
         analysis_name = self.analysis_combobox.currentText()
         if analysis_name:  # Ensure a valid analysis is selected
-            analysis_widget = AnalysisWidget(self.main_window, analysis_name)
+            analysis_widget = AnalysisWidget(self.main_window, analysis_name, self.window_type)
             self.analysis_widgets.append(analysis_widget)
             analysis_widget.destroyed.connect(lambda: self.analysis_widgets.remove(analysis_widget))
             self.analyses_container.addWidget(analysis_widget)
@@ -323,44 +327,50 @@ class ReportSectionWidget(QFrame):
         self.deleteLater()
 
 class AnalysisWidget(QWidget):
-    def __init__(self, main_window, analysis_name):
+    def __init__(self, main_window, analysis_name, window_type="MD"):
         super().__init__()
         self.analysis_name = analysis_name
+        self.window_type = window_type
         self.main_window = main_window
-        self.cd_analyses = settings.ANALYSES["cd"]
-        self.window_type = "CD"
+        self.analyses = settings.ANALYSES
 
-        if analysis_name == self.cd_analyses["profile"]["label"]:
-            self.window_type = "2d"
-            self.controller = CDProfileController(self.window_type)
-            self.preview_window = CDProfileWindow(self.window_type, self.controller)
+        if self.window_type == "CD":
+            if analysis_name == self.analyses[self.window_type]["profile"]["label"]:
+                window_type = "2d"
+                self.controller = CDProfileController(window_type)
+                self.preview_window = CDProfileWindow(window_type, self.controller)
 
-        elif analysis_name == self.cd_analyses["profile_waterfall"]["label"]:
-            self.window_type = "waterfall"
-            self.controller = CDProfileController(self.window_type)
-            self.preview_window = CDProfileWindow(self.window_type, self.controller)
+            elif analysis_name == self.analyses[self.window_type]["profile_waterfall"]["label"]:
+                window_type = "waterfall"
+                self.controller = CDProfileController(window_type)
+                self.preview_window = CDProfileWindow(window_type, self.controller)
 
-        elif analysis_name == self.cd_analyses["spectrum"]["label"]:
+            elif analysis_name == self.analyses[self.window_type]["vca"]["label"]:
+                self.controller = VCAController()
+                self.preview_window = VCAWindow(self.controller)
+
+        elif self.window_type == "MD":
+            if analysis_name == self.analyses[self.window_type]["time_domain"]["label"]:
+                self.controller = TimeDomainController()
+                self.preview_window = TimeDomainWindow(self.controller)
+
+        if analysis_name == self.analyses[self.window_type]["spectrum"]["label"]:
             self.controller = SpectrumController(self.window_type)
             self.preview_window = SpectrumWindow(self.window_type, self.controller)
 
-        elif analysis_name == self.cd_analyses["spectrogram"]["label"]:
+        elif analysis_name == self.analyses[self.window_type]["spectrogram"]["label"]:
             self.controller = SpectrogramController(self.window_type)
             self.preview_window = SpectrogramWindow(self.window_type, self.controller)
 
-        elif analysis_name == self.cd_analyses["channel_correlation"]["label"]:
+        elif analysis_name == self.analyses[self.window_type]["channel_correlation"]["label"]:
             self.controller = ChannelCorrelationController(self.window_type)
             self.preview_window = ChannelCorrelationWindow(self.window_type, self.controller)
 
-        elif analysis_name == self.cd_analyses["correlation_matrix"]["label"]:
+        elif analysis_name == self.analyses[self.window_type]["correlation_matrix"]["label"]:
             self.controller = CorrelationMatrixController(self.window_type)
             self.preview_window = CorrelationMatrixWindow(self.window_type, self.controller)
 
-        elif analysis_name == self.cd_analyses["vca"]["label"]:
-            self.controller = VCAController()
-            self.preview_window = VCAWindow(self.controller)
-
-        elif analysis_name == self.cd_analyses["formation"]["label"]:
+        elif analysis_name == self.analyses[self.window_type]["formation"]["label"]:
             self.controller = FormationController(self.window_type)
             self.preview_window = FormationWindow(self.window_type, self.controller)
 

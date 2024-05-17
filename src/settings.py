@@ -4,7 +4,7 @@ DEBUG = False
 PAPER_MACHINE_SPEED_DEFAULT = 1600
 
 ANALYSES = {
-    "cd": {
+    "CD": {
         "profile":              { "label": "CD Profile" },
         "profile_waterfall":    { "label": "CD Profile waterfall" },
         "spectrum":             { "label": "CD Spectrum" },
@@ -14,7 +14,7 @@ ANALYSES = {
         "vca":                  { "label": "Variable component analysis" },
         "formation":            { "label": "CD Formation" }
     },
-    "md": {
+    "MD": {
         "time_domain":          { "label": "Time domain" },
         "spectrum":             { "label": "Spectrum" },
         "spectrogram":          { "label": "Spectrogram" },

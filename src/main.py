@@ -17,7 +17,7 @@ from PyQt6.QtCore import Qt
 
 from gui.find_samples import FindSamplesWindow
 from gui.channel_correlation import ChannelCorrelationWindow
-from gui.report import CDReportWindow
+from gui.report import ReportWindow
 import os
 
 from utils.data_loader import DataMixin
@@ -220,8 +220,8 @@ class MainWindow(QMainWindow, DataMixin):
 
         self.updateWindowsList()
 
-    def openCDReport(self):
-        newWindow = CDReportWindow(self)
+    def openReport(self, window_type="MD"):
+        newWindow = ReportWindow(self, window_type)
         self.add_window(newWindow)
 
     def updateWindowsList(self):
@@ -239,7 +239,7 @@ class MainWindow(QMainWindow, DataMixin):
         mdLabel = QLabel("MD Analysis")
         mdLayout.addWidget(mdLabel)
 
-        self.md_analyses = settings.ANALYSES["md"].copy()
+        self.md_analyses = settings.ANALYSES["MD"].copy()
         self.md_analyses["time_domain"]["callback"] = lambda: openTimeDomainAnalysis(self)
         self.md_analyses["spectrum"]["callback"] = lambda: openSpectrumAnalysis(self, window_type="MD")
         self.md_analyses["spectrogram"]["callback"] = lambda: openSpectroGram(self, window_type="MD")
@@ -270,7 +270,7 @@ class MainWindow(QMainWindow, DataMixin):
         separator.setFrameShadow(QFrame.Shadow.Sunken)
         cdLayout.addWidget(separator)
 
-        self.cd_analyses = settings.ANALYSES["cd"].copy()
+        self.cd_analyses = settings.ANALYSES["CD"].copy()
         self.cd_analyses["profile"]["callback"] = lambda: openCDProfileAnalysis(self, window_type="2d")
         self.cd_analyses["profile_waterfall"]["callback"] = lambda: openCDProfileAnalysis(self, window_type="waterfall")
         self.cd_analyses["spectrum"]["callback"] = lambda: openSpectrumAnalysis(self, window_type="CD")
@@ -295,10 +295,11 @@ class MainWindow(QMainWindow, DataMixin):
 
         self.MDReportButton = QPushButton("MD report", self)
         reportLayout.addWidget(self.MDReportButton)
+        self.MDReportButton.clicked.connect(lambda: self.openReport(window_type="MD"))
 
         self.CDReportButton = QPushButton("CD report", self)
         reportLayout.addWidget(self.CDReportButton)
-        self.CDReportButton.clicked.connect(self.openCDReport)
+        self.CDReportButton.clicked.connect(lambda: self.openReport(window_type="CD"))
 
         self.CustomReportButton = QPushButton("Custom report", self)
         reportLayout.addWidget(self.CustomReportButton)
