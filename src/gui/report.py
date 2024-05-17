@@ -12,6 +12,7 @@ from docx.enum.table import WD_ALIGN_VERTICAL
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 import numpy as np
 import json
+from customizations import apply_plot_customizations
 
 class Editor(QTextEdit):
     def __init__(self):
@@ -437,6 +438,8 @@ class AnalysisWidget(QWidget):
 
         if self.controller:
             self.controller.updated.connect(self.update_analysis_label)
+            self.controller.updated.connect(lambda: apply_plot_customizations(self.controller.figure))
+            apply_plot_customizations(self.controller.figure)
 
         self.layout = QHBoxLayout()
         self.layout.setAlignment(Qt.AlignmentFlag.AlignTop)
