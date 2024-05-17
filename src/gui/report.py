@@ -198,6 +198,7 @@ class ReportWindow(QWidget, DataMixin):
                 col2 = table.columns[1]
                 col2.width = stats_col_width
                 cell2.width = stats_col_width
+                cell2.vertical_alignment = WD_ALIGN_VERTICAL.TOP
 
                 data = analysis.controller.getStatsTableData()
                 shape = np.shape(data)
@@ -210,7 +211,7 @@ class ReportWindow(QWidget, DataMixin):
                     rows = 1
                     cols = 1
                 stats_table = cell2.add_table(rows, cols)
-
+                delete_paragraph(cell2.paragraphs[0])
                 for row_idx, row_data in enumerate(data):
                     row = stats_table.rows[row_idx]
                     for col_idx, cell_data in enumerate(row_data):
@@ -495,3 +496,8 @@ class AnalysisWidget(QWidget):
             self.preview_window.close()
         self.setParent(None)
         self.deleteLater()
+
+def delete_paragraph(paragraph):
+    p = paragraph._element
+    p.getparent().remove(p)
+    paragraph._p = paragraph._element = None
