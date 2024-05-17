@@ -215,7 +215,7 @@ class CDReportWindow(QWidget, DataMixin):
                         if "show_wavelength_labels" in analysis:
                             widget.controller.show_wavelength = analysis["show_wavelength_labels"]
                         if "show_unfiltered_data" in analysis:
-                            widget.controller.show_unfiltered = analysis["show_unfiltered_data"]
+                            widget.controller.show_unfiltered_data = analysis["show_unfiltered_data"]
                         if "machine_speed" in analysis:
                             widget.controller.machine_speed = analysis["machine_speed"]
                         if "frequency_range_low" in analysis:

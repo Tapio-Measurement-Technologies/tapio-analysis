@@ -119,7 +119,7 @@ class FormationController(QObject):
 
         x = x[399:]
 
-        show_unfiltered = True
+        show_unfiltered_data = True
         ax.plot(x, y)
         ax.set_title(
             f"{self.dataMixin.measurement_label} - Formation index ({self.channel})")

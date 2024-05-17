@@ -41,7 +41,7 @@ class ChannelCorrelationController(QObject):
             }
         }
 
-        self.show_unfiltered = False
+        self.show_unfiltered_data = False
         self.selected_samples = self.dataMixin.selected_samples.copy()
         self.channels = self.dataMixin.channels
         self.channel1 = self.channels[0]
@@ -106,7 +106,7 @@ class ChannelCorrelationController(QObject):
             filtered_data = bandpass_filter(
                 unfiltered_data, self.band_pass_low, self.band_pass_high, self.fs)
 
-        if self.show_unfiltered:
+        if self.show_unfiltered_data:
             ax.plot(x, unfiltered_data, alpha=0.5, color="gray")
         ax.plot(x, filtered_data, color=color, alpha=0.9)
         ax.set_xlabel("Distance [m]")
