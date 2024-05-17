@@ -71,6 +71,7 @@ class ReportWindow(QWidget, DataMixin):
         self.additional_info_layout = QVBoxLayout()
         self.additional_info_label = QLabel("Additional Information:")
         self.additional_info_input = Editor()
+        self.additional_info_input.setText(settings.REPORT_ADDITIONAL_INFO_DEFAULT)
         self.additional_info_input.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
         self.additional_info_layout.addWidget(self.additional_info_label)
         self.additional_info_layout.addWidget(self.additional_info_input)

@@ -140,6 +140,8 @@ VCA_RANGE_HIGH_DEFAULT = 1
 VCA_COLORMAP = "viridis"
 # VCA_COLORMAP = "gray"
 
+REPORT_ADDITIONAL_INFO_DEFAULT = "Speed at reel: \nGrammage: \nAperture: "
+
 import os
 script_dir = os.path.dirname(os.path.abspath(__file__))
 ASSETS_DIR = os.path.join(script_dir, "assets")
