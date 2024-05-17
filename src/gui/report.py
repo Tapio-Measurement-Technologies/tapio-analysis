@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QSizePolicy, QPushButton, QScrollArea, QFrame, QLineEdit, QFileDialog, QMenuBar)
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QSizePolicy, QPushButton, QScrollArea, QFrame, QLineEdit, QFileDialog, QMenuBar, QTextEdit)
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QStandardItemModel, QStandardItem, QAction
 from utils.data_loader import DataMixin
@@ -12,6 +12,20 @@ from docx.enum.table import WD_ALIGN_VERTICAL
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 import numpy as np
 import json
+
+class Editor(QTextEdit):
+    def __init__(self):
+        super().__init__()
+        self.textChanged.connect(self.autoResize)
+
+    def autoResize(self):
+        self.document().setTextWidth(self.viewport().width())
+        margins = self.contentsMargins()
+        height = int(self.document().size().height() + margins.top() + margins.bottom())
+        self.setFixedHeight(height)
+
+    def resizeEvent(self, event):
+        self.autoResize()
 
 class ReportWindow(QWidget, DataMixin):
     def __init__(self, main_window, window_type="MD"):
@@ -52,6 +66,15 @@ class ReportWindow(QWidget, DataMixin):
         self.header_image_layout.addWidget(self.header_image_path_input)
         self.header_image_layout.addWidget(self.header_image_path_button)
         self.main_layout.addLayout(self.header_image_layout)
+
+        # Additional information input
+        self.additional_info_layout = QVBoxLayout()
+        self.additional_info_label = QLabel("Additional Information:")
+        self.additional_info_input = Editor()
+        self.additional_info_input.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
+        self.additional_info_layout.addWidget(self.additional_info_label)
+        self.additional_info_layout.addWidget(self.additional_info_input)
+        self.main_layout.addLayout(self.additional_info_layout)
 
         # Scroll area
         self.scroll_area = QScrollArea(self)
@@ -137,6 +160,11 @@ class ReportWindow(QWidget, DataMixin):
         paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
 
         doc.add_paragraph(f"Generated {str(datetime.datetime.now())}")
+
+        # Add the additional information below the header
+        additional_info = self.additional_info_input.toPlainText()
+        if additional_info:
+            doc.add_paragraph(additional_info)
 
         def get_text_width(document):
             """
