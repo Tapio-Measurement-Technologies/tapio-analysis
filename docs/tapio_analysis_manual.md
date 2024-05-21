@@ -17,7 +17,7 @@ git pull
 in the project folder and then re-run ./install.ps1
 
 ## User interface overview
-<br><img src="img/ui-overview.png" alt="User interface overview" width="50%"><br><small></small><br>
+<br><img src="img/ui-overview.png" alt="User interface overview" width="30%"><br><small></small><br>
 1. File menu for opening files and exporting data
 2. Currently open files
 3. MD Analysis tools
@@ -33,11 +33,11 @@ in the project folder and then re-run ./install.ps1
 
 ## Opening files
 ### WinTapio files
-
-<br><img src="img/opening-files.png" alt="Opening files" width="50%"><br><small></small><br>
-
 - To open WinTapio files, select a header file, calibration file and a data file all at once and press the open button
 - You can additionally select a JSON format paper machine file or a CD samples file along with any file open operation
+
+<br><img src="img/opening-files.png" alt="Opening files" width="30%"><br><small></small><br>
+
 
 ### Other data files
 - The software uses data loaded in a Pandas dataframe. Please contact info@tapiotechnologies.com for more information.
@@ -51,7 +51,7 @@ in the project folder and then re-run ./install.ps1
 
 ### Spectrum
 - Identify frequencies and amplitudes of periodic components in the data, visualize the known rotating frequencies of components in the production line.
-- Use the middle mouse button to select a frequency
+- **Use the middle mouse button to select a frequency**
 - Use the refine button to do fundamental frequency estimation (spectrum peak detection) in frequencies near the selected frequency. The refine button will adjust the selected frequency.
 - View -> Paper machine data can be used to open the paper machine file to visualize the components on top of the spectrum.
 
@@ -78,10 +78,10 @@ in the project folder and then re-run ./install.ps1
 - Each CD analysis feature has tools to select and deselect samples (View -> Select samples)
 
 ### Find samples
-<br><img src="img/find-samples.png" alt="User interface overview" width="50%"><br><small></small><br>
+<br><img src="img/find-samples.png" alt="User interface overview" width="30%"><br><small></small><br>
 
 - Find samples is used to split a measured CD sample roll into individual CD samples (the samples are separated by tapes)
-- Select a channel where the tapes are clearly visible and use the middle mouse button to select a threshold level
+- Select a channel where the tapes are clearly visible and **use the middle mouse button to select a threshold level**
 - The sample locations can be saved from File -> Save samples for opening later
 
 
@@ -90,13 +90,13 @@ in the project folder and then re-run ./install.ps1
 ### CD Spectrum
 
 - Identify wavelenghts and amplitudes of periodic components in the CD data, visualize the known actuator spacings of the production line.
-- Use the middle mouse button to select a frequency
+- **Use the middle mouse button to select a frequency**
 - Use the refine button to do fundamental frequency estimation (spectrum peak detection) in frequencies near the selected frequency. The refine button will adjust the selected frequency.
 - View -> Paper machine data can be used to open the paper machine file to visualize the components on top of the spectrum.
 
 ### CD Spectrogram
 - Investigate the wavelenghts and amplitudes of periodic components in the CD dataover the length of the samples
-- Use the middle mouse button to select a frequency
+- **Use the middle mouse button to select a frequency**
 - Use the refine button to do fundamental frequency estimation (spectrum peak detection) in frequencies near the selected frequency. The refine button will adjust the selected frequency.
 - View -> Paper machine data can be used to open the paper machine file to visualize the components on top of the spectrum.
 
@@ -111,5 +111,5 @@ in the project folder and then re-run ./install.ps1
 - Investigate the mean formation index of the CD profiles in different CD locations
 
 ## Reports
-Tools for automatic report generation. The report structure can be specified in settings in JSON format.
+- Tools for automatic report generation. The report structure can be specified in settings in JSON format.
 
