@@ -133,6 +133,32 @@ def harmonic_fitting_units(x, Fs, w):
     period_samples = int(Fs / w)
     return real_y[:period_samples]
 
+def get_n_peaks(data, n, threshold = 0):
+    """
+    Get the top n maximum amplitudes and their corresponding frequencies from the data,
+    considering only frequencies above a given threshold.
+
+    Parameters:
+    data (numpy.ndarray): A 2D array where the first column is frequencies and the second column is amplitudes.
+    n (int): The number of maximum amplitudes to retrieve.
+    threshold (float): The frequency threshold below which data points are ignored.
+
+    Returns:
+    numpy.ndarray: A 2D array containing the top n frequencies and their corresponding amplitudes.
+    """
+    # Filter the data based on the threshold
+    filtered_data = data[data[:, 0] >= threshold]
+
+    # Sort the array based on the amplitudes (second column)
+    sorted_data = data[data[:, 1].argsort()]
+
+    # Select the top n rows with the highest amplitudes
+    top_n_data = sorted_data[-n:]
+
+    # Reverse the order to have the highest amplitude first
+    top_n_data = top_n_data[::-1]
+
+    return top_n_data
 
 if __name__ == "__main__":
     fs = 1000

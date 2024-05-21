@@ -9,6 +9,7 @@ import settings
 import numpy as np
 import pandas as pd
 import io
+from utils.signal_processing import get_n_peaks
 
 class SpectrumController(QObject, ExportMixin):
     updated = pyqtSignal()
@@ -235,6 +236,7 @@ class SpectrumController(QObject, ExportMixin):
         stats = []
         if self.selected_freq:
             wavelength = 1 / self.selected_freq
+            stats.append(["Selected frequency:", ""])
             if self.window_type == "MD":
                 frequency_in_hz = self.selected_freq * self.machine_speed / 60
                 stats.append([
@@ -245,6 +247,15 @@ class SpectrumController(QObject, ExportMixin):
                     "Frequency:\nWavelength:",
                     f"{self.selected_freq:.2f} 1/m\n{wavelength:.3f} m"
                 ])
+        peaks = get_n_peaks(np.column_stack((self.frequencies, self.amplitudes)), 5)
+        frequencies = [f"{freq:.2f}" for freq in peaks[:, 0]]
+        amplitudes = [f"{amp:.2f}" for amp in peaks[:, 1]]
+        stats.append(["Main periodic components:", ""])
+        stats.append(["Frequency [Hz]", f"RMS [{self.dataMixin.units[self.channel]}]"])
+        stats.append([
+            "\n".join(frequencies),
+            "\n".join(amplitudes)
+        ])
         return stats
 
     def getExportData(self):
