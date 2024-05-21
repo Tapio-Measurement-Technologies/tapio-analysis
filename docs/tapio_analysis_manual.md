@@ -1,4 +1,4 @@
-# Tapio Analysis user manual
+# Tapio Analysis User Manual
 
 ## Table of contents
 1. [Installing and updating the software](#installing-and-updating)
@@ -54,6 +54,9 @@ in the project folder and then re-run:
 - **Use the middle mouse button to select a frequency**.
 - Use the refine button to do fundamental frequency estimation (spectrum peak detection) in frequencies near the selected frequency. The refine button will adjust the selected frequency.
 - `View -> Paper machine data` can be used to open the paper machine file to visualize the components on top of the spectrum.
+
+<br><img src="img/selected-frequency-spectrum.png" alt="Selection of frequency in the spectrum" width="40%"><br><small></small><br>
+
 
 ### Spectrogram
 - Investigate the frequencies and amplitudes of periodic components in the data over time or the length of the sample.
