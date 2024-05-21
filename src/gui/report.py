@@ -273,6 +273,10 @@ class ReportWindow(QWidget, DataMixin):
                         for analysis in analyses:
                             analysis_name = settings.ANALYSES[self.window_type][analysis["analysis"]]["label"]
                             widget = AnalysisWidget(self.main_window, analysis_name, self.window_type)
+                            if hasattr(widget.controller, "max_dist"):
+                                max_dist = widget.controller.max_dist
+                            if hasattr(widget.controller, "max_freq"):
+                                max_freq = widget.controller.max_freq
                             if "channel" in analysis:
                                 widget.controller.channel = analysis["channel"]
                             if "channel1" in analysis:
@@ -280,9 +284,9 @@ class ReportWindow(QWidget, DataMixin):
                             if "channel2" in analysis:
                                 widget.controller.channel2 = analysis["channel2"]
                             if "analysis_range_low" in analysis:
-                                widget.controller.analysis_range_low = analysis["analysis_range_low"]
+                                widget.controller.analysis_range_low = analysis["analysis_range_low"] * max_dist
                             if "analysis_range_high" in analysis:
-                                widget.controller.analysis_range_high = analysis["analysis_range_high"]
+                                widget.controller.analysis_range_high = analysis["analysis_range_high"] * max_dist
                             if "band_pass_low" in analysis:
                                 widget.controller.band_pass_low = analysis["band_pass_low"]
                             if "band_pass_high" in analysis:
@@ -300,9 +304,9 @@ class ReportWindow(QWidget, DataMixin):
                             if "machine_speed" in analysis:
                                 widget.controller.machine_speed = analysis["machine_speed"]
                             if "frequency_range_low" in analysis:
-                                widget.controller.frequency_range_low = analysis["frequency_range_low"]
+                                widget.controller.frequency_range_low = analysis["frequency_range_low"] * max_freq
                             if "frequency_range_high" in analysis:
-                                widget.controller.frequency_range_high = analysis["frequency_range_high"]
+                                widget.controller.frequency_range_high = analysis["frequency_range_high"] * max_freq
                             if "selected_frequency" in analysis:
                                 widget.controller.selected_freq = analysis["selected_frequency"]
                             if "nperseg" in analysis:
