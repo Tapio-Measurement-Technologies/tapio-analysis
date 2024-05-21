@@ -1,6 +1,32 @@
+function Test-Command {
+    param (
+        [string]$Command
+    )
+    $commandPath = (Get-Command $Command -ErrorAction SilentlyContinue)
+    return $commandPath -ne $null
+}
+
+# Check if Python is installed
+if (-not (Test-Command "python")) {
+    Write-Error "Python is not installed or not found in PATH. Please install Python to proceed."
+    exit 1
+}
+
+# Check if pip is installed
+if (-not (Test-Command "pip")) {
+    Write-Error "pip is not installed or not found in PATH. Please install pip to proceed."
+    exit 1
+}
+
 # Create a virtual environment in the .venv folder
 if (!(Test-Path -Path ".venv")) {
     python -m venv .venv
+}
+
+# Check if the virtual environment was created successfully
+if (!(Test-Path -Path ".venv\Scripts\activate")) {
+    Write-Error "Failed to create virtual environment. Please check your Python installation."
+    exit 1
 }
 
 # Install the packages from requirements.txt
@@ -15,6 +41,7 @@ $batchFilePath = "$projectPathString\run_tapio_analysis.bat"
 $localSettingsPath = "$projectPathString\src\local_settings.py"
 $iconPath = "$projectPathString\src\assets\tapio_favicon.ico"
 $shortcutPath = "$projectPathString\Tapio Analysis.lnk"
+
 
 # Create a batch file to activate the virtual environment and run the script
 $batchFileContent = @"

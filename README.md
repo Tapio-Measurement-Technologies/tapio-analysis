@@ -66,6 +66,10 @@ Contact us to discuss how we can help you optimize your production process.
 - Visit: [https://www.tapiotechnologies.com](https://www.tapiotechnologies.com)
 
 
+# User Manual
+For instructions on using Tapio Analysis, please refer to the [User Manual](docs/tapio_analysis_manual.md).
+
+
 # License
 Tapio Analysis
 
