@@ -12,7 +12,9 @@ from docx.enum.table import WD_ALIGN_VERTICAL
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 import numpy as np
 import json
+import os
 from customizations import apply_plot_customizations
+from utils.report import get_text_width, set_paragraph_spacing
 
 class Editor(QTextEdit):
     def __init__(self):
@@ -151,34 +153,49 @@ class ReportWindow(QWidget, DataMixin):
 
         header = doc.sections[0].header
         paragraph = header.paragraphs[0]
+        set_paragraph_spacing(paragraph, 0, 6)
 
         if self.header_image_path:
             # Add image to the header of the first section
             run = paragraph.add_run()
-            run.add_picture(self.header_image_path, width=Mm(50))  # Adjust width as needed
+            run.add_picture(self.header_image_path, width=Mm(30))  # Adjust width as needed
 
         run = paragraph.add_run(f"{self.report_title}")
         paragraph.style = "Title"
         paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
 
-        doc.add_paragraph(f"Generated {str(datetime.datetime.now())}")
+        # Add table for additional information and roll picture
+        table = doc.add_table(rows=1, cols=2)
+        col1 = table.columns[0]
+        col1.width = Mm(get_text_width(doc) / 2)
+        col2 = table.columns[1]
+        col2.width = Mm(get_text_width(doc) / 2)
+        cell1 = table.cell(0, 0)
+        cell2 = table.cell(0, 1)
+
+        cell1.paragraphs[0].text = (f"Generated {str(datetime.datetime.now())}")
 
         # Add the additional information below the header
         additional_info = self.additional_info_input.toPlainText()
         if additional_info:
-            doc.add_paragraph(additional_info)
+            cell1.add_paragraph(additional_info)
 
-        def get_text_width(document):
-            """
-            Returns the text width in mm.
-            """
-            section = document.sections[0]
-            return (section.page_width - section.left_margin - section.right_margin) / 36000
+        # Add MD/CD roll image
+        if self.window_type == "MD":
+            roll_image_path = os.path.join("assets", "md_roll.png")
+        elif self.window_type == "CD":
+            roll_image_path = os.path.join("assets", "cd_roll.png")
+
+        run = cell2.paragraphs[0].add_run()
+        run.add_picture(roll_image_path, width=Mm(50))
+        cell2.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
 
         for section in self.section_widgets:
-            doc.add_heading(section.section_name)
+            paragraph = doc.add_heading(section.section_name)
+            set_paragraph_spacing(paragraph, 0, 6)
             for analysis in section.analysis_widgets:
-                doc.add_heading(f"{analysis.analysis_name} {analysis.get_channel_text()}", 2)
+                paragraph = doc.add_heading(f"{analysis.analysis_name} {analysis.get_channel_text()}", 2)
+                set_paragraph_spacing(paragraph)
 
                 # Add table with image and stats table
                 img_col_width = Mm(get_text_width(doc) * (3/5))
