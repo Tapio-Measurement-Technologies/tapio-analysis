@@ -143,17 +143,17 @@ class VCAController(QObject):
         units = self.dataMixin.units[self.channel]
         total, md, cd, res = np.sqrt(self.calculate_variances(data))
         stats.append(["", f"{self.channel} [{units}]"])
-        stats.append(["MD Stdev:", f"{md:.2f}"])
-        stats.append(["CD Stdev:", f"{cd:.2f}"])
-        stats.append(["Total Stdev:", f"{total:.2f}"])
-        stats.append(["Residual Stdev:", f"{res:.2f}"])
+        stats.append([
+            "MD Stdev:\nCD Stdev:\nTotal Stdev:\nResidual Stdev:",
+            f"{md:.2f}\n{cd:.2f}\n{total:.2f}\n{res:.2f}"
+        ])
 
         mean = np.mean(data)
         stats.append(["", "% of mean"])
-        stats.append(["MD Stdev:", f"{(100 * md / mean):.2f}"])
-        stats.append(["CD Stdev:", f"{(100 * cd / mean):.2f}"])
-        stats.append(["Total Stdev:", f"{(100 * total / mean):.2f}"])
-        stats.append(["Residual Stdev:", f"{(100 * res / mean):.2f}"])
+        stats.append([
+            "MD Stdev:\nCD Stdev:\nTotal Stdev:\nResidual Stdev:",
+            f"{(100 * md / mean):.2f}\n{(100 * cd / mean):.2f}\n{(100 * total / mean):.2f}\n{(100 * res / mean):.2f}"
+        ])
 
         return stats
 

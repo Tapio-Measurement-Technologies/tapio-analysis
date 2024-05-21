@@ -229,11 +229,14 @@ class SpectrogramController(QObject):
             wavelength = 1 / self.selected_freq
             if self.window_type == "MD":
                 frequency_in_hz = self.selected_freq * self.machine_speed / 60
-                stats.append(["Frequency:", f"{self.selected_freq:.2f} 1/m ({frequency_in_hz:.2f} Hz)"])
-                stats.append(["Wavelength:", f"{wavelength:.2f} m"])
+                stats.append([
+                    "Frequency:\nWavelength:",
+                    f"{self.selected_freq:.2f} 1/m ({frequency_in_hz:.2f} Hz)\n{wavelength:.2f} m"])
             elif self.window_type == "CD":
-                stats.append(["Frequency:", f"{self.selected_freq:.2f} 1/m"])
-                stats.append(["Wavelength:", f"{wavelength:.3f} m"])
+                stats.append([
+                    "Frequency:\nWavelength:",
+                    f"{self.selected_freq:.2f} 1/m\n{wavelength:.3f} m"
+                ])
         return stats
 
     def getPlotImage(self):

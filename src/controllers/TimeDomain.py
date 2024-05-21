@@ -76,10 +76,10 @@ class TimeDomainController(QObject, ExportMixin):
         units = self.dataMixin.units[self.channel]
 
         stats.append(["", f"{self.channel} [{units}]"])
-        stats.append(["Mean:", f"{mean:.2f}"])
-        stats.append(["Stdev:", f"{std:.2f}"])
-        stats.append(["Min:", f"{min_val:.2f}"])
-        stats.append(["Max:", f"{max_val:.2f}"])
+        stats.append([
+            "Mean:\nStdev:\nMin:\nMax:",
+            f"{mean:.2f}\n{std:.2f}\n{min_val:.2f}\n{max_val:.2f}"
+        ])
 
         return stats
 
