@@ -2,6 +2,7 @@ DEBUG = False
 
 # Meters per minute
 PAPER_MACHINE_SPEED_DEFAULT = 1600
+FILTER_NUMTAPS = 1200
 
 ANALYSES = {
     "cd": {
@@ -140,6 +141,7 @@ VCA_RANGE_HIGH_DEFAULT = 1
 VCA_COLORMAP = "viridis"
 # VCA_COLORMAP = "gray"
 
+
 import os
 script_dir = os.path.dirname(os.path.abspath(__file__))
 ASSETS_DIR = os.path.join(script_dir, "assets")
@@ -154,4 +156,5 @@ try:
     from customizations import *
 except:
     pass
+
 

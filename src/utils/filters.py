@@ -2,6 +2,7 @@ from scipy.signal import firwin, convolve, freqz
 import numpy as np
 import matplotlib.pyplot as plt
 
+import settings
 
 def mirror_pad(data, numtaps):
     """
@@ -16,7 +17,7 @@ def mirror_pad(data, numtaps):
     return np.concatenate((start_mirror, data, end_mirror))
 
 
-def bandpass_filter(data, lowcut, highcut, fs, numtaps=300, window="hamming", mirror=True, use_epsilon=True, correct_mean=True):
+def bandpass_filter(data, lowcut, highcut, fs, numtaps=settings.FILTER_NUMTAPS, window="hamming", mirror=True, use_epsilon=True, correct_mean=True):
     """
     Applies a phase-correct FIR bandpass filter with Hamming windowing.
 
