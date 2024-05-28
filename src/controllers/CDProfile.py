@@ -30,6 +30,7 @@ class CDProfileController(QObject, ExportMixin):
         self.fs = 1 / self.dataMixin.sample_step
         self.analysis_range_low = settings.CD_PROFILE_RANGE_LOW_DEFAULT * self.max_dist
         self.analysis_range_high = settings.CD_PROFILE_RANGE_HIGH_DEFAULT * self.max_dist
+        self.waterfall_offset = settings.CD_PROFILE_WATERFALL_OFFSET_DEFAULT
         self.show_profiles = False
         self.show_min_max = False
         self.show_legend = False
@@ -64,25 +65,30 @@ class CDProfileController(QObject, ExportMixin):
         if self.window_type == "waterfall":
             tableau_color_cycle = plt.get_cmap('tab10')
 
-            ax = self.figure.add_subplot(111, projection='3d')
+            ax = self.figure.add_subplot(111)
+            ax.set_yticks([])
             for offset, sample_idx in enumerate(self.selected_samples):
                 unfiltered_data = self.dataMixin.segments[self.channel][sample_idx][low_index:high_index]
                 filtered_data = bandpass_filter(
                     unfiltered_data, self.band_pass_low, self.band_pass_high, self.fs)
 
-                y = np.full_like(filtered_data, offset)
+                y_offset = self.waterfall_offset
 
                 color = tableau_color_cycle(sample_idx % 10)
-                ax.plot(x, y, filtered_data, lw=1, alpha=0.9, color=color)
+                ax.plot(x, filtered_data - offset * y_offset, lw=1, alpha=0.9, color=color)
+
+                # Calculate mean and add horizontal line
+                mean_value = np.mean(filtered_data) - offset * y_offset
+                ax.axhline(mean_value, color='gray', linestyle='-', linewidth=1)
 
             ax.set_title(
                 f"{self.dataMixin.measurement_label} ({self.channel})")
             ax.set_xlabel("Distance [m]")
-            ax.set_ylabel("Sample Index")
-            ax.set_zlabel(
-                f"{self.channel} [{self.dataMixin.units[self.channel]}]")
+            # ax.set_ylabel("Sample Index")
+            # ax.set_zlabel(
+            #     f"{self.channel} [{self.dataMixin.units[self.channel]}]")
 
-            ax.view_init(25, -130)
+            # ax.view_init(25, -130)
 
         else:
             ax = self.figure.add_subplot(111)

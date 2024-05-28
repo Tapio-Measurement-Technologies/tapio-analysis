@@ -3,10 +3,10 @@ from PyQt6.QtGui import QAction
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from qtpy.QtCore import Qt
 from utils.data_loader import DataMixin
-from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowMinMaxMixin, ShowLegendMixin
+from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowMinMaxMixin, ShowLegendMixin, WaterfallOffsetMixin
 from controllers import CDProfileController
 
-class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowMinMaxMixin, ShowLegendMixin):
+class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowMinMaxMixin, ShowLegendMixin, WaterfallOffsetMixin):
     def __init__(self, window_type="waterfall", controller: CDProfileController | None = None):
         super().__init__()
         self.dataMixin = DataMixin.getInstance()
@@ -44,6 +44,8 @@ class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Band
         self.addAnalysisRangeSlider(mainLayout)
 
         self.addBandPassRangeSlider(mainLayout)
+
+        self.addWaterfallOffsetSlider(mainLayout)
 
         # self.showUnfilteredCheckBox = QCheckBox("Show unfiltered data", self)
         # mainLayout.addWidget(self.showUnfilteredCheckBox)
