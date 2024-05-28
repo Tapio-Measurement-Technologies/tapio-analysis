@@ -4,6 +4,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from PyQt6.QtCore import QObject, pyqtSignal
 import settings
 import io
+from utils.filters import bandpass_filter
 
 class FindSamplesController(QObject):
     updated = pyqtSignal()
@@ -21,15 +22,21 @@ class FindSamplesController(QObject):
         self.selected_samples = self.dataMixin.selected_samples
         self.threshold_line = None
         self.peak_lines = []
+        self.band_pass_low  = settings.FIND_SAMPLES_BAND_PASS_LOW_DEFAULT_1M
+        self.band_pass_high = settings.FIND_SAMPLES_BAND_PASS_HIGH_DEFAULT_1M
+        self.fs = 1 / self.dataMixin.sample_step
 
     def plot(self):
         self.figure.clear()
         ax = self.figure.add_subplot(111)
 
-        x = self.dataMixin.distances
-        y = self.dataMixin.channel_df[self.channel]
+        self.distances = self.dataMixin.distances
+        self.data = self.dataMixin.channel_df[self.channel]
 
-        ax.plot(x, y)
+        self.filtered_data = bandpass_filter(
+            self.data, self.band_pass_low, self.band_pass_high, self.fs)
+
+        ax.plot(self.distances, self.filtered_data)
         ax.set_title(f"{self.dataMixin.measurement_label} ({self.channel})")
         ax.set_xlabel("Distance [m]")
         ax.set_ylabel(f"{self.channel} [{self.dataMixin.units[self.channel]}]")

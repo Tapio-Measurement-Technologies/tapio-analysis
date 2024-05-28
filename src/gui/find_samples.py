@@ -6,10 +6,10 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTableWidget,
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import settings
 from utils.data_loader import DataMixin
-from gui.components import ChannelMixin
+from gui.components import ChannelMixin, BandPassFilterMixin
 from controllers import FindSamplesController
 
-class FindSamplesWindow(QWidget, DataMixin, ChannelMixin):
+class FindSamplesWindow(QWidget, DataMixin, ChannelMixin, BandPassFilterMixin):
     closed = pyqtSignal()
 
     def __init__(self, controller: FindSamplesController | None = None):
@@ -50,6 +50,7 @@ class FindSamplesWindow(QWidget, DataMixin, ChannelMixin):
         # Add the channel selector
         # Ensure this method is correctly defined elsewhere
         self.addChannelSelector(mainLayout)
+        self.addBandPassRangeSlider(mainLayout)
 
         layout = QHBoxLayout()
         mainLayout.addLayout(layout)

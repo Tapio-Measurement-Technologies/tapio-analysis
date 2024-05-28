@@ -140,6 +140,10 @@ VCA_RANGE_HIGH_DEFAULT = 1
 VCA_COLORMAP = "viridis"
 # VCA_COLORMAP = "gray"
 
+# Find Samples settings
+FIND_SAMPLES_BAND_PASS_LOW_DEFAULT_1M = 0
+FIND_SAMPLES_BAND_PASS_HIGH_DEFAULT_1M = 30
+
 REPORT_ADDITIONAL_INFO_DEFAULT = "Speed at reel: \nGrammage: \nAperture: "
 
 import os
