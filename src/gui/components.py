@@ -203,6 +203,31 @@ class SpectrumLengthMixin:
         self.controller.nperseg = self.spectrumLengthSlider.value()  # Update your nperseg value based on the slider
         self.refresh()  # Refresh the plot with the new spectrum length
 
+class WaterfallOffsetMixin:
+    def initWaterfallOffsetSlider(self, block_signals=False):
+        # Prevent recursive refresh calls when updating values elsewhere
+        self.waterfallOffsetSlider.blockSignals(block_signals)
+        self.waterfallOffsetSlider.setMinimum(settings.WATERFALL_OFFSET_LOW_DEFAULT)
+        self.waterfallOffsetSlider.setMaximum(settings.WATERFALL_OFFSET_HIGH_DEFAULT)
+        self.waterfallOffsetSlider.setValue(self.controller.waterfall_offset)
+        self.waterfallOffsetSlider.blockSignals(False)
+
+    def addWaterfallOffsetSlider(self, layout, live_update=settings.UPDATE_ON_SLIDE):
+        self.bandPassFilterLabel = QLabel("Waterfall y-offset")
+        layout.addWidget(self.bandPassFilterLabel)
+        self.waterfallOffsetSlider = ExtraQLabeledSlider(Qt.Orientation.Horizontal)
+        self.initWaterfallOffsetSlider()
+        layout.addWidget(self.waterfallOffsetSlider)
+
+        if live_update:
+            self.waterfallOffsetSlider.valueChanged.connect(self.waterfallOffsetChanged)
+        else:
+            self.waterfallOffsetSlider.sliderReleased.connect(self.waterfallOffsetChanged)
+            self.waterfallOffsetSlider.editingFinished.connect(self.waterfallOffsetChanged)
+
+    def waterfallOffsetChanged(self):
+        self.controller.waterfall_offset = self.waterfallOffsetSlider.value()
+        self.refresh()
 
 class BandPassFilterMixin:
 
