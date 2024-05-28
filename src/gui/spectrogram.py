@@ -24,7 +24,7 @@ class SpectrogramWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Fr
 
     def initMenuBar(self, layout):
         menuBar = QMenuBar()
-        layout.addWidget(menuBar, 0)
+        layout.setMenuBar(menuBar)
 
         viewMenu = menuBar.addMenu('View')
 

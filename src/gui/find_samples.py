@@ -45,7 +45,7 @@ class FindSamplesWindow(QWidget, DataMixin, ChannelMixin, BandPassFilterMixin):
 
         fileMenu.addAction(saveAction)
 
-        mainLayout.addWidget(menuBar)  # Add the menu bar to the main layout
+        mainLayout.setMenuBar(menuBar)  # Add the menu bar to the main layout
 
         # Add the channel selector
         # Ensure this method is correctly defined elsewhere

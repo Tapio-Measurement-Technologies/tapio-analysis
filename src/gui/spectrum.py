@@ -25,7 +25,7 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
 
     def initMenuBar(self, layout):
         menuBar = QMenuBar()
-        layout.addWidget(menuBar, 0)
+        layout.setMenuBar(menuBar)
         fileMenu = menuBar.addMenu('File')
         exportAction = self.controller.initExportAction(self, "Export spectrum")
         fileMenu.addAction(exportAction)

@@ -17,7 +17,7 @@ class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Band
 
     def initMenuBar(self, layout):
         menuBar = QMenuBar()
-        layout.addWidget(menuBar, 0)
+        layout.setMenuBar(menuBar)
 
         fileMenu = menuBar.addMenu('File')
         exportAction = self.controller.initExportAction(self, "Export mean profile")

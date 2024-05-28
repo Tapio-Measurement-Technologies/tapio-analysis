@@ -17,7 +17,7 @@ class FormationWindow(QWidget, DataMixin, AnalysisRangeMixin, StatsMixin, Sample
 
     def initMenuBar(self, layout):
         menuBar = QMenuBar()
-        layout.addWidget(menuBar, 0)
+        layout.setMenuBar(menuBar)
         viewMenu = menuBar.addMenu('View')
         self.selectSamplesAction = QAction('Select samples', self)
         viewMenu.addAction(self.selectSamplesAction)

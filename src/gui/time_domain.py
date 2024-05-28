@@ -16,7 +16,7 @@ class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilter
     def initMenuBar(self, layout):
         menuBar = QMenuBar()
 
-        layout.addWidget(menuBar, 0)
+        layout.setMenuBar(menuBar)
 
         fileMenu = menuBar.addMenu('File')
 

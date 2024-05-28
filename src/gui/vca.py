@@ -18,7 +18,7 @@ class VCAWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, BandPassFi
 
     def initMenuBar(self, layout):
         menuBar = QMenuBar()
-        layout.addWidget(menuBar, 0)
+        layout.setMenuBar(menuBar)
         fileMenu = menuBar.addMenu('File')
         viewMenu = menuBar.addMenu('View')
 

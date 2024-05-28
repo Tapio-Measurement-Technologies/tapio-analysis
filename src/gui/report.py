@@ -114,7 +114,7 @@ class ReportWindow(QWidget, DataMixin):
 
     def initMenuBar(self, layout):
         menuBar = QMenuBar()
-        layout.addWidget(menuBar, 0)
+        layout.setMenuBar(menuBar)
 
         fileMenu = menuBar.addMenu('File')
         loadFileAction = QAction('Load from JSON', self)
