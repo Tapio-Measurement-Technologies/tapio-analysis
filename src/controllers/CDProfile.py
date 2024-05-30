@@ -131,9 +131,9 @@ class CDProfileController(QObject, ExportMixin):
                 extra_x = extra_data.iloc[:, 0]
                 extra_y = extra_data.iloc[:, 1]
                 ax2 = ax.twinx()
-                ax2.plot(extra_x, extra_y, label=f"{self.selected_sheet} [{unit}]", color="orange")
-                ax2.set_ylabel(f"{self.selected_sheet} [{unit}]", color="tab:orange")
-                ax2.tick_params(axis='y', labelcolor='tab:orange')
+                ax2.plot(extra_x, extra_y, label=f"{self.selected_sheet} [{unit}]", color="green")
+                ax2.set_ylabel(f"{self.selected_sheet} [{unit}]", color="tab:green")
+                ax2.tick_params(axis='y', labelcolor='tab:green')
 
                 # Also colour primary axis
                 ax.set_ylabel(
