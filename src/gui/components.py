@@ -129,9 +129,6 @@ class DoubleChannelMixin:
         # Prevent recursive refresh calls when updating values elsewhere
         self.channelSelector1.blockSignals(block_signals)
         self.channelSelector2.blockSignals(block_signals)
-        for channel in self.controller.channels:
-            self.channelSelector1.addItem(channel)
-            self.channelSelector2.addItem(channel)
 
         channel1 = self.controller.channel1
         channel2 = self.controller.channel2
@@ -153,6 +150,9 @@ class DoubleChannelMixin:
         channelSelectorLayout = QHBoxLayout()
         self.channelSelector1 = QComboBox()
         self.channelSelector2 = QComboBox()
+        for channel in self.controller.channels:
+            self.channelSelector1.addItem(channel)
+            self.channelSelector2.addItem(channel)
         self.initChannelSelectors()
         self.channelSelector1.currentIndexChanged.connect(self.channelsChanged)
         self.channelSelector2.currentIndexChanged.connect(self.channelsChanged)
