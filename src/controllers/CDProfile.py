@@ -35,6 +35,12 @@ class CDProfileController(QObject, ExportMixin):
         self.show_min_max = False
         self.show_legend = False
 
+        # Extra data
+        self.extra_data = None
+        self.extra_data_units = {}
+        self.selected_sheet = None
+        self.show_extra_data = False
+
     def plot(self):
         # logging.info("Refresh")
         self.figure.clear()
@@ -118,6 +124,15 @@ class CDProfileController(QObject, ExportMixin):
             ax.set_xlabel("Distance [m]")
             ax.set_ylabel(
                 f"{self.channel} [{self.dataMixin.units[self.channel]}]")
+
+            if self.show_extra_data and self.selected_sheet and self.extra_data is not None:
+                extra_data = self.extra_data[self.selected_sheet]
+                unit = self.extra_data_units[self.selected_sheet]
+                extra_x = extra_data.iloc[:, 0]
+                extra_y = extra_data.iloc[:, 1]
+                ax2 = ax.twinx()
+                ax2.plot(extra_x, extra_y, label=f"{self.selected_sheet} [{unit}]", color="orange")
+                ax2.set_ylabel(f"{self.selected_sheet} [{unit}]")
 
         ax.figure.set_constrained_layout(True)
         self.canvas.draw()

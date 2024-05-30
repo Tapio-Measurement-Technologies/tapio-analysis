@@ -3,10 +3,10 @@ from PyQt6.QtGui import QAction
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from qtpy.QtCore import Qt
 from utils.data_loader import DataMixin
-from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowMinMaxMixin, ShowLegendMixin, WaterfallOffsetMixin
+from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowMinMaxMixin, ShowLegendMixin, WaterfallOffsetMixin, ExtraDataMixin
 from controllers import CDProfileController
 
-class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowMinMaxMixin, ShowLegendMixin, WaterfallOffsetMixin):
+class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowMinMaxMixin, ShowLegendMixin, WaterfallOffsetMixin, ExtraDataMixin):
     def __init__(self, window_type="waterfall", controller: CDProfileController | None = None):
         super().__init__()
         self.dataMixin = DataMixin.getInstance()
@@ -22,6 +22,12 @@ class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Band
         fileMenu = menuBar.addMenu('File')
         exportAction = self.controller.initExportAction(self, "Export mean profile")
         fileMenu.addAction(exportAction)
+
+        if not self.window_type == "waterfall":
+            loadExtraDataAction = QAction('Load extra data', self)
+            loadExtraDataAction.setShortcut("Ctrl+O")
+            fileMenu.addAction(loadExtraDataAction)
+            loadExtraDataAction.triggered.connect(self.loadExtraData)
 
         viewMenu = menuBar.addMenu('View')
 
@@ -39,6 +45,10 @@ class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Band
         self.initMenuBar(mainLayout)
         # Add the channel selector
         self.addChannelSelector(mainLayout)
+
+        if not self.window_type == "waterfall":
+            # Extra data controls, hidden until extra data is loaded
+            self.addExtraDataWidget(mainLayout)
 
         # Analysis range slider
         self.addAnalysisRangeSlider(mainLayout)

@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QComboBox, QLabel, QDoubleSpinBox, QFileDialog, QCheckBox, QHBoxLayout
+from PyQt6.QtWidgets import QComboBox, QLabel, QDoubleSpinBox, QFileDialog, QCheckBox, QHBoxLayout, QMessageBox
 from PyQt6.QtGui import QAction
 from qtpy.QtCore import Qt, Signal
 from superqt import QLabeledDoubleRangeSlider, QLabeledSlider
@@ -6,6 +6,7 @@ from superqt import QLabeledDoubleRangeSlider, QLabeledSlider
 import logging
 import settings
 import numpy as np
+import pandas as pd
 
 from gui.sample_selector import SampleSelectorWindow
 
@@ -408,6 +409,49 @@ class ExportMixin:
 
     def getExportData(self):
         raise NotImplementedError("Subclasses should implement this method to return the data as a DataFrame.")
+
+class ExtraDataMixin:
+    def addExtraDataWidget(self, layout):
+        self.extraDataLabel = QLabel("Extra data")
+        # Extra data controls
+        self.extraDataComboBox = QComboBox(self)
+        self.extraDataCheckBox = QCheckBox("Show extra data", self)
+        self.extraDataCheckBox.stateChanged.connect(self.update_show_extra_data)
+        self.extraDataComboBox.currentIndexChanged.connect(self.update_extra_data)
+
+        layout.addWidget(self.extraDataLabel)
+        layout.addWidget(self.extraDataComboBox)
+        layout.addWidget(self.extraDataCheckBox)
+
+        self.extraDataLabel.hide()
+        self.extraDataComboBox.hide()
+        self.extraDataCheckBox.hide()
+
+    def loadExtraData(self):
+        try:
+            file_path, _ = QFileDialog.getOpenFileName(self, "Load extra data", "", "Excel Files (*.xlsx)")
+            if file_path:
+                self.controller.extra_data = pd.read_excel(file_path, sheet_name=None)
+                self.extraDataComboBox.clear()
+                for sheet_name, df in self.controller.extra_data.items():
+                    self.extraDataComboBox.addItem(sheet_name)
+                    unit = df.columns[1].split('[')[-1].replace(']', '').strip()
+                    self.controller.extra_data_units[sheet_name] = unit
+                self.extraDataLabel.show()
+                self.extraDataComboBox.show()
+                self.extraDataCheckBox.show()
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to load file: {str(e)}")
+
+    def update_show_extra_data(self):
+        state = self.extraDataCheckBox.isChecked()
+        self.controller.show_extra_data = state
+        self.refresh()
+
+    def update_extra_data(self):
+        selected_sheet = self.extraDataComboBox.currentText()
+        self.controller.selected_sheet = selected_sheet
+        self.refresh()
 
 class StatsMixin:
 
