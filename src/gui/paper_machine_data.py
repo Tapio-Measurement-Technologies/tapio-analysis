@@ -71,10 +71,10 @@ class PaperMachineDataWindow(QWidget, DataMixin):
                     elementName = element.get('name', 'Unnamed Element')
                     if self.window_type == "MD":
                         checkbox = QCheckBox(
-                            f"{elementName}: {element['spatial_frequency']:.2f} 1/m {element['frequency_hz']:.2f} Hz (λ = {wavelength:.3f} m)")
+                            f"{elementName}: {element['spatial_frequency']:.2f} 1/m {element['frequency_hz']:.2f} Hz (λ = {100*wavelength:.2f} cm)")
                     elif self.window_type == "CD":
                         checkbox = QCheckBox(
-                            f"{elementName}: {element['spatial_frequency']:.2f} 1/m (λ = {wavelength:.3f} m)")
+                            f"{elementName}: {element['spatial_frequency']:.2f} 1/m (λ = {100*wavelength:.2f} cm)")
 
                     checkbox.setChecked(element.get('checked', False))
                     checkbox.setProperty('element', element)

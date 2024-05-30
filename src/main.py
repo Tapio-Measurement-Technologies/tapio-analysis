@@ -38,6 +38,8 @@ class MainWindow(QMainWindow, DataMixin):
         self.findSamplesWindow = None
         self.initUI()
 
+        self.open_file_types = "All Files (*);;Calibration files (*.ca2);;Data files (*.da2);;Header files (*.pk2);;Paper machine files (*.pmdata.json);;CD Sample location files (*.samples.json)"
+
     def initUI(self):
         self.setWindowTitle('Tapio Analysis')
         self.setGeometry(200, 200, 800, 600)  # x, y, width, height
@@ -157,10 +159,9 @@ class MainWindow(QMainWindow, DataMixin):
             self,
             "Open File",
             "",
-            "All Files (*);;Calibration files (*.ca2);;Data files (*.da2);;Header files (*.pk2);;Paper machine files (*.pmdata.json);;CD Sample location files (*.samples.json)",
+            self.open_file_types,
             options=options)
         if fileNames:
-
             if len(self.windows) > 0:
                 response = QMessageBox.question(self, 'Confirm open new file',
                                                 'This will close all current analysis windows. Do you want to proceed?',
@@ -173,6 +174,8 @@ class MainWindow(QMainWindow, DataMixin):
             for fn in fileNames:
                 # Extract the base name of the file
                 basename = os.path.basename(fn)
+
+                self.custom_open(fn)
 
                 if fn.endswith('.ca2'):
                     self.dataMixin.calibration_file_path = fn
@@ -201,6 +204,10 @@ class MainWindow(QMainWindow, DataMixin):
                     self.dataMixin.split_data_to_segments()
 
         self.refresh()
+
+    def custom_open(self, fn):
+        # Implement this in a customization
+        pass
 
     def openFindSamples(self):
         if self.findSamplesWindow is not None and not self.findSamplesWindow.isClosed:
@@ -240,12 +247,18 @@ class MainWindow(QMainWindow, DataMixin):
         mdLayout.addWidget(mdLabel)
 
         self.md_analyses = settings.ANALYSES["MD"].copy()
-        self.md_analyses["time_domain"]["callback"] = lambda: openTimeDomainAnalysis(self)
-        self.md_analyses["spectrum"]["callback"] = lambda: openSpectrumAnalysis(self, window_type="MD")
-        self.md_analyses["spectrogram"]["callback"] = lambda: openSpectroGram(self, window_type="MD")
-        self.md_analyses["channel_correlation"]["callback"] = lambda: openChannelCorrelation(self, window_type="MD")
-        self.md_analyses["correlation_matrix"]["callback"] = lambda: openCorrelationMatrix(self, window_type="MD")
-        self.md_analyses["formation"]["callback"] = lambda: openFormationAnalysis(self, window_type="MD")
+        self.md_analyses["time_domain"]["callback"] = lambda: openTimeDomainAnalysis(
+            self)
+        self.md_analyses["spectrum"]["callback"] = lambda: openSpectrumAnalysis(
+            self, window_type="MD")
+        self.md_analyses["spectrogram"]["callback"] = lambda: openSpectroGram(
+            self, window_type="MD")
+        self.md_analyses["channel_correlation"]["callback"] = lambda: openChannelCorrelation(
+            self, window_type="MD")
+        self.md_analyses["correlation_matrix"]["callback"] = lambda: openCorrelationMatrix(
+            self, window_type="MD")
+        self.md_analyses["formation"]["callback"] = lambda: openFormationAnalysis(
+            self, window_type="MD")
 
         for analysis in self.md_analyses.values():
             button = QPushButton(analysis["label"], self)
@@ -271,14 +284,21 @@ class MainWindow(QMainWindow, DataMixin):
         cdLayout.addWidget(separator)
 
         self.cd_analyses = settings.ANALYSES["CD"].copy()
-        self.cd_analyses["profile"]["callback"] = lambda: openCDProfileAnalysis(self, window_type="2d")
-        self.cd_analyses["profile_waterfall"]["callback"] = lambda: openCDProfileAnalysis(self, window_type="waterfall")
-        self.cd_analyses["spectrum"]["callback"] = lambda: openSpectrumAnalysis(self, window_type="CD")
-        self.cd_analyses["spectrogram"]["callback"] = lambda: openSpectroGram(self, window_type="CD")
-        self.cd_analyses["channel_correlation"]["callback"] = lambda: openChannelCorrelation(self, window_type="CD")
-        self.cd_analyses["correlation_matrix"]["callback"] = lambda: openCorrelationMatrix(self, window_type="CD")
+        self.cd_analyses["profile"]["callback"] = lambda: openCDProfileAnalysis(
+            self, window_type="2d")
+        self.cd_analyses["profile_waterfall"]["callback"] = lambda: openCDProfileAnalysis(
+            self, window_type="waterfall")
+        self.cd_analyses["spectrum"]["callback"] = lambda: openSpectrumAnalysis(
+            self, window_type="CD")
+        self.cd_analyses["spectrogram"]["callback"] = lambda: openSpectroGram(
+            self, window_type="CD")
+        self.cd_analyses["channel_correlation"]["callback"] = lambda: openChannelCorrelation(
+            self, window_type="CD")
+        self.cd_analyses["correlation_matrix"]["callback"] = lambda: openCorrelationMatrix(
+            self, window_type="CD")
         self.cd_analyses["vca"]["callback"] = lambda: openVCA(self)
-        self.cd_analyses["formation"]["callback"] = lambda: openFormationAnalysis(self, window_type="CD")
+        self.cd_analyses["formation"]["callback"] = lambda: openFormationAnalysis(
+            self, window_type="CD")
 
         for analysis in self.cd_analyses.values():
             button = QPushButton(analysis["label"], self)
@@ -315,7 +335,6 @@ class MainWindow(QMainWindow, DataMixin):
         layout.addLayout(columnsLayout)
 
 
-
 def main():
     app = QApplication(sys.argv)
     app.setWindowIcon(
@@ -325,7 +344,6 @@ def main():
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
-
 
 
 if __name__ == '__main__':
