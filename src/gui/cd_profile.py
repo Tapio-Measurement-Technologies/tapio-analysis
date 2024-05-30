@@ -45,17 +45,12 @@ class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Band
 
         self.addBandPassRangeSlider(mainLayout)
 
-        self.addWaterfallOffsetSlider(mainLayout)
-
-        # self.showUnfilteredCheckBox = QCheckBox("Show unfiltered data", self)
-        # mainLayout.addWidget(self.showUnfilteredCheckBox)
-        # self.showUnfilteredCheckBox.setChecked(False)
-        # self.showUnfilteredCheckBox.stateChanged.connect(self.refresh)
-
         if not self.window_type == "waterfall":
             self.addShowProfilesCheckbox(mainLayout)
             self.addShowMinMaxCheckbox(mainLayout)
             self.addShowLegendCheckbox(mainLayout)
+        else:
+            self.addWaterfallOffsetSlider(mainLayout)
 
         # Add statistics labels
         statsLayout = QVBoxLayout()  # Separate layout for statistics labels
