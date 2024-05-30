@@ -416,16 +416,20 @@ class ExtraDataMixin:
         # Extra data controls
         self.extraDataComboBox = QComboBox(self)
         self.extraDataCheckBox = QCheckBox("Show extra data", self)
-        self.extraDataCheckBox.stateChanged.connect(self.update_show_extra_data)
+        self.sameScaleCheckBox = QCheckBox("Use primary scale for extra data", self)
         self.extraDataComboBox.currentIndexChanged.connect(self.update_extra_data)
+        self.extraDataCheckBox.stateChanged.connect(self.update_show_extra_data)
+        self.sameScaleCheckBox.stateChanged.connect(self.update_use_same_scale)
 
         layout.addWidget(self.extraDataLabel)
         layout.addWidget(self.extraDataComboBox)
         layout.addWidget(self.extraDataCheckBox)
+        layout.addWidget(self.sameScaleCheckBox)
 
         self.extraDataLabel.hide()
         self.extraDataComboBox.hide()
         self.extraDataCheckBox.hide()
+        self.sameScaleCheckBox.hide()
 
     def loadExtraData(self):
         try:
@@ -440,6 +444,7 @@ class ExtraDataMixin:
                 self.extraDataLabel.show()
                 self.extraDataComboBox.show()
                 self.extraDataCheckBox.show()
+                self.sameScaleCheckBox.show()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to load file: {str(e)}")
 
@@ -451,6 +456,11 @@ class ExtraDataMixin:
     def update_extra_data(self):
         selected_sheet = self.extraDataComboBox.currentText()
         self.controller.selected_sheet = selected_sheet
+        self.refresh()
+
+    def update_use_same_scale(self):
+        state = self.sameScaleCheckBox.isChecked()
+        self.controller.use_same_scale = state
         self.refresh()
 
 class StatsMixin:
