@@ -134,6 +134,13 @@ class CDProfileController(QObject, ExportMixin):
                 ax2.plot(extra_x, extra_y, label=f"{self.selected_sheet} [{unit}]", color="orange")
                 ax2.set_ylabel(f"{self.selected_sheet} [{unit}]")
 
+                if self.show_legend:
+                    handles1, labels1 = ax.get_legend_handles_labels()
+                    handles2, labels2 = ax2.get_legend_handles_labels()
+                    handles = handles1 + handles2
+                    labels = labels1 + labels2
+                    ax.legend(handles, labels, loc="upper right")
+
         ax.figure.set_constrained_layout(True)
         self.canvas.draw()
         self.updated.emit()
