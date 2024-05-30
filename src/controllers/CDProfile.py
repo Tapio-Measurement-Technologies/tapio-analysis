@@ -132,7 +132,13 @@ class CDProfileController(QObject, ExportMixin):
                 extra_y = extra_data.iloc[:, 1]
                 ax2 = ax.twinx()
                 ax2.plot(extra_x, extra_y, label=f"{self.selected_sheet} [{unit}]", color="orange")
-                ax2.set_ylabel(f"{self.selected_sheet} [{unit}]")
+                ax2.set_ylabel(f"{self.selected_sheet} [{unit}]", color="tab:orange")
+                ax2.tick_params(axis='y', labelcolor='tab:orange')
+
+                # Also colour primary axis
+                ax.set_ylabel(
+                f"{self.channel} [{self.dataMixin.units[self.channel]}]", color="tab:blue")
+                ax.tick_params(axis='y', labelcolor='tab:blue')
 
                 if self.show_legend:
                     handles1, labels1 = ax.get_legend_handles_labels()
