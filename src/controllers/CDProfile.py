@@ -40,6 +40,7 @@ class CDProfileController(QObject, ExportMixin):
         self.extra_data_units = {}
         self.selected_sheet = None
         self.show_extra_data = False
+        self.use_same_scale = False
 
     def plot(self):
         # logging.info("Refresh")
@@ -131,8 +132,24 @@ class CDProfileController(QObject, ExportMixin):
                 extra_x = extra_data.iloc[:, 0]
                 extra_y = extra_data.iloc[:, 1]
                 ax2 = ax.twinx()
-                ax2.plot(extra_x, extra_y, label=f"{self.selected_sheet} [{unit}]", color="orange")
-                ax2.set_ylabel(f"{self.selected_sheet} [{unit}]")
+                ax2.plot(extra_x, extra_y, label=f"{self.selected_sheet} [{unit}]", color="green")
+                ax2.set_ylabel(f"{self.selected_sheet} [{unit}]", color="tab:green")
+                ax2.tick_params(axis='y', labelcolor='tab:green')
+
+                # Also colour primary axis
+                ax.set_ylabel(
+                f"{self.channel} [{self.dataMixin.units[self.channel]}]", color="tab:blue")
+                ax.tick_params(axis='y', labelcolor='tab:blue')
+
+                if self.use_same_scale:
+                    ax2.set_ylim(ax.get_ylim())
+
+                if self.show_legend:
+                    handles1, labels1 = ax.get_legend_handles_labels()
+                    handles2, labels2 = ax2.get_legend_handles_labels()
+                    handles = handles1 + handles2
+                    labels = labels1 + labels2
+                    ax.legend(handles, labels, loc="upper right")
 
         ax.figure.set_constrained_layout(True)
         self.canvas.draw()

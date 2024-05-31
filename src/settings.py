@@ -2,6 +2,7 @@ DEBUG = False
 
 # Meters per minute
 PAPER_MACHINE_SPEED_DEFAULT = 1600
+FILTER_NUMTAPS = 1200
 
 ANALYSES = {
     "CD": {
@@ -160,4 +161,10 @@ try:
     from local_settings import *
 except:
     pass
+
+try:
+    from customizations import *
+except:
+    pass
+
 

@@ -204,12 +204,12 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
             if self.window_type == "MD":
                 frequency_in_hz = selected_freq * machine_speed / 60
                 self.selectedFrequencyLabel.setText(
-                    f"Selected frequency: {selected_freq:.2f} 1/m ({frequency_in_hz:.2f} Hz) λ = {wavelength:.2f} m"
+                    f"Selected frequency: {selected_freq:.2f} 1/m ({frequency_in_hz:.2f} Hz) λ = {100*wavelength:.2f} cm"
                 )
 
             elif self.window_type == "CD":
                 self.selectedFrequencyLabel.setText(
-                    f"Selected frequency: {selected_freq:.2f} 1/m (λ = {wavelength:.3f} m)")
+                    f"Selected frequency: {selected_freq:.2f} 1/m (λ = {100*wavelength:.2f} cm)")
 
         if self.paperMachineDataWindow:
             self.paperMachineDataWindow.refresh_pm_data(machine_speed)

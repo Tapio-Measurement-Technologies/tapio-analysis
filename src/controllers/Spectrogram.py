@@ -232,11 +232,11 @@ class SpectrogramController(QObject):
                 frequency_in_hz = self.selected_freq * self.machine_speed / 60
                 stats.append([
                     "Frequency:\nWavelength:",
-                    f"{self.selected_freq:.2f} 1/m ({frequency_in_hz:.2f} Hz)\n{wavelength:.2f} m"])
+                    f"{self.selected_freq:.2f} 1/m ({frequency_in_hz:.2f} Hz)\n{100*wavelength:.2f} m"])
             elif self.window_type == "CD":
                 stats.append([
                     "Frequency:\nWavelength:",
-                    f"{self.selected_freq:.2f} 1/m\n{wavelength:.3f} m"
+                    f"{self.selected_freq:.2f} 1/m\n{100*wavelength:.3f} m"
                 ])
         return stats
 
