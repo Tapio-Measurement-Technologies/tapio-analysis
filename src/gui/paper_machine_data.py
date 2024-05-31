@@ -40,9 +40,19 @@ class PaperMachineDataWindow(QWidget, DataMixin):
         for group in self.pm_data:
             if 'elements' in group and isinstance(group['elements'], list):
                 for element in group['elements']:
+                    machine_speed_at_element = machine_speed
+
+                    if 'machine_speed' in element:
+                        machine_speed_at_element = element['machine_speed']
+
                     if 'frequency' in element:
                         element['spatial_frequency'] = element['frequency'] / \
                             (machine_speed / 60)
+
+                    elif 'frequency_rpm' in element:
+                        element['spatial_frequency'] = element['frequency_rpm'] / \
+                            (machine_speed_at_element)
+
                     elif 'length' in element:
                         element['spatial_frequency'] = 1 / element['length']
                     elif 'diameter' in element or 'length' in element:
@@ -51,8 +61,7 @@ class PaperMachineDataWindow(QWidget, DataMixin):
 
                     if 'vanes' in element:
                         element['spatial_frequency'] = element['vanes'] * element['spatial_frequency']
-                    element['frequency_hz'] = element['spatial_frequency'] * \
-                        (machine_speed/60)
+                    element['frequency_hz'] = element['spatial_frequency'] * (machine_speed_at_element / 60)
 
     def refresh_pm_data(self, machine_speed):
 
