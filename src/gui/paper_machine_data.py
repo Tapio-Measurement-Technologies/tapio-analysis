@@ -49,6 +49,8 @@ class PaperMachineDataWindow(QWidget, DataMixin):
                         element['spatial_frequency'] = 1 / \
                             (np.pi * element['diameter'])
 
+                    if 'vanes' in element:
+                        element['spatial_frequency'] = element['vanes'] * element['spatial_frequency']
                     element['frequency_hz'] = element['spatial_frequency'] * \
                         (machine_speed/60)
 
@@ -71,15 +73,15 @@ class PaperMachineDataWindow(QWidget, DataMixin):
                     elementName = element.get('name', 'Unnamed Element')
                     if self.window_type == "MD":
                         checkbox = QCheckBox(
-                            f"{elementName}: {element['spatial_frequency']:.2f} 1/m {element['frequency_hz']:.2f} Hz (λ = {wavelength:.3f} m)")
+                            f"{elementName}: {element['spatial_frequency']:.2f} 1/m {element['frequency_hz']:.2f} Hz (λ = {wavelength:.3f} m)"
+                        )
                     elif self.window_type == "CD":
                         checkbox = QCheckBox(
                             f"{elementName}: {element['spatial_frequency']:.2f} 1/m (λ = {wavelength:.3f} m)")
 
                     checkbox.setChecked(element.get('checked', False))
                     checkbox.setProperty('element', element)
-                    checkbox.stateChanged.connect(
-                        lambda state, elem=element: self.onCheckboxStateChanged(state, elem))
+                    checkbox.stateChanged.connect(lambda state, elem=element: self.onCheckboxStateChanged(state, elem))
 
                     self.mainLayout.addWidget(checkbox)
                     self.checkboxes.append(checkbox)
@@ -88,6 +90,5 @@ class PaperMachineDataWindow(QWidget, DataMixin):
 
     def onCheckboxStateChanged(self, state, element):
         element['checked'] = (state == Qt.CheckState.Checked.value)
-        checked_elements = [checkbox.property(
-            'element') for checkbox in self.checkboxes if checkbox.isChecked()]
+        checked_elements = [checkbox.property('element') for checkbox in self.checkboxes if checkbox.isChecked()]
         self.change_handler(checked_elements)
