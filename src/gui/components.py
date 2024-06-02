@@ -416,7 +416,7 @@ class ExtraDataMixin:
         # Extra data controls
         self.extraDataComboBox = QComboBox(self)
         self.extraDataCheckBox = QCheckBox("Show extra data", self)
-        self.sameScaleCheckBox = QCheckBox("Use primary scale for extra data", self)
+        self.sameScaleCheckBox = QCheckBox("Use same scale for primary and secondary axis", self)
         self.extraDataComboBox.currentIndexChanged.connect(self.update_extra_data)
         self.extraDataCheckBox.stateChanged.connect(self.update_show_extra_data)
         self.sameScaleCheckBox.stateChanged.connect(self.update_use_same_scale)
