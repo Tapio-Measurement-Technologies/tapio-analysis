@@ -142,7 +142,14 @@ class CDProfileController(QObject, ExportMixin):
                 ax.tick_params(axis='y', labelcolor='tab:blue')
 
                 if self.use_same_scale:
-                    ax2.set_ylim(ax.get_ylim())
+                    y1_min, y1_max = ax.get_ylim()
+                    y2_min, y2_max = ax2.get_ylim()
+                    combined_min = min(y1_min, y2_min)
+                    combined_max = max(y1_max, y2_max)
+                    ax.set_ylim(combined_min, combined_max)
+                    ax2.set_ylim(combined_min, combined_max)
+
+
 
                 if self.show_legend:
                     handles1, labels1 = ax.get_legend_handles_labels()
