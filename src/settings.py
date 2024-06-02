@@ -4,24 +4,54 @@ DEBUG = False
 PAPER_MACHINE_SPEED_DEFAULT = 1600
 FILTER_NUMTAPS = 1200
 
+FORCE_PRIMARY_SCALE_SUPPLEMENTARY = True
+
 ANALYSES = {
     "CD": {
-        "profile":              { "label": "CD Profile" },
-        "profile_waterfall":    { "label": "CD Profile waterfall" },
-        "spectrum":             { "label": "CD Spectrum" },
-        "spectrogram":          { "label": "CD Spectrogram" },
-        "channel_correlation":  { "label": "CD Channel correlation" },
-        "correlation_matrix":   { "label": "CD Correlation matrix" },
-        "vca":                  { "label": "Variable component analysis" },
-        "formation":            { "label": "CD Formation" }
+        "profile": {
+            "label": "CD Profile"
+        },
+        "profile_waterfall": {
+            "label": "CD Profile waterfall"
+        },
+        "spectrum": {
+            "label": "CD Spectrum"
+        },
+        "spectrogram": {
+            "label": "CD Spectrogram"
+        },
+        "channel_correlation": {
+            "label": "CD Channel correlation"
+        },
+        "correlation_matrix": {
+            "label": "CD Correlation matrix"
+        },
+        "vca": {
+            "label": "Variable component analysis"
+        },
+        "formation": {
+            "label": "CD Formation"
+        }
     },
     "MD": {
-        "time_domain":          { "label": "Time domain" },
-        "spectrum":             { "label": "Spectrum" },
-        "spectrogram":          { "label": "Spectrogram" },
-        "channel_correlation":  { "label": "Channel correlation" },
-        "correlation_matrix":   { "label": "Correlation matrix" },
-        "formation":            { "label": "Formation" }
+        "time_domain": {
+            "label": "Time domain"
+        },
+        "spectrum": {
+            "label": "Spectrum"
+        },
+        "spectrogram": {
+            "label": "Spectrogram"
+        },
+        "channel_correlation": {
+            "label": "Channel correlation"
+        },
+        "correlation_matrix": {
+            "label": "Correlation matrix"
+        },
+        "formation": {
+            "label": "Formation"
+        }
     }
 }
 
@@ -153,9 +183,9 @@ WATERFALL_OFFSET_HIGH_DEFAULT = 100
 REPORT_ADDITIONAL_INFO_DEFAULT = "Speed at reel: \nGrammage: \nAperture: "
 
 import os
+
 script_dir = os.path.dirname(os.path.abspath(__file__))
 ASSETS_DIR = os.path.join(script_dir, "assets")
-
 
 try:
     from local_settings import *
@@ -166,5 +196,3 @@ try:
     from customizations import *
 except:
     pass
-
-
