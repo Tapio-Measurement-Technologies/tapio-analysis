@@ -77,7 +77,7 @@ class AnalysisRangeMixin:
     def initAnalysisRangeSlider(self, block_signals=False):
         # Prevent recursive refresh calls when updating values elsewhere
         self.analysisRangeSlider.blockSignals(block_signals)
-        self.analysisRangeSlider.setDecimals(2)
+        self.analysisRangeSlider.setDecimals(settings.ANALYSIS_RANGE_DECIMALS)
         # Ensure dataMixin is accessible
         # self.max_dist = np.max(self.dataMixin.distances)
         self.analysisRangeSlider.setRange(0, self.controller.max_dist)
