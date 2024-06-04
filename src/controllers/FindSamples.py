@@ -1,20 +1,15 @@
 from utils.data_loader import DataMixin
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from gui.components import PlotMixin
 from PyQt6.QtCore import QObject, pyqtSignal
 import settings
-import io
 from utils.filters import bandpass_filter
 
-class FindSamplesController(QObject):
+class FindSamplesController(QObject, PlotMixin):
     updated = pyqtSignal()
 
     def __init__(self):
         super().__init__()
         self.dataMixin = DataMixin.getInstance()
-        # Matplotlib figure and canvas
-        self.figure = Figure()
-        self.canvas = FigureCanvas(self.figure)
 
         self.threshold = self.dataMixin.threshold
         self.peaks = self.dataMixin.peak_locations
@@ -49,11 +44,6 @@ class FindSamplesController(QObject):
         self.updated.emit()
 
         return self.canvas
-
-    def getPlotImage(self):
-        buf = io.BytesIO()
-        self.figure.savefig(buf, format="png")
-        return buf
 
     def draw_threshold(self):
         if self.threshold:

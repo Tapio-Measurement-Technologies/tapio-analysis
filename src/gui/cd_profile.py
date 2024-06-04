@@ -76,7 +76,7 @@ class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Band
         mainLayout.addLayout(statsLayout)
 
         # Matplotlib figure and canvas
-        self.plot = self.controller.plot()
+        self.plot = self.controller.getCanvas()
         # Add with stretch factor to allow expansion
         mainLayout.addWidget(self.plot, 1)
         self.toolbar = NavigationToolbar(self.plot, self)
@@ -95,6 +95,6 @@ class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Band
 
     def refresh(self):
         # logging.info("Refresh")
-        self.controller.plot()
+        self.controller.updatePlot()
         self.refresh_widgets()
         self.updateStatistics(self.controller.mean_profile)

@@ -2,11 +2,14 @@ from PyQt6.QtWidgets import QComboBox, QLabel, QDoubleSpinBox, QFileDialog, QChe
 from PyQt6.QtGui import QAction
 from qtpy.QtCore import Qt, Signal
 from superqt import QLabeledDoubleRangeSlider, QLabeledSlider
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
 import logging
 import settings
 import numpy as np
 import pandas as pd
+import io
 
 from gui.sample_selector import SampleSelectorWindow
 
@@ -377,6 +380,8 @@ class ShowLegendMixin:
         self.refresh()
 
 class ExportMixin:
+    def __init__(self):
+        super().__init__()
 
     def initExportAction(self, window, text="Export"):
         self.window = window
@@ -484,3 +489,29 @@ class StatsMixin:
         self.stdLabel.setText(f"σ: {std:.2f} {units}")
         self.minLabel.setText(f"Min: {min_val:.2f} {units}")
         self.maxLabel.setText(f"Max: {max_val:.2f} {units}")
+
+class PlotMixin:
+    def __init__(self):
+        super().__init__()
+        self.figure = Figure()
+        self.canvas = FigureCanvas(self.figure)
+
+    def getCanvas(self):
+        if not hasattr(self, 'canvas'):
+            self.__init__()
+        return self.canvas
+
+    def updatePlot(self):
+        try:
+            self.plot()
+        except:
+            self.figure.text(0.5, 0.5, "Invalid parameters", fontsize=14, ha='center', va='center')
+            self.canvas.draw()
+
+    def getPlotImage(self):
+        buf = io.BytesIO()
+        self.figure.savefig(buf, format="png")
+        return buf
+
+    def plot(self):
+        raise NotImplementedError("Subclasses should implement this method.")

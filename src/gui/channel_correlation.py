@@ -36,7 +36,7 @@ class ChannelCorrelationWindow(QWidget, DataMixin, AnalysisRangeMixin, BandPassF
         self.addShowUnfilteredCheckbox(mainLayout)
 
         # Matplotlib figure and canvas
-        self.plot = self.controller.plot()
+        self.plot = self.controller.getCanvas()
         mainLayout.addWidget(self.plot, 1)
         self.toolbar = NavigationToolbar(self.plot, self)
         mainLayout.addWidget(self.toolbar)
@@ -59,5 +59,5 @@ class ChannelCorrelationWindow(QWidget, DataMixin, AnalysisRangeMixin, BandPassF
         self.initChannelSelectors(block_signals=True)
 
     def refresh(self):
-        self.controller.plot()
+        self.controller.updatePlot()
         self.refresh_widgets()

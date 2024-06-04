@@ -1,23 +1,18 @@
 from utils.data_loader import DataMixin
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from gui.components import PlotMixin
 from PyQt6.QtCore import QObject, pyqtSignal
 from utils.filters import bandpass_filter
 import settings
 import numpy as np
 from matplotlib.ticker import MaxNLocator
 from matplotlib import colors, cm
-import io
 
-class VCAController(QObject):
+class VCAController(QObject, PlotMixin):
     updated = pyqtSignal()
 
     def __init__(self):
         super().__init__()
         self.dataMixin = DataMixin.getInstance()
-        # Matplotlib figure and canvas
-        self.figure = Figure()
-        self.canvas = FigureCanvas(self.figure)
 
         self.selected_samples = self.dataMixin.selected_samples.copy()
         self.max_dist = np.max(self.dataMixin.cd_distances)
@@ -131,11 +126,6 @@ class VCAController(QObject):
                                                                                   keepdims=True) + np.mean(segments)
         residual_variance = np.mean(residuals**2)
         return residuals, residual_variance
-
-    def getPlotImage(self):
-        buf = io.BytesIO()
-        self.figure.savefig(buf, format="png")
-        return buf
 
     def getStatsTableData(self):
         stats = []

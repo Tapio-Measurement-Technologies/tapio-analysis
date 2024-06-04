@@ -1,22 +1,17 @@
 from utils.data_loader import DataMixin
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from gui.components import PlotMixin
 from PyQt6.QtCore import QObject, pyqtSignal
 from matplotlib import pyplot as plt
 from scipy.optimize import curve_fit
 import settings
 import numpy as np
-import io
 
-class FormationController(QObject):
+class FormationController(QObject, PlotMixin):
     updated = pyqtSignal()
 
     def __init__(self, window_type="MD"):
         super().__init__()
         self.dataMixin = DataMixin.getInstance()
-        # Matplotlib figure and canvas
-        self.figure = Figure()
-        self.canvas = FigureCanvas(self.figure)
         self.window_type = window_type
 
         if self.window_type == "MD":
@@ -135,11 +130,6 @@ class FormationController(QObject):
         self.updated.emit()
 
         return self.canvas
-
-    def getPlotImage(self):
-        buf = io.BytesIO()
-        self.figure.savefig(buf, format="png")
-        return buf
 
     def getStatsTableData(self):
         stats = []

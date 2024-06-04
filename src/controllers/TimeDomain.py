@@ -1,23 +1,17 @@
 from utils.data_loader import DataMixin
-from gui.components import ExportMixin
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from gui.components import ExportMixin, PlotMixin
 from PyQt6.QtCore import QObject, pyqtSignal
 from utils.filters import bandpass_filter
 import settings
 import numpy as np
 import pandas as pd
-import io
 
-class TimeDomainController(QObject, ExportMixin):
+class TimeDomainController(QObject, PlotMixin, ExportMixin):
     updated = pyqtSignal()
 
     def __init__(self):
         super().__init__()
         self.dataMixin = DataMixin.getInstance()
-        # Matplotlib figure and canvas
-        self.figure = Figure()
-        self.canvas = FigureCanvas(self.figure)
 
         self.max_dist = np.max(self.dataMixin.distances)
         self.fs = 1 / self.dataMixin.sample_step
@@ -61,11 +55,6 @@ class TimeDomainController(QObject, ExportMixin):
         self.updated.emit()
 
         return self.canvas
-
-    def getPlotImage(self):
-        buf = io.BytesIO()
-        self.figure.savefig(buf, format="png")
-        return buf
 
     def getStatsTableData(self):
         stats = []

@@ -126,7 +126,7 @@ class SpectrogramWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Fr
         self.clearButton.clicked.connect(self.clearFrequency)
         mainLayout.addWidget(self.clearButton)
 
-        self.plot = self.controller.plot()
+        self.plot = self.controller.getCanvas()
         # Add with stretch factor to allow expansion
         mainLayout.addWidget(self.plot, 1)
         self.toolbar = NavigationToolbar(self.plot, self)
@@ -198,7 +198,7 @@ class SpectrogramWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Fr
             self.initMachineSpeedSpinner(block_signals=True)
 
     def refresh(self, restore_lim=False):
-        self.controller.plot()
+        self.controller.updatePlot()
         self.refresh_widgets()
         machine_speed = self.controller.machine_speed
         selected_freq = self.controller.selected_freq

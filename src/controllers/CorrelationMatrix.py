@@ -1,23 +1,18 @@
 from utils.data_loader import DataMixin
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from gui.components import PlotMixin
 from PyQt6.QtCore import QObject, pyqtSignal
 from utils.filters import bandpass_filter
 import settings
 import logging
 import numpy as np
 import pandas as pd
-import io
 
-class CorrelationMatrixController(QObject):
+class CorrelationMatrixController(QObject, PlotMixin):
     updated = pyqtSignal()
 
     def __init__(self, window_type="MD"):
         super().__init__()
         self.dataMixin = DataMixin.getInstance()
-        # Matplotlib figure and canvas
-        self.figure = Figure()
-        self.canvas = FigureCanvas(self.figure)
         self.window_type = window_type
 
         if window_type == "MD":
@@ -113,8 +108,3 @@ class CorrelationMatrixController(QObject):
     def getStatsTableData(self):
         stats = []
         return stats
-
-    def getPlotImage(self):
-        buf = io.BytesIO()
-        self.figure.savefig(buf, format="png")
-        return buf

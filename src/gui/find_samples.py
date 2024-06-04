@@ -59,7 +59,7 @@ class FindSamplesWindow(QWidget, DataMixin, ChannelMixin, BandPassFilterMixin):
         plotLayout = QVBoxLayout()
         layout.addLayout(plotLayout)
 
-        self.plot = self.controller.plot()
+        self.plot = self.controller.getCanvas()
         self.plot.mpl_connect('button_press_event', self.on_click)
         plotLayout.addWidget(self.plot, 1)
 
@@ -104,7 +104,7 @@ class FindSamplesWindow(QWidget, DataMixin, ChannelMixin, BandPassFilterMixin):
         return include_samples
 
     def refresh(self):
-        self.controller.plot()
+        self.controller.updatePlot()
 
     def on_click(self, event):
         if event.button == 2:  # Middle mouse button

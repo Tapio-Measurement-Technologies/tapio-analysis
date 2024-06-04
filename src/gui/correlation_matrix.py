@@ -23,7 +23,7 @@ class CorrelationMatrixWindow(QWidget, DataMixin, AnalysisRangeMixin, BandPassFi
         self.addAnalysisRangeSlider(mainLayout)
 
         self.addBandPassRangeSlider(mainLayout)
-        self.plot = self.controller.plot()
+        self.plot = self.controller.getCanvas()
         # Add with stretch factor to allow expansion
         mainLayout.addWidget(self.plot, 1)
         self.toolbar = NavigationToolbar(self.plot, self)
@@ -32,4 +32,4 @@ class CorrelationMatrixWindow(QWidget, DataMixin, AnalysisRangeMixin, BandPassFi
         self.refresh()
 
     def refresh(self):
-        self.controller.plot()
+        self.controller.updatePlot()

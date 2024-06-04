@@ -88,7 +88,7 @@ class VCAWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, BandPassFi
         # Now add a stretch factor before adding the figure canvas to give it priority to expand
         # mainLayout.addStretch(1)
 
-        self.plot = self.controller.plot()
+        self.plot = self.controller.getCanvas()
         # Add with stretch factor to allow expansion
         mainLayout.addWidget(self.plot, 1)
         self.toolbar = NavigationToolbar(self.plot, self)
@@ -102,7 +102,7 @@ class VCAWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, BandPassFi
         self.initChannelSelector(block_signals=True)
 
     def refresh(self):
-        self.controller.plot()
+        self.controller.updatePlot()
         self.refresh_widgets()
         self.updateVCAStatistics(self.controller.filtered_data)
 

@@ -1,24 +1,18 @@
 from utils.data_loader import DataMixin
-from gui.components import ExportMixin
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from gui.components import ExportMixin, PlotMixin
 from PyQt6.QtCore import QObject, pyqtSignal
 from utils.filters import bandpass_filter
 import matplotlib.pyplot as plt
 import settings
 import numpy as np
 import pandas as pd
-import io
 
-class CDProfileController(QObject, ExportMixin):
+class CDProfileController(QObject, PlotMixin, ExportMixin):
     updated = pyqtSignal()
 
     def __init__(self, window_type):
         super().__init__()
         self.dataMixin = DataMixin.getInstance()
-        # Matplotlib figure and canvas
-        self.figure = Figure()
-        self.canvas = FigureCanvas(self.figure)
         self.window_type = window_type
 
         self.mean_profile = None
@@ -166,11 +160,6 @@ class CDProfileController(QObject, ExportMixin):
         self.updated.emit()
 
         return self.canvas
-
-    def getPlotImage(self):
-        buf = io.BytesIO()
-        self.figure.savefig(buf, format="png")
-        return buf
 
     def getStatsTableData(self):
         stats = []

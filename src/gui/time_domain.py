@@ -61,7 +61,7 @@ class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilter
         # mainLayout.addStretch(1)
 
         # Matplotlib figure and canvas
-        self.plot = self.controller.plot()
+        self.plot = self.controller.getCanvas()
         # Add with stretch factor to allow expansion
         mainLayout.addWidget(self.plot, 1)
         self.toolbar = NavigationToolbar(self.plot, self)
@@ -76,6 +76,6 @@ class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilter
         self.initShowUnfilteredCheckbox(block_signals=True)
 
     def refresh(self):
-        self.controller.plot()
+        self.controller.updatePlot()
         self.refresh_widgets()
         self.updateStatistics(self.controller.data)

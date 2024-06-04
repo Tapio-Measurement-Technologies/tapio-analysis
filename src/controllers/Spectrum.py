@@ -1,25 +1,19 @@
 from utils.data_loader import DataMixin
-from gui.components import ExportMixin
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from gui.components import ExportMixin, PlotMixin
 from PyQt6.QtCore import QObject, pyqtSignal
 import matplotlib.pyplot as plt
 from scipy.signal import welch
 import settings
 import numpy as np
 import pandas as pd
-import io
 from utils.signal_processing import get_n_peaks
 
-class SpectrumController(QObject, ExportMixin):
+class SpectrumController(QObject, PlotMixin, ExportMixin):
     updated = pyqtSignal()
 
     def __init__(self, window_type="MD"):
         super().__init__()
         self.dataMixin = DataMixin.getInstance()
-        # Matplotlib figure and canvas
-        self.figure = Figure()
-        self.canvas = FigureCanvas(self.figure)
 
         self.window_type = window_type
         self.ax = None
@@ -226,11 +220,6 @@ class SpectrumController(QObject, ExportMixin):
         self.updated.emit()
 
         return self.canvas
-
-    def getPlotImage(self):
-        buf = io.BytesIO()
-        self.figure.savefig(buf, format="png")
-        return buf
 
     def getStatsTableData(self):
         stats = []
