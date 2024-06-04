@@ -466,11 +466,19 @@ class ExtraDataMixin:
 class StatsMixin:
 
     def updateStatistics(self, data, show_units=True):
+        units = self.dataMixin.units[self.controller.channel] if show_units else ""
+
+        if not len(data):
+            self.meanLabel.setText(f"Mean: -- {units}")
+            self.stdLabel.setText(f"σ: -- {units}")
+            self.minLabel.setText(f"Min: -- {units}")
+            self.maxLabel.setText(f"Max: -- {units}")
+            return
+
         mean = np.mean(data)
         std = np.std(data)
         min_val = np.min(data)
         max_val = np.max(data)
-        units = self.dataMixin.units[self.controller.channel] if show_units else ""
 
         self.meanLabel.setText(f"Mean: {mean:.2f} {units}")
         self.stdLabel.setText(f"σ: {std:.2f} {units}")
