@@ -149,6 +149,10 @@ class VCAController(QObject, PlotMixin):
 
     def calculate_variances(self, segments):
         k, p = segments.shape  # Number of samples in MD and CD, respectively
+
+        if k == 0 or p == 0:
+            return 0, 0, 0, 0
+
         overall_mean = np.mean(segments)
 
         md_means = np.mean(segments, axis=1)
