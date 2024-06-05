@@ -80,7 +80,7 @@ class AnalysisRangeMixin:
     def initAnalysisRangeSlider(self, block_signals=False):
         # Prevent recursive refresh calls when updating values elsewhere
         self.analysisRangeSlider.blockSignals(block_signals)
-        self.analysisRangeSlider.setDecimals(1)
+        self.analysisRangeSlider.setDecimals(settings.ANALYSIS_RANGE_DECIMALS)
         # Ensure dataMixin is accessible
         # self.max_dist = np.max(self.dataMixin.distances)
         self.analysisRangeSlider.setRange(0, self.controller.max_dist)
@@ -244,6 +244,8 @@ class BandPassFilterMixin:
         self.bandPassFilterSlider.blockSignals(block_signals)
         self.bandPassFilterSlider.setRange(0, self.controller.fs / 2 - 1)
         self.bandPassFilterSlider.setValue((self.controller.band_pass_low, self.controller.band_pass_high))
+
+
         self.bandPassFilterSlider.blockSignals(False)
 
     def addBandPassRangeSlider(self, layout, live_update=settings.UPDATE_ON_SLIDE):
@@ -251,7 +253,10 @@ class BandPassFilterMixin:
         self.bandPassFilterLabel = QLabel("Band pass filter [1/m]")
         layout.addWidget(self.bandPassFilterLabel)
         self.bandPassFilterSlider = ExtraQLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
+        self.bandPassFilterSlider.setDecimals(2)
         self.initBandPassRangeSlider()
+
+
 
         if live_update:
             self.bandPassFilterSlider.valueChanged.connect(self.bandPassFilterRangeChanged)
