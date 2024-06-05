@@ -1,6 +1,5 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QCheckBox, QLabel
-from PyQt6.QtCore import pyqtSignal
-from qtpy.QtCore import Qt
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QCheckBox, QLabel, QHBoxLayout
+from PyQt6.QtCore import pyqtSignal, Qt
 import numpy as np
 
 from utils.data_loader import DataMixin
@@ -15,6 +14,7 @@ class PaperMachineDataWindow(QWidget, DataMixin):
         self.dataMixin = DataMixin.getInstance()
         self.change_handler = change_handler
         self.checkboxes = []
+        self.group_checkboxes = {}
         self.window_type = window_type
         self.initUI()
 
@@ -31,10 +31,14 @@ class PaperMachineDataWindow(QWidget, DataMixin):
         self.pm_data = self.dataMixin.pm_data[self.window_type]
 
     def clearLayout(self, layout):
+        if layout is None:
+            return
         while layout.count():
             child = layout.takeAt(0)
             if child.widget():
                 child.widget().deleteLater()
+            else:
+                self.clearLayout(child.layout())
 
     def populate_pm_data(self, machine_speed):
         for group in self.pm_data:
@@ -67,16 +71,27 @@ class PaperMachineDataWindow(QWidget, DataMixin):
 
         self.clearLayout(self.mainLayout)
         self.checkboxes.clear()
+        self.group_checkboxes.clear()
         self.populate_pm_data(machine_speed)
 
         for group in self.pm_data:
+            groupCheckboxLayout = QHBoxLayout()
             groupName = group.get('groupName', 'Unnamed group')
             groupLabel = QLabel(f"<b>{groupName}</b>")
+            groupCheckbox = QCheckBox()
+            self.group_checkboxes[groupCheckbox] = []
 
-            self.mainLayout.addWidget(groupLabel)
+            groupCheckboxLayout.addWidget(groupCheckbox)
+            groupCheckboxLayout.addWidget(groupLabel)
+            groupCheckboxLayout.addStretch()
+            self.mainLayout.addLayout(groupCheckboxLayout)
+            groupCheckbox.stateChanged.connect(lambda state, g=group, gc=groupCheckbox: self.onGroupCheckboxStateChanged(state, g, gc))
+
             if 'elements' in group and isinstance(group['elements'], list):
                 for element in group['elements']:
-
+                    # Add "indentation" to element checkboxes
+                    elementCheckboxLayout = QHBoxLayout()
+                    elementCheckboxLayout.addSpacing(16)
                     wavelength = 1 / element['spatial_frequency']
 
                     elementName = element.get('name', 'Unnamed Element')
@@ -90,14 +105,51 @@ class PaperMachineDataWindow(QWidget, DataMixin):
 
                     checkbox.setChecked(element.get('checked', False))
                     checkbox.setProperty('element', element)
-                    checkbox.stateChanged.connect(lambda state, elem=element: self.onCheckboxStateChanged(state, elem))
+                    checkbox.stateChanged.connect(lambda state, elem=element, gc=groupCheckbox: self.onElementCheckboxStateChanged(state, elem, gc))
 
-                    self.mainLayout.addWidget(checkbox)
+                    elementCheckboxLayout.addWidget(checkbox)
+                    self.mainLayout.addLayout(elementCheckboxLayout)
                     self.checkboxes.append(checkbox)
+                    self.group_checkboxes[groupCheckbox].append(checkbox)
+
+            self.updateGroupCheckboxState(groupCheckbox)
 
         self.mainLayout.addStretch(1)
 
-    def onCheckboxStateChanged(self, state, element):
+    def onElementCheckboxStateChanged(self, state, element, groupCheckbox):
         element['checked'] = (state == Qt.CheckState.Checked.value)
+        self.updateGroupCheckboxState(groupCheckbox)
         checked_elements = [checkbox.property('element') for checkbox in self.checkboxes if checkbox.isChecked()]
         self.change_handler(checked_elements)
+
+    def onGroupCheckboxStateChanged(self, state, group, groupCheckbox):
+        if state == Qt.CheckState.PartiallyChecked:
+            return
+
+        group_elements = group.get('elements', [])
+        is_checked = (state == Qt.CheckState.Checked.value)
+
+        for element in group_elements:
+            element['checked'] = is_checked
+
+        for checkbox in self.group_checkboxes[groupCheckbox]:
+            checkbox.blockSignals(True)
+            checkbox.setChecked(is_checked)
+            checkbox.blockSignals(False)
+
+        checked_elements = [checkbox.property('element') for checkbox in self.checkboxes if checkbox.isChecked()]
+        groupCheckbox.setTristate(False)
+        self.change_handler(checked_elements)
+
+    def updateGroupCheckboxState(self, groupCheckbox):
+        elements_checkboxes = self.group_checkboxes[groupCheckbox]
+        groupCheckbox.blockSignals(True)
+        if all(checkbox.isChecked() for checkbox in elements_checkboxes):
+            groupCheckbox.setCheckState(Qt.CheckState.Checked)
+            groupCheckbox.setTristate(False)
+        elif any(checkbox.isChecked() for checkbox in elements_checkboxes):
+            groupCheckbox.setCheckState(Qt.CheckState.PartiallyChecked)
+        else:
+            groupCheckbox.setCheckState(Qt.CheckState.Unchecked)
+            groupCheckbox.setTristate(False)
+        groupCheckbox.blockSignals(False)
