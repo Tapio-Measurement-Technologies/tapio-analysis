@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QCheckBox, QHBoxLayout, QToolButton, QScrollArea, QSizePolicy, QFrame
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QCheckBox, QHBoxLayout, QToolButton, QScrollArea, QSizePolicy, QFrame, QLabel
 from PyQt6.QtCore import pyqtSignal, Qt, pyqtSlot
 import numpy as np
 
@@ -93,7 +93,7 @@ class PaperMachineDataWindow(QWidget, DataMixin):
 
     def initUI(self):
         self.setWindowTitle(f"{self.window_type} Paper machine data")
-        self.setGeometry(100, 100, 300, 500)
+        self.setGeometry(100, 100, 400, 500)
 
         self.mainLayout = QVBoxLayout()
         self.setLayout(self.mainLayout)
@@ -137,7 +137,6 @@ class PaperMachineDataWindow(QWidget, DataMixin):
                     element['frequency_hz'] = element['spatial_frequency'] * (machine_speed_at_element / 60)
 
     def refresh_pm_data(self, machine_speed, selected_frequency):
-
         self.clearLayout(self.mainLayout)
         self.checkboxes.clear()
         self.group_checkboxes.clear()
@@ -145,6 +144,8 @@ class PaperMachineDataWindow(QWidget, DataMixin):
 
         closest_element = None
         closest_frequency_diff = float('inf')
+        closest_checkbox = None
+        closest_label = None
 
         for group in self.pm_data:
             groupLayout = QHBoxLayout()
@@ -172,12 +173,11 @@ class PaperMachineDataWindow(QWidget, DataMixin):
 
                     elementName = element.get('name', 'Unnamed Element')
                     if self.window_type == "MD":
-                        checkbox = QCheckBox(
-                            f"{elementName}: {element['spatial_frequency']:.2f} 1/m {element['frequency_hz']:.2f} Hz (λ = {100*wavelength:.2f} cm)"
-                        )
+                        checkbox = QCheckBox(f"{elementName}")
+                        label = QLabel(f"{element['spatial_frequency']:.2f} 1/m {element['frequency_hz']:.2f} Hz (λ = {100*wavelength:.2f} cm)")
                     elif self.window_type == "CD":
-                        checkbox = QCheckBox(
-                            f"{elementName}: {element['spatial_frequency']:.2f} 1/m (λ = {100*wavelength:.2f} cm)")
+                        checkbox = QCheckBox(f"{elementName}")
+                        label = QLabel(f"{element['spatial_frequency']:.2f} 1/m (λ = {100*wavelength:.2f} cm)")
 
                     if selected_frequency:
                         # Check if this element is closest to the selected frequency
@@ -185,12 +185,15 @@ class PaperMachineDataWindow(QWidget, DataMixin):
                         if frequency_diff < closest_frequency_diff:
                             closest_element = element
                             closest_frequency_diff = frequency_diff
+                            closest_checkbox = checkbox
+                            closest_label = label
 
                     checkbox.setChecked(element.get('checked', False))
                     checkbox.setProperty('element', element)
                     checkbox.stateChanged.connect(lambda state, elem=element, gc=groupCheckbox: self.onElementCheckboxStateChanged(state, elem, gc))
 
                     elementCheckboxLayout.addWidget(checkbox)
+                    elementCheckboxLayout.addWidget(label)
                     groupBoxLayout.addLayout(elementCheckboxLayout)
                     self.checkboxes.append(checkbox)
                     self.group_checkboxes[groupCheckbox].append(checkbox)
@@ -201,10 +204,10 @@ class PaperMachineDataWindow(QWidget, DataMixin):
         self.mainLayout.addStretch(1)
 
         # Highlight the closest element
-        if closest_element:
-            closest_checkbox = next((checkbox for checkbox in self.checkboxes if checkbox.property('element') == closest_element), None)
-            if closest_checkbox:
-                closest_checkbox.setStyleSheet("background-color: lightskyblue;")  # You can customize the highlight color
+        if closest_checkbox and closest_label:
+            closest_checkbox.setStyleSheet("background-color: lightskyblue;")  # Customize the highlight color
+            closest_label.setStyleSheet("background-color: lightskyblue;")      # Same color for the label
+
 
     def onElementCheckboxStateChanged(self, state, element, groupCheckbox):
         element['checked'] = (state == Qt.CheckState.Checked.value)
