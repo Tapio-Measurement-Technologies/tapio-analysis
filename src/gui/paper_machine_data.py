@@ -1,9 +1,78 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QCheckBox, QLabel, QHBoxLayout
-from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QCheckBox, QHBoxLayout, QToolButton, QScrollArea, QSizePolicy, QFrame
+from PyQt6.QtCore import pyqtSignal, Qt, pyqtSlot
 import numpy as np
 
 from utils.data_loader import DataMixin
 
+class CollapsibleBox(QWidget):
+    stateChanged = pyqtSignal(bool)
+
+    def __init__(self, title="", collapsed=True, parent=None):
+        super().__init__(parent)
+
+        self.toggle_button = QToolButton(
+            text=title, checkable=True, checked=collapsed
+        )
+        self.toggle_button.setStyleSheet("QToolButton { border: none; }")
+        self.toggle_button.setToolButtonStyle(
+            Qt.ToolButtonStyle.ToolButtonTextBesideIcon
+        )
+        self.toggle_button.setArrowType(Qt.ArrowType.RightArrow)
+        self.toggle_button.pressed.connect(self.on_pressed)
+
+        self.content_area = QScrollArea(
+            maximumHeight=0, minimumHeight=0
+        )
+        self.content_area.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
+        self.content_area.setFrameShape(QFrame.Shape.NoFrame)
+
+        lay = QVBoxLayout(self)
+        lay.setSpacing(0)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.addWidget(self.toggle_button)
+        lay.addWidget(self.content_area)
+
+        self.set_initial_state(collapsed)
+
+    def set_initial_state(self, collapsed):
+        if not collapsed:
+            self.expand()
+        else:
+            self.collapse()
+
+    @pyqtSlot()
+    def on_pressed(self):
+        checked = self.toggle_button.isChecked()
+        self.stateChanged.emit(checked)
+        if not checked:
+            self.expand()
+        else:
+            self.collapse()
+
+    def setContentLayout(self, layout):
+        lay = self.content_area.layout()
+        del lay
+        self.content_area.setLayout(layout)
+        if self.toggle_button.isChecked():
+            self.collapse()
+        else:
+            self.expand()
+
+    def expand(self):
+        try:
+            content_height = self.content_area.layout().sizeHint().height()
+        except:
+            content_height = 0
+        self.toggle_button.setArrowType(Qt.ArrowType.DownArrow)
+        self.content_area.setMaximumHeight(content_height)
+        self.content_area.setMinimumHeight(content_height)
+
+    def collapse(self):
+        self.toggle_button.setArrowType(Qt.ArrowType.RightArrow)
+        self.content_area.setMaximumHeight(0)
+        self.content_area.setMinimumHeight(0)
 
 class PaperMachineDataWindow(QWidget, DataMixin):
 
@@ -78,23 +147,27 @@ class PaperMachineDataWindow(QWidget, DataMixin):
         closest_frequency_diff = float('inf')
 
         for group in self.pm_data:
-            groupCheckboxLayout = QHBoxLayout()
+            groupLayout = QHBoxLayout()
+            groupCheckboxLayout = QVBoxLayout()
             groupName = group.get('groupName', 'Unnamed group')
-            groupLabel = QLabel(f"<b>{groupName}</b>")
             groupCheckbox = QCheckBox()
+            groupBox = CollapsibleBox(groupName, collapsed=group.get('collapsed', False))
             self.group_checkboxes[groupCheckbox] = []
+            groupBoxLayout = QVBoxLayout()
 
             groupCheckboxLayout.addWidget(groupCheckbox)
-            groupCheckboxLayout.addWidget(groupLabel)
             groupCheckboxLayout.addStretch()
-            self.mainLayout.addLayout(groupCheckboxLayout)
+
+            groupLayout.addLayout(groupCheckboxLayout)
+            groupLayout.addWidget(groupBox)
+            self.mainLayout.addLayout(groupLayout)
             groupCheckbox.stateChanged.connect(lambda state, g=group, gc=groupCheckbox: self.onGroupCheckboxStateChanged(state, g, gc))
+            groupBox.stateChanged.connect(lambda collapsed, group=group: self.onGroupBoxCollapseChanged(collapsed, group))
 
             if 'elements' in group and isinstance(group['elements'], list):
                 for element in group['elements']:
                     # Add "indentation" to element checkboxes
                     elementCheckboxLayout = QHBoxLayout()
-                    elementCheckboxLayout.addSpacing(16)
                     wavelength = 1 / element['spatial_frequency']
 
                     elementName = element.get('name', 'Unnamed Element')
@@ -118,11 +191,12 @@ class PaperMachineDataWindow(QWidget, DataMixin):
                     checkbox.stateChanged.connect(lambda state, elem=element, gc=groupCheckbox: self.onElementCheckboxStateChanged(state, elem, gc))
 
                     elementCheckboxLayout.addWidget(checkbox)
-                    self.mainLayout.addLayout(elementCheckboxLayout)
+                    groupBoxLayout.addLayout(elementCheckboxLayout)
                     self.checkboxes.append(checkbox)
                     self.group_checkboxes[groupCheckbox].append(checkbox)
 
             self.updateGroupCheckboxState(groupCheckbox)
+            groupBox.setContentLayout(groupBoxLayout)
 
         self.mainLayout.addStretch(1)
 
@@ -169,3 +243,6 @@ class PaperMachineDataWindow(QWidget, DataMixin):
             groupCheckbox.setCheckState(Qt.CheckState.Unchecked)
             groupCheckbox.setTristate(False)
         groupCheckbox.blockSignals(False)
+
+    def onGroupBoxCollapseChanged(self, collapsed, group):
+        group['collapsed'] = collapsed
