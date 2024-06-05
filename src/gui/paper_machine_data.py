@@ -67,12 +67,15 @@ class PaperMachineDataWindow(QWidget, DataMixin):
                         element['spatial_frequency'] = element['vanes'] * element['spatial_frequency']
                     element['frequency_hz'] = element['spatial_frequency'] * (machine_speed_at_element / 60)
 
-    def refresh_pm_data(self, machine_speed):
+    def refresh_pm_data(self, machine_speed, selected_frequency):
 
         self.clearLayout(self.mainLayout)
         self.checkboxes.clear()
         self.group_checkboxes.clear()
         self.populate_pm_data(machine_speed)
+
+        closest_element = None
+        closest_frequency_diff = float('inf')
 
         for group in self.pm_data:
             groupCheckboxLayout = QHBoxLayout()
@@ -103,6 +106,13 @@ class PaperMachineDataWindow(QWidget, DataMixin):
                         checkbox = QCheckBox(
                             f"{elementName}: {element['spatial_frequency']:.2f} 1/m (λ = {100*wavelength:.2f} cm)")
 
+                    if selected_frequency:
+                        # Check if this element is closest to the selected frequency
+                        frequency_diff = abs(element['spatial_frequency'] - selected_frequency)
+                        if frequency_diff < closest_frequency_diff:
+                            closest_element = element
+                            closest_frequency_diff = frequency_diff
+
                     checkbox.setChecked(element.get('checked', False))
                     checkbox.setProperty('element', element)
                     checkbox.stateChanged.connect(lambda state, elem=element, gc=groupCheckbox: self.onElementCheckboxStateChanged(state, elem, gc))
@@ -115,6 +125,12 @@ class PaperMachineDataWindow(QWidget, DataMixin):
             self.updateGroupCheckboxState(groupCheckbox)
 
         self.mainLayout.addStretch(1)
+
+        # Highlight the closest element
+        if closest_element:
+            closest_checkbox = next((checkbox for checkbox in self.checkboxes if checkbox.property('element') == closest_element), None)
+            if closest_checkbox:
+                closest_checkbox.setStyleSheet("background-color: lightskyblue;")  # You can customize the highlight color
 
     def onElementCheckboxStateChanged(self, state, element, groupCheckbox):
         element['checked'] = (state == Qt.CheckState.Checked.value)

@@ -56,7 +56,8 @@ class SpectrogramWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Fr
                 self.updateElements, self.window_type)
             self.paperMachineDataWindow.show()
             self.paperMachineDataWindow.refresh_pm_data(
-                self.controller.machine_speed)
+                self.controller.machine_speed,
+                self.controller.selected_freq)
             self.paperMachineDataWindow.closed.connect(
                 self.onPaperMachineDataClosed)
             self.paperMachineDataAction.setChecked(True)
@@ -214,4 +215,4 @@ class SpectrogramWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Fr
                     f"Selected frequency: {selected_freq:.2f} 1/m (λ = {100*wavelength:.2f} cm)")
 
         if self.paperMachineDataWindow:
-            self.paperMachineDataWindow.refresh_pm_data(machine_speed)
+            self.paperMachineDataWindow.refresh_pm_data(machine_speed, selected_freq)
