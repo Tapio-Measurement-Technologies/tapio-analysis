@@ -28,6 +28,8 @@ jobs:
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
     - name: Run tests
+      env:
+        QT_QPA_PLATFORM: minimal
       run: |
         # Start Xvfb
         Xvfb :99 -screen 0 1920x1080x16 &
