@@ -23,13 +23,11 @@ jobs:
 
     - name: Install dependencies
       run: |
-        apt-get update && apt-get install -y xvfb libegl1 libxcb-cursor0 '^libxcb.*-dev' libx11-xcb-dev libglu1-mesa-dev libxrender-dev libxi-dev libxkbcommon-dev libxkbcommon-x11-dev
+        apt-get update && apt-get install -y xvfb libegl1-mesa-dev libxcb-cursor0 '^libxcb.*-dev' libx11-xcb-dev libglu1-mesa-dev libxrender-dev libxi-dev libxkbcommon-dev libxkbcommon-x11-dev
         python -m pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
     - name: Run tests
-      env:
-        QT_QPA_PLATFORM: minimal
       run: |
         # Start Xvfb
         Xvfb :99 -screen 0 1920x1080x16 &
