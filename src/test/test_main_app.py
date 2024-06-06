@@ -1,11 +1,19 @@
 import sys
 import os
 import unittest
-from PyQt6.QtWidgets import QApplication
+from superqt import QLabeledDoubleRangeSlider, QLabeledSlider
+from PyQt6.QtWidgets import QApplication, QCheckBox
 from PyQt6.QtTest import QTest
 from PyQt6.QtCore import Qt
 from main import MainWindow
 from utils.data_loader import DataMixin
+from gui.cd_profile import CDProfileWindow
+from gui.channel_correlation import ChannelCorrelationWindow
+from gui.formation import FormationWindow
+from gui.spectrogram import SpectrogramWindow
+from gui.spectrum import SpectrumWindow
+from gui.time_domain import TimeDomainWindow
+from gui.vca import VCAWindow
 
 
 class TestMainApp(unittest.TestCase):
@@ -40,15 +48,15 @@ class TestMainApp(unittest.TestCase):
         self.main_window.refresh()
 
         # Check if windows open successfully
-        self._open_window(self.main_window.findSamplesButton, self.main_window.openFindSamples)
-        self._open_window(self.main_window.MDReportButton, lambda: self.main_window.openReport(window_type="MD"))
-        self._open_window(self.main_window.CDReportButton, lambda: self.main_window.openReport(window_type="CD"))
+        self._open_and_interact_with_window(self.main_window.findSamplesButton, self.main_window.openFindSamples)
+        self._open_and_interact_with_window(self.main_window.MDReportButton, lambda: self.main_window.openReport(window_type="MD"))
+        self._open_and_interact_with_window(self.main_window.CDReportButton, lambda: self.main_window.openReport(window_type="CD"))
 
         for analysis in self.main_window.md_analyses.values():
-            self._open_window(analysis["button"], analysis["callback"])
+            self._open_and_interact_with_window(analysis["button"], analysis["callback"])
 
         for analysis in self.main_window.cd_analyses.values():
-            self._open_window(analysis["button"], analysis["callback"])
+            self._open_and_interact_with_window(analysis["button"], analysis["callback"])
 
     def _load_files(self, folder_path, files):
         data_mixin = DataMixin.getInstance()
@@ -73,7 +81,7 @@ class TestMainApp(unittest.TestCase):
         data_mixin.samples_file_path = samples_file
         data_mixin.load_cd_samples_data()
 
-    def _open_window(self, button, callback):
+    def _open_and_interact_with_window(self, button, callback):
         # Ensure the button is enabled
         self.assertTrue(button.isEnabled(), f"{button.text()} button should be enabled")
 
@@ -83,6 +91,38 @@ class TestMainApp(unittest.TestCase):
 
         # Allow the window to process events
         self.app.processEvents()
+
+        # Interact with the window widgets
+        self._interact_with_window()
+
+    def _interact_with_window(self):
+        # Perform interactions with the window widgets
+        for window in self.main_window.windows:
+            if isinstance(window, (CDProfileWindow, ChannelCorrelationWindow, FormationWindow, SpectrogramWindow, SpectrumWindow, TimeDomainWindow, VCAWindow)):
+                self._toggle_checkboxes(window)
+                self._move_sliders(window)
+
+    def _toggle_checkboxes(self, window):
+        # Find all checkboxes in the window and toggle them
+        checkboxes = window.findChildren(QCheckBox)
+        for checkbox in checkboxes:
+            QTest.mouseClick(checkbox, Qt.MouseButton.LeftButton)
+            QTest.mouseClick(checkbox, Qt.MouseButton.LeftButton)
+
+    def _move_sliders(self, window):
+        # Find all sliders in the window and move them
+        sliders = window.findChildren(QLabeledSlider)
+        for slider in sliders:
+            slider.setValue(slider.maximum())
+            self.app.processEvents()
+            slider.setValue(slider.minimum())
+            self.app.processEvents()
+        double_sliders = window.findChildren(QLabeledDoubleRangeSlider)
+        for slider in double_sliders:
+            slider.setValue((slider.minimum(), slider.maximum()))
+            self.app.processEvents()
+            slider.setValue((slider.minimum(), slider.minimum()))
+            self.app.processEvents()
 
 
 if __name__ == '__main__':
