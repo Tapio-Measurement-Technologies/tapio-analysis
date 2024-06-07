@@ -97,8 +97,17 @@ class PaperMachineDataWindow(QWidget, DataMixin):
         self.setWindowTitle(f"{self.window_type} Paper machine data")
         self.setGeometry(100, 100, 400, 500)
 
-        self.mainLayout = QVBoxLayout()
-        self.setLayout(self.mainLayout)
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+
+        self.container_widget = QWidget()
+        self.mainLayout = QVBoxLayout(self.container_widget)
+        self.scroll_area.setWidget(self.container_widget)
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.scroll_area)
+        self.setLayout(layout)
+
         self.pm_data = self.dataMixin.pm_data[self.window_type]
 
     def clearLayout(self, layout):
