@@ -4,6 +4,8 @@ import numpy as np
 
 from utils.data_loader import DataMixin
 
+COLLAPSE_BY_DEFAULT = True
+
 class CollapsibleBox(QWidget):
     stateChanged = pyqtSignal(bool)
 
@@ -152,7 +154,7 @@ class PaperMachineDataWindow(QWidget, DataMixin):
             groupCheckboxLayout = QVBoxLayout()
             groupName = group.get('groupName', 'Unnamed group')
             groupCheckbox = QCheckBox()
-            groupBox = CollapsibleBox(groupName, collapsed=group.get('collapsed', False))
+            groupBox = CollapsibleBox(groupName, collapsed=group.get('collapsed', COLLAPSE_BY_DEFAULT))
             self.group_checkboxes[groupCheckbox] = []
             groupBoxLayout = QVBoxLayout()
 
