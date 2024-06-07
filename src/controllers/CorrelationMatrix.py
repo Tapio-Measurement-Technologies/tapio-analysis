@@ -69,7 +69,6 @@ class CorrelationMatrixController(QObject, PlotMixin):
             cd_data_frame = pd.DataFrame(index=range(low_index, high_index))
 
             for channel, segments in self.dataMixin.segments.items():
-                print(self.dataMixin.segments.items())
                 channel_data = np.mean(segments, axis=0)[low_index:high_index]
                 print(channel)
                 cd_data_frame[channel] = channel_data

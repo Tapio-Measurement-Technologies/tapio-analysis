@@ -113,7 +113,6 @@ class SpectrogramController(QObject, PlotMixin):
                                [self.low_index:self.high_index] for sample_idx in self.selected_samples]
             mean_profile = np.mean(unfiltered_data, axis=0)
             mean_profile = mean_profile - np.mean(mean_profile)
-            print(mean_profile)
 
 
             Pxx, freqs, bins, im = ax.specgram(mean_profile,

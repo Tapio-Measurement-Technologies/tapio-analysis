@@ -4,6 +4,8 @@ import numpy as np
 
 from utils.data_loader import DataMixin
 
+COLLAPSE_BY_DEFAULT = True
+
 class CollapsibleBox(QWidget):
     stateChanged = pyqtSignal(bool)
 
@@ -93,10 +95,19 @@ class PaperMachineDataWindow(QWidget, DataMixin):
 
     def initUI(self):
         self.setWindowTitle(f"{self.window_type} Paper machine data")
-        self.setGeometry(100, 100, 400, 500)
+        self.setGeometry(100, 100, 500, 500)
 
-        self.mainLayout = QVBoxLayout()
-        self.setLayout(self.mainLayout)
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+
+        self.container_widget = QWidget()
+        self.mainLayout = QVBoxLayout(self.container_widget)
+        self.scroll_area.setWidget(self.container_widget)
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.scroll_area)
+        self.setLayout(layout)
+
         self.pm_data = self.dataMixin.pm_data[self.window_type]
 
     def clearLayout(self, layout):
@@ -152,7 +163,7 @@ class PaperMachineDataWindow(QWidget, DataMixin):
             groupCheckboxLayout = QVBoxLayout()
             groupName = group.get('groupName', 'Unnamed group')
             groupCheckbox = QCheckBox()
-            groupBox = CollapsibleBox(groupName, collapsed=group.get('collapsed', False))
+            groupBox = CollapsibleBox(groupName, collapsed=group.get('collapsed', COLLAPSE_BY_DEFAULT))
             self.group_checkboxes[groupCheckbox] = []
             groupBoxLayout = QVBoxLayout()
 
@@ -183,10 +194,10 @@ class PaperMachineDataWindow(QWidget, DataMixin):
                         # Check if this element is closest to the selected frequency
                         frequency_diff = abs(element['spatial_frequency'] - selected_frequency)
                         if frequency_diff < closest_frequency_diff:
-                            closest_element = element
                             closest_frequency_diff = frequency_diff
                             closest_checkbox = checkbox
                             closest_label = label
+                            closest_groupbox = groupBox
 
                     checkbox.setChecked(element.get('checked', False))
                     checkbox.setProperty('element', element)
@@ -194,6 +205,7 @@ class PaperMachineDataWindow(QWidget, DataMixin):
 
                     elementCheckboxLayout.addWidget(checkbox)
                     elementCheckboxLayout.addWidget(label)
+                    label.setAlignment(Qt.AlignmentFlag.AlignRight)
                     groupBoxLayout.addLayout(elementCheckboxLayout)
                     self.checkboxes.append(checkbox)
                     self.group_checkboxes[groupCheckbox].append(checkbox)
@@ -204,9 +216,10 @@ class PaperMachineDataWindow(QWidget, DataMixin):
         self.mainLayout.addStretch(1)
 
         # Highlight the closest element
-        if closest_checkbox and closest_label:
+        if closest_checkbox and closest_label and closest_groupbox:
             closest_checkbox.setStyleSheet("background-color: lightskyblue;")  # Customize the highlight color
             closest_label.setStyleSheet("background-color: lightskyblue;")      # Same color for the label
+            closest_groupbox.expand()
 
 
     def onElementCheckboxStateChanged(self, state, element, groupCheckbox):
