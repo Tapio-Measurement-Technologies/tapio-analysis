@@ -205,6 +205,7 @@ class PaperMachineDataWindow(QWidget, DataMixin):
 
                     elementCheckboxLayout.addWidget(checkbox)
                     elementCheckboxLayout.addWidget(label)
+                    label.setAlignment(Qt.AlignmentFlag.AlignRight)
                     groupBoxLayout.addLayout(elementCheckboxLayout)
                     self.checkboxes.append(checkbox)
                     self.group_checkboxes[groupCheckbox].append(checkbox)
