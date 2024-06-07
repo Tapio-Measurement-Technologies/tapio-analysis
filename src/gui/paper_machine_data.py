@@ -95,7 +95,7 @@ class PaperMachineDataWindow(QWidget, DataMixin):
 
     def initUI(self):
         self.setWindowTitle(f"{self.window_type} Paper machine data")
-        self.setGeometry(100, 100, 400, 500)
+        self.setGeometry(100, 100, 500, 500)
 
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
