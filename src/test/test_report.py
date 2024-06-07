@@ -8,7 +8,7 @@ class TestReportWindow(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Create a QApplication instance for testing
-        cls.app = QApplication(sys.argv)
+        cls.app = QApplication.instance() or QApplication(sys.argv)
 
     def setUp(self):
         # Initialize the main window and report window
