@@ -9,7 +9,7 @@ Tapio Analysis is an open-source software developed by Tapio Measurement Technol
 - **Cross Direction (CD) paper quality diagnostics**: Measuring true CD strips, the analyzer can measure true CD strips with sub-millimeter resolution, helping to detect CD issues such as streaks or periodic variations caused by sprays, actuators etc.
 - **Machine direction (MD) diagnostics**: Unique software to link the wavelengths of the periodic variations observed in the paper to the rotating frequencies and actuator spacings of elements in your production line.
 - **Before-after rebuild assessment**: Determine and quantify the changes caused by comparing measurements before and after the changes.
-- **QCS verification**:  The Tapio Analyzer is calibrated before each measurement and measures at a slow speed in laboratory conditions. It is a good tool for verifying measurements of online QCS measurement heads. 
+- **QCS verification**:  The Tapio Analyzer is calibrated before each measurement and measures at a slow speed in laboratory conditions. The software includes tools for verifying measurements of online QCS measurement heads or any other supplementary data and comparing it to the true CD profiles.
 - **Formation and micro level studies**:  The Tapio Analyzer can measure variations from the kilometer scale down to millimeter scale, allowing studies of formation and other micro level phenomena.
 
 ## Key features

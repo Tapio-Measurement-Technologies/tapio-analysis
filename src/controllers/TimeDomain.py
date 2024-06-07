@@ -48,7 +48,7 @@ class TimeDomainController(QObject, PlotMixin, ExportMixin):
         ax.set_title(f"{self.dataMixin.measurement_label} ({self.channel})")
         ax.grid()
 
-        ax.set_xlabel("Distance [{}]".format(settings.TIME_DOMAIN_ANALYSIS_DISPLAY_UNIT))
+        ax.set_xlabel(f"Distance [{settings.TIME_DOMAIN_ANALYSIS_DISPLAY_UNIT}]")
         ax.set_ylabel(f"{self.channel} [{self.dataMixin.units[self.channel]}]")
 
         ax.figure.set_constrained_layout(True)

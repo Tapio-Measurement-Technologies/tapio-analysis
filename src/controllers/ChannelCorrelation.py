@@ -6,6 +6,7 @@ from scipy.stats import pearsonr
 import settings
 import numpy as np
 
+
 class ChannelCorrelationController(QObject, PlotMixin):
     updated = pyqtSignal()
 
@@ -65,10 +66,8 @@ class ChannelCorrelationController(QObject, PlotMixin):
         corr_coeff, _ = pearsonr(data1, data2)
         ax_correlation.scatter(data1, data2, s=1)
         ax_correlation.set_title(f"Correlation coefficient: {corr_coeff:.2f}")
-        ax_correlation.set_xlabel(
-            f"{self.channel1} [{self.dataMixin.units[self.channel1]}]")
-        ax_correlation.set_ylabel(
-            f"{self.channel2} [{self.dataMixin.units[self.channel2]}]")
+        ax_correlation.set_xlabel(f"{self.channel1} [{self.dataMixin.units[self.channel1]}]")
+        ax_correlation.set_ylabel(f"{self.channel2} [{self.dataMixin.units[self.channel2]}]")
         ax_correlation.grid()
 
         self.canvas.draw()
@@ -79,34 +78,34 @@ class ChannelCorrelationController(QObject, PlotMixin):
     def plotChannelData(self, ax, channel, color):
         # This function needs to be adapted to how your data is structured and how you filter/prepare it
         if self.window_type == "MD":
-            low_index = np.searchsorted(
-                self.dataMixin.distances, self.analysis_range_low)
-            high_index = np.searchsorted(
-                self.dataMixin.distances, self.analysis_range_high, side='right')
+            low_index = np.searchsorted(self.dataMixin.distances, self.analysis_range_low)
+            high_index = np.searchsorted(self.dataMixin.distances, self.analysis_range_high, side='right')
 
             x = self.dataMixin.distances[low_index:high_index]
             unfiltered_data = self.dataMixin.channel_df[channel][low_index:high_index]
-            filtered_data = bandpass_filter(
-                unfiltered_data, self.band_pass_low, self.band_pass_high, self.fs)
+            filtered_data = bandpass_filter(unfiltered_data, self.band_pass_low, self.band_pass_high, self.fs)
         elif self.window_type == "CD":
-            low_index = np.searchsorted(
-                self.dataMixin.cd_distances, self.analysis_range_low)
-            high_index = np.searchsorted(
-                self.dataMixin.cd_distances, self.analysis_range_high, side='right')
+            low_index = np.searchsorted(self.dataMixin.cd_distances, self.analysis_range_low)
+            high_index = np.searchsorted(self.dataMixin.cd_distances, self.analysis_range_high, side='right')
 
             x = self.dataMixin.cd_distances[low_index:high_index]
 
-            unfiltered_data = np.mean([self.dataMixin.segments[channel][sample_idx][low_index:high_index] for sample_idx in self.selected_samples], axis=0)
+            unfiltered_data = np.mean([
+                self.dataMixin.segments[channel][sample_idx][low_index:high_index]
+                for sample_idx in self.selected_samples
+            ],
+                                      axis=0)
 
-            filtered_data = bandpass_filter(
-                unfiltered_data, self.band_pass_low, self.band_pass_high, self.fs)
+            filtered_data = bandpass_filter(unfiltered_data, self.band_pass_low, self.band_pass_high, self.fs)
 
         if self.show_unfiltered_data:
-            ax.plot(x, unfiltered_data, alpha=0.5, color="gray")
-        ax.plot(x, filtered_data, color=color, alpha=0.9)
-        ax.set_xlabel("Distance [m]")
-        ax.set_ylabel(
-            f"{channel} [{self.dataMixin.units[channel]}]", color=color)
+            ax.plot(x * settings.CORRELATION_ANALYSIS_DISPLAY_UNIT_MULTIPLIER,
+                    unfiltered_data,
+                    alpha=0.5,
+                    color="gray")
+        ax.plot(x * settings.CORRELATION_ANALYSIS_DISPLAY_UNIT_MULTIPLIER, filtered_data, color=color, alpha=0.9)
+        ax.set_xlabel(f"Distance [{settings.CORRELATION_ANALYSIS_DISPLAY_UNIT}]")
+        ax.set_ylabel(f"{channel} [{self.dataMixin.units[channel]}]", color=color)
         ax.tick_params(axis='y', labelcolor=color)
         # ax.grid()
 
