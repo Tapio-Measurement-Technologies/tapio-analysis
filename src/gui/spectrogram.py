@@ -180,7 +180,6 @@ class SpectrogramWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Fr
             ax = event.inaxes
 
             # Check if the x-coordinate is within the axis limits
-            print(event.ydata)
             ylim = ax.get_ylim()
             if not (ylim[0] <= event.ydata <= ylim[1]) or event.ydata < 0:
                 return  # Do not proceed if the x-coordinate is out of bounds

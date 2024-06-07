@@ -53,7 +53,6 @@ class CDProfileController(QObject, PlotMixin, ExportMixin):
             self.dataMixin.cd_distances, self.analysis_range_high, side='right')
 
         x = self.dataMixin.cd_distances[low_index:high_index]
-        print(self.dataMixin.segments)
 
         unfiltered_data = [self.dataMixin.segments[self.channel][sample_idx]
                            [low_index:high_index] for sample_idx in self.selected_samples]
