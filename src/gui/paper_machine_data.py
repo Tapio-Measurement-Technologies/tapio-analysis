@@ -194,10 +194,10 @@ class PaperMachineDataWindow(QWidget, DataMixin):
                         # Check if this element is closest to the selected frequency
                         frequency_diff = abs(element['spatial_frequency'] - selected_frequency)
                         if frequency_diff < closest_frequency_diff:
-                            closest_element = element
                             closest_frequency_diff = frequency_diff
                             closest_checkbox = checkbox
                             closest_label = label
+                            closest_groupbox = groupBox
 
                     checkbox.setChecked(element.get('checked', False))
                     checkbox.setProperty('element', element)
@@ -216,9 +216,10 @@ class PaperMachineDataWindow(QWidget, DataMixin):
         self.mainLayout.addStretch(1)
 
         # Highlight the closest element
-        if closest_checkbox and closest_label:
+        if closest_checkbox and closest_label and closest_groupbox:
             closest_checkbox.setStyleSheet("background-color: lightskyblue;")  # Customize the highlight color
             closest_label.setStyleSheet("background-color: lightskyblue;")      # Same color for the label
+            closest_groupbox.expand()
 
 
     def onElementCheckboxStateChanged(self, state, element, groupCheckbox):
