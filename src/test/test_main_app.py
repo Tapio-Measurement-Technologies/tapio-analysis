@@ -20,7 +20,7 @@ class TestMainApp(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.app = QApplication(sys.argv)
+        cls.app = QApplication.instance() or QApplication(sys.argv)
         cls.main_window = MainWindow()
 
     @classmethod
