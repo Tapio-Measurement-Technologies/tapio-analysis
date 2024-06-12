@@ -27,7 +27,7 @@ ANALYSES = {
             "label": "CD Correlation matrix"
         },
         "vca": {
-            "label": "Variable component analysis"
+            "label": "Variance component analysis"
         },
         "formation": {
             "label": "CD Formation"
