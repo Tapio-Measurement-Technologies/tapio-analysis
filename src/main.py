@@ -16,12 +16,12 @@ from PyQt6.QtGui import QPixmap, QIcon, QAction
 from PyQt6.QtCore import Qt
 
 from gui.find_samples import FindSamplesWindow
-from gui.channel_correlation import ChannelCorrelationWindow
 from gui.report import ReportWindow
 import os
 
 from utils.data_loader import DataMixin
 from utils.windows import *
+from utils.dynamic_loader import load_modules_from_folder
 
 import logging
 
@@ -36,9 +36,8 @@ class MainWindow(QMainWindow, DataMixin):
         self.dataMixin = DataMixin.getInstance()
         self.windows = []
         self.findSamplesWindow = None
+        self.loaders = load_modules_from_folder('loaders')
         self.initUI()
-
-        self.open_file_types = "All Files (*);;Calibration files (*.ca2);;Data files (*.da2);;Header files (*.pk2);;Paper machine files (*.pmdata.json);;CD Sample location files (*.samples.json)"
 
     def initUI(self):
         self.setWindowTitle('Tapio Analysis')
@@ -47,13 +46,16 @@ class MainWindow(QMainWindow, DataMixin):
         # Menu
         mainMenu = self.menuBar()
         fileMenu = mainMenu.addMenu('File')
-        openAction = QAction('Open', self)
-        openAction.triggered.connect(self.openFileNameDialog)
 
-        openAction.setShortcut("Ctrl+O")
-        openAction.setStatusTip("Open file")
+        # Create menu items for each loaded module
+        for module_name, module in self.loaders.items():
+            action_text = getattr(module, 'menu_text', module_name)
+            action = QAction(action_text, self)
+            action.triggered.connect(lambda checked, main_window=self: module.load_data(main_window))
+            fileMenu.addAction(action)
 
-        fileMenu.addAction(openAction)
+            if len(self.loaders.items()) == 1:
+                action.setShortcut('Ctrl+O')
 
         self.exportAction = QAction('Export raw data', self)
         self.exportAction.triggered.connect(self.exportDataToCSV)
@@ -151,63 +153,6 @@ class MainWindow(QMainWindow, DataMixin):
         for window in self.windows:
             window.close()
         self.refresh()
-
-    def openFileNameDialog(self):
-        dialog = QFileDialog(self)
-        options = QFileDialog.options(dialog)
-        fileNames, _ = QFileDialog.getOpenFileNames(
-            self,
-            "Open File",
-            "",
-            self.open_file_types,
-            options=options)
-        if fileNames:
-            if len(self.windows) > 0:
-                response = QMessageBox.question(self, 'Confirm open new file',
-                                                'This will close all current analysis windows. Do you want to proceed?',
-                                                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
-                if response == QMessageBox.StandardButton.No:
-                    return
-
-            self.closeAll()
-
-            for fn in fileNames:
-                # Extract the base name of the file
-                basename = os.path.basename(fn)
-
-                self.custom_open(fn)
-
-                if fn.endswith('.ca2'):
-                    self.dataMixin.calibration_file_path = fn
-                    self.fileLabels["Calibration"].setText(f"{basename}")
-                elif fn.endswith('.da2'):
-                    self.dataMixin.data_file_path = fn
-                    self.fileLabels["Data"].setText(f"{basename}")
-                elif fn.endswith('.pk2'):
-                    self.dataMixin.header_file_path = fn
-                    self.fileLabels["Header"].setText(f"{basename}")
-                elif fn.endswith('.pmdata.json'):
-                    self.dataMixin.pm_file_path = fn
-                    self.fileLabels["Paper machine"].setText(f"{basename}")
-                    self.dataMixin.load_pm_file()
-
-                elif fn.endswith('.samples.json'):
-                    self.dataMixin.samples_file_path = fn
-                    self.fileLabels["Sample locations"].setText(f"{basename}")
-
-            if (self.dataMixin.calibration_file_path and self.dataMixin.data_file_path
-                    and self.dataMixin.header_file_path):
-                self.dataMixin.load_legacy_data()
-
-                if (self.dataMixin.samples_file_path):
-                    self.dataMixin.load_cd_samples_data()
-                    self.dataMixin.split_data_to_segments()
-
-        self.refresh()
-
-    def custom_open(self, fn):
-        # Implement this in a customization
-        pass
 
     def openFindSamples(self):
         if self.findSamplesWindow is not None and not self.findSamplesWindow.isClosed:
