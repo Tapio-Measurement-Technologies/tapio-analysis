@@ -37,6 +37,8 @@ class MainWindow(QMainWindow, DataMixin):
         self.windows = []
         self.findSamplesWindow = None
         self.loaders = load_modules_from_folder('loaders')
+        self.exporters = load_modules_from_folder('exporters')
+        self.md_export_actions = []
         self.initUI()
 
     def initUI(self):
@@ -57,11 +59,18 @@ class MainWindow(QMainWindow, DataMixin):
             if len(self.loaders.items()) == 1:
                 action.setShortcut('Ctrl+O')
 
-        self.exportAction = QAction('Export raw data', self)
-        self.exportAction.triggered.connect(self.exportDataToCSV)
-        self.exportAction.setShortcut("Ctrl+E")
-        self.exportAction.setStatusTip("Export data")
-        fileMenu.addAction(self.exportAction)
+        # Create menu items for export module
+        for module_name, module in self.exporters.items():
+            action_text = getattr(module, 'menu_text', module_name)
+            action = QAction(action_text, self)
+            action.triggered.connect(lambda checked, module=module: self.exportData(module))
+            fileMenu.addAction(action)
+
+            if len(self.loaders.items()) == 1:
+                action.setShortcut('Ctrl+E')
+
+            if module_name.startswith('md'):
+                self.md_export_actions.append(action)
 
         self.closeAction = QAction('Close open files', self)
         self.closeAction.triggered.connect(self.closeAll)
@@ -122,30 +131,24 @@ class MainWindow(QMainWindow, DataMixin):
             loader_module.load_data(self, fileNames)
             self.refresh()
 
-    def combineData(self):
-        import pandas as pd
-        distances_df = pd.DataFrame(
-            self.dataMixin.distances, columns=['distance'])
-        ordered_channel_df = self.dataMixin.channel_df[self.dataMixin.channels]
-        combined_df = pd.concat([distances_df, ordered_channel_df], axis=1)
-        return combined_df
-
-    def exportDataToCSV(self):
+    def exportData(self, export_module):
+        file_types = getattr(export_module, 'file_types', 'All Files (*)')
         dialog = QFileDialog()
         options = QFileDialog.options(dialog)
         fileName, _ = QFileDialog.getSaveFileName(
-            self, "Raw data CSV", "", "CSV Files (*.md.csv)", options=options)
-        if fileName:
-            combined_df = self.combineData()
-            if not fileName.endswith('*.md.csv'):
-                fileName += '.md.csv'
-            combined_df.to_csv(fileName, index=False)
-            print(f"Combined data exported successfully to {fileName}.")
+            self,
+            "Export Data",
+            "",
+            file_types,
+            options=options
+        )
+        export_module.export_data(self, fileName)
 
     def refresh(self):
         # Disable the buttons and file entries which will be enabled if the correct data are found in the datamixin
-        md_functions = [self.exportAction, self.closeAction,
+        md_functions = [self.closeAction,
                         self.MDReportButton, self.findSamplesButton]
+        md_functions += self.md_export_actions
         md_functions += [value["button"]
                          for value in self.md_analyses.values()]
 
