@@ -6,6 +6,7 @@ menu_text = "Load Tapio data"
 dataMixin = DataMixin.getInstance()
 file_types = "All Files (*);;Calibration files (*.ca2);;Data files (*.da2);;Header files (*.pk2);;Paper machine files (*.pmdata.json);;CD Sample location files (*.samples.json)"
 
+
 def load_data(main_window, fileNames: list[str]):
 
     for fn in fileNames:
@@ -30,8 +31,7 @@ def load_data(main_window, fileNames: list[str]):
             dataMixin.samples_file_path = fn
             main_window.fileLabels["Sample locations"].setText(f"{basename}")
 
-    if (dataMixin.calibration_file_path and dataMixin.data_file_path
-            and dataMixin.header_file_path):
+    if (dataMixin.calibration_file_path and dataMixin.data_file_path and dataMixin.header_file_path):
         dataMixin.load_legacy_data()
 
         if (dataMixin.samples_file_path):
