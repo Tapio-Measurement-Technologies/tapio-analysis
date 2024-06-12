@@ -34,6 +34,7 @@ def load_data(main_window, fileNames: list[str]):
     if (dataMixin.calibration_file_path and dataMixin.data_file_path and dataMixin.header_file_path):
         dataMixin.load_legacy_data()
 
+
         if (dataMixin.samples_file_path):
             dataMixin.load_cd_samples_data()
             dataMixin.split_data_to_segments()

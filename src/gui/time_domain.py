@@ -6,7 +6,10 @@ from qtpy.QtCore import Qt
 from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, StatsMixin, ShowUnfilteredMixin
 from controllers import TimeDomainController
 
-class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, StatsMixin, ShowUnfilteredMixin):
+
+class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, StatsMixin,
+                       ShowUnfilteredMixin):
+
     def __init__(self, controller: TimeDomainController | None = None):
         super().__init__()
         self.dataMixin = DataMixin.getInstance()
@@ -24,8 +27,7 @@ class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilter
         fileMenu.addAction(exportAction)
 
     def initUI(self):
-        self.setWindowTitle(
-            f"Time domain analysis ({self.controller.dataMixin.measurement_label})")
+        self.setWindowTitle(f"Time domain analysis ({self.controller.dataMixin.measurement_label})")
         self.setGeometry(100, 100, 700, 800)
 
         mainLayout = QVBoxLayout()

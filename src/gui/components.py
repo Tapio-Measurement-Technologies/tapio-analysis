@@ -10,6 +10,7 @@ import settings
 import numpy as np
 import pandas as pd
 import io
+import traceback
 
 from gui.sample_selector import SampleSelectorWindow
 
@@ -27,6 +28,7 @@ class ExtraQLabeledDoubleRangeSlider(QLabeledDoubleRangeSlider):
 
 
 class MachineSpeedMixin:
+
     def initMachineSpeedSpinner(self, block_signals=False):
         # Prevent recursive refresh calls when updating values elsewhere
         self.machineSpeedSpinBox.blockSignals(block_signals)
@@ -51,6 +53,7 @@ class MachineSpeedMixin:
 
 
 class FrequencyRangeMixin:
+
     def initFrequencyRangeSlider(self, block_signals=False):
         # Prevent recursive refresh calls when updating values elsewhere
         self.frequencyRangeSlider.blockSignals(block_signals)
@@ -76,7 +79,9 @@ class FrequencyRangeMixin:
         self.controller.frequency_range_low, self.controller.frequency_range_high = self.frequencyRangeSlider.value()
         self.refresh()  # Optionally refresh the plot if needed
 
+
 class AnalysisRangeMixin:
+
     def initAnalysisRangeSlider(self, block_signals=False):
         # Prevent recursive refresh calls when updating values elsewhere
         self.analysisRangeSlider.blockSignals(block_signals)
@@ -106,6 +111,7 @@ class AnalysisRangeMixin:
 
 
 class ChannelMixin:
+
     def initChannelSelector(self, block_signals=False):
         # Prevent recursive refresh calls when updating values elsewhere
         self.channelComboBox.blockSignals(block_signals)
@@ -127,7 +133,9 @@ class ChannelMixin:
         self.controller.channel = self.channelComboBox.currentText()
         self.refresh()
 
+
 class DoubleChannelMixin:
+
     def initChannelSelectors(self, block_signals=False):
         # Prevent recursive refresh calls when updating values elsewhere
         self.channelSelector1.blockSignals(block_signals)
@@ -182,7 +190,9 @@ class ExtraQLabeledSlider(QLabeledSlider):
     #     value = self._slider.value()
     #     self.sliderReleased.emit(value)
 
+
 class SpectrumLengthMixin:
+
     def initSpectrumLengthSlider(self, block_signals=False):
         # Prevent recursive refresh calls when updating values elsewhere
         self.spectrumLengthSlider.blockSignals(block_signals)
@@ -207,7 +217,9 @@ class SpectrumLengthMixin:
         self.controller.nperseg = self.spectrumLengthSlider.value()  # Update your nperseg value based on the slider
         self.refresh()  # Refresh the plot with the new spectrum length
 
+
 class WaterfallOffsetMixin:
+
     def initWaterfallOffsetSlider(self, block_signals=False):
         # Prevent recursive refresh calls when updating values elsewhere
         self.waterfallOffsetSlider.blockSignals(block_signals)
@@ -233,6 +245,7 @@ class WaterfallOffsetMixin:
         self.controller.waterfall_offset = self.waterfallOffsetSlider.value()
         self.refresh()
 
+
 class BandPassFilterMixin:
 
     def bandPassFilterRangeChanged(self):
@@ -245,7 +258,6 @@ class BandPassFilterMixin:
         self.bandPassFilterSlider.setRange(0, self.controller.fs / 2 - 1)
         self.bandPassFilterSlider.setValue((self.controller.band_pass_low, self.controller.band_pass_high))
 
-
         self.bandPassFilterSlider.blockSignals(False)
 
     def addBandPassRangeSlider(self, layout, live_update=settings.UPDATE_ON_SLIDE):
@@ -255,8 +267,6 @@ class BandPassFilterMixin:
         self.bandPassFilterSlider = ExtraQLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
         self.bandPassFilterSlider.setDecimals(2)
         self.initBandPassRangeSlider()
-
-
 
         if live_update:
             self.bandPassFilterSlider.valueChanged.connect(self.bandPassFilterRangeChanged)
@@ -289,7 +299,9 @@ class SampleSelectMixin:
         print(self.controller.selected_samples)
         self.refresh()
 
+
 class ShowUnfilteredMixin:
+
     def initShowUnfilteredCheckbox(self, block_signals=False):
         # Prevent recursive refresh calls when updating values elsewhere
         self.showUnfilteredCheckBox.blockSignals(block_signals)
@@ -308,7 +320,9 @@ class ShowUnfilteredMixin:
         self.controller.show_unfiltered_data = state
         self.refresh()
 
+
 class ShowWavelengthMixin:
+
     def initShowWavelengthCheckbox(self, block_signals=False):
         # Prevent recursive refresh calls when updating values elsewhere
         self.wavelengthCheckbox.blockSignals(block_signals)
@@ -327,7 +341,9 @@ class ShowWavelengthMixin:
         self.controller.show_wavelength = state
         self.refresh()
 
+
 class ShowProfilesMixin:
+
     def initShowProfilesCheckbox(self, block_signals=False):
         # Prevent recursive refresh calls when updating values elsewhere
         self.showProfilesCheckBox.blockSignals(block_signals)
@@ -346,7 +362,9 @@ class ShowProfilesMixin:
         self.controller.show_profiles = state
         self.refresh()
 
+
 class ShowMinMaxMixin:
+
     def initShowMinMaxCheckbox(self, block_signals=False):
         # Prevent recursive refresh calls when updating values elsewhere
         self.showMinMaxCheckBox.blockSignals(block_signals)
@@ -365,7 +383,9 @@ class ShowMinMaxMixin:
         self.controller.show_min_max = state
         self.refresh()
 
+
 class ShowLegendMixin:
+
     def initShowLegendCheckbox(self, block_signals=False):
         # Prevent recursive refresh calls when updating values elsewhere
         self.showLegendCheckBox.blockSignals(block_signals)
@@ -384,7 +404,9 @@ class ShowLegendMixin:
         self.controller.show_legend = state
         self.refresh()
 
+
 class ExportMixin:
+
     def __init__(self):
         super().__init__()
 
@@ -420,7 +442,9 @@ class ExportMixin:
     def getExportData(self):
         raise NotImplementedError("Subclasses should implement this method to return the data as a DataFrame.")
 
+
 class ExtraDataMixin:
+
     def addExtraDataWidget(self, layout):
         self.extraDataLabel = QLabel("Extra data")
         # Extra data controls
@@ -473,6 +497,7 @@ class ExtraDataMixin:
         self.controller.use_same_scale = state
         self.refresh()
 
+
 class StatsMixin:
 
     def updateStatistics(self, data, show_units=True):
@@ -495,7 +520,9 @@ class StatsMixin:
         self.minLabel.setText(f"Min: {min_val:.2f} {units}")
         self.maxLabel.setText(f"Max: {max_val:.2f} {units}")
 
+
 class PlotMixin:
+
     def __init__(self):
         super().__init__()
         self.figure = Figure()
@@ -509,7 +536,10 @@ class PlotMixin:
     def updatePlot(self):
         try:
             self.plot()
-        except:
+        except Exception as e:
+            # Print the exception details with traceback
+            print("Exception occurred:")
+            traceback.print_exc()
             self.figure.text(0.5, 0.5, "Invalid parameters", fontsize=14, ha='center', va='center')
             self.canvas.draw()
 
