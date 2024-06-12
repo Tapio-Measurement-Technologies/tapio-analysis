@@ -51,7 +51,7 @@ class MainWindow(QMainWindow, DataMixin):
         for module_name, module in self.loaders.items():
             action_text = getattr(module, 'menu_text', module_name)
             action = QAction(action_text, self)
-            action.triggered.connect(lambda checked, main_window=self: module.load_data(main_window))
+            action.triggered.connect(lambda checked, module=module: self.loadFiles(module))
             fileMenu.addAction(action)
 
             if len(self.loaders.items()) == 1:
@@ -98,6 +98,29 @@ class MainWindow(QMainWindow, DataMixin):
         # Analysis Buttons
         self.setupAnalysisButtons(layout)
         self.refresh()
+
+    def loadFiles(self, loader_module):
+        file_types = getattr(loader_module, 'file_types', "All Files (*)")
+        dialog = QFileDialog()
+        options = QFileDialog.options(dialog)
+        fileNames, _ = QFileDialog.getOpenFileNames(
+            self,
+            "Open File",
+            "",
+            file_types,
+            options=options)
+
+        if fileNames:
+            if len(self.windows) > 0:
+                response = QMessageBox.question(self, 'Confirm open new file',
+                                                'This will close all current analysis windows. Do you want to proceed?',
+                                                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+                if response == QMessageBox.StandardButton.No:
+                    return
+
+            self.closeAll()
+            loader_module.load_data(self, fileNames)
+            self.refresh()
 
     def combineData(self):
         import pandas as pd
