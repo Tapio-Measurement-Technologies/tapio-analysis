@@ -108,3 +108,12 @@ class FindSamplesController(QObject, PlotMixin):
         self.dataMixin.peak_channel = channel
 
         return peaks
+
+    def highlight_intervals(self, intervals):
+        self.plot()  # Redraw the main plot
+        ax = self.figure.gca()
+
+        for start, end in intervals:
+            ax.axvspan(start, end, color='black', alpha=0.1)
+
+        self.canvas.draw()

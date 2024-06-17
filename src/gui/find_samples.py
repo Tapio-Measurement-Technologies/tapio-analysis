@@ -69,8 +69,8 @@ class FindSamplesWindow(QWidget, DataMixin, ChannelMixin, BandPassFilterMixin):
         # Table for displaying peaks
         self.table = QTableWidget()
         self.table.setColumnCount(1)
-        self.table.setHorizontalHeaderLabels(
-            ["Sample length [m]"])
+        self.table.setHorizontalHeaderLabels(["Sample length [m]"])
+        self.table.currentCellChanged.connect(self.onTableRowSelected)  # Connect the selection change signal
 
         self.table.itemChanged.connect(self.onTableItemChanged)
 
@@ -154,3 +154,9 @@ class FindSamplesWindow(QWidget, DataMixin, ChannelMixin, BandPassFilterMixin):
                             }
             with open(fileName, 'w') as file:
                 json.dump(samples_data, file, indent=4)
+
+    def onTableRowSelected(self, row, column):
+        if row < len(self.controller.peaks) - 1:
+            selected_interval = (self.controller.peaks[row], self.controller.peaks[row + 1])
+            print(selected_interval)
+            self.controller.highlight_intervals([selected_interval])
