@@ -119,6 +119,7 @@ class FindSamplesWindow(QWidget, DataMixin, ChannelMixin, BandPassFilterMixin):
     def on_click(self, event):
         if event.button == 2:  # Middle mouse button
             if event.ydata is not None:
+                self.controller.highlighted_intervals = []
                 self.controller.threshold = event.ydata
                 self.dataMixin.peak_channel = self.controller.channel
                 self.controller.detect_peaks(self.controller.channel)
