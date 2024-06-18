@@ -15,7 +15,10 @@ class SpectrogramWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Fr
     def __init__(self, window_type="MD", controller: SpectrogramController | None = None):
         super().__init__()
         self.dataMixin = DataMixin.getInstance()
-        self.controller = controller if controller else SpectrogramController()
+
+        self.window_type = window_type
+        self.controller = controller if controller else SpectrogramController(window_type)
+
         self.window_type = window_type
         self.paperMachineDataWindow = None
         self.sampleSelectorWindow = None
