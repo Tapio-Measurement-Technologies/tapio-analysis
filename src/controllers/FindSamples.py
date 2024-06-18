@@ -31,7 +31,18 @@ class FindSamplesController(QObject, PlotMixin):
         self.filtered_data = bandpass_filter(
             self.data, self.band_pass_low, self.band_pass_high, self.fs)
 
-        ax.plot(self.distances, self.filtered_data)
+        alpha = 0.4 if len(self.dataMixin.selected_samples) else 1
+        # Draw the entire data line with lower alpha
+        ax.plot(self.distances, self.filtered_data, color='tab:blue', alpha=alpha)
+
+        # Highlight the selected samples
+        for i in self.dataMixin.selected_samples:
+            if i < len(self.peaks) - 1:
+                start = self.peaks[i]
+                end = self.peaks[i + 1]
+                mask = (self.distances >= start) & (self.distances <= end)
+                ax.plot(self.distances[mask], self.filtered_data[mask], color='tab:blue', alpha=1.0)
+
         ax.set_title(f"{self.dataMixin.measurement_label} ({self.channel})")
         ax.set_xlabel("Distance [m]")
         ax.set_ylabel(f"{self.channel} [{self.dataMixin.units[self.channel]}]")

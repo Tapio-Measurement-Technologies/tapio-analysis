@@ -103,6 +103,7 @@ class FindSamplesWindow(QWidget, DataMixin, ChannelMixin, BandPassFilterMixin):
         if item.column() == 0:  # Assuming checkboxes are in the first column
             include_samples = self.get_selected_samples()
             self.dataMixin.selected_samples = include_samples
+            self.refresh()
 
     def get_selected_samples(self):
         include_samples = []
