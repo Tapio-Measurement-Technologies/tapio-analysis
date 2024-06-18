@@ -134,8 +134,9 @@ class FindSamplesController(QObject, PlotMixin):
         self.plot()  # Redraw the main plot
 
     def zoom_to_interval(self, start, end):
+        tape_width_meters = settings.TAPE_WIDTH_MM / 1000.0
         self.zoomed_in = True
         self.plot()
         ax = self.figure.gca()
-        ax.set_xlim(start, end)
+        ax.set_xlim(start + tape_width_meters / 2, end - tape_width_meters / 2)
         self.canvas.draw()
