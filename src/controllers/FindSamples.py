@@ -20,6 +20,7 @@ class FindSamplesController(QObject, PlotMixin):
         self.band_pass_low  = settings.FIND_SAMPLES_BAND_PASS_LOW_DEFAULT_1M
         self.band_pass_high = settings.FIND_SAMPLES_BAND_PASS_HIGH_DEFAULT_1M
         self.fs = 1 / self.dataMixin.sample_step
+        self.highlighted_intervals = []
 
     def plot(self):
         self.figure.clear()
@@ -50,6 +51,10 @@ class FindSamplesController(QObject, PlotMixin):
         self.draw_peaks()
         if self.channel == self.dataMixin.peak_channel:
             self.draw_threshold()
+
+        # Highlight selected intervals
+        for start, end in self.highlighted_intervals:
+            ax.axvspan(start, end, color='black', alpha=0.1)
 
         self.canvas.draw()
         self.updated.emit()
@@ -121,13 +126,8 @@ class FindSamplesController(QObject, PlotMixin):
         return peaks
 
     def highlight_intervals(self, intervals):
+        self.highlighted_intervals = intervals
         self.plot()  # Redraw the main plot
-        ax = self.figure.gca()
-
-        for start, end in intervals:
-            ax.axvspan(start, end, color='black', alpha=0.1)
-
-        self.canvas.draw()
 
     def zoom_to_interval(self, start, end):
         self.plot()
