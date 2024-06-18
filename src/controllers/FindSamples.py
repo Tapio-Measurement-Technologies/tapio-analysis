@@ -117,3 +117,9 @@ class FindSamplesController(QObject, PlotMixin):
             ax.axvspan(start, end, color='black', alpha=0.1)
 
         self.canvas.draw()
+
+    def zoom_to_interval(self, start, end):
+        self.plot()
+        ax = self.figure.gca()
+        ax.set_xlim(start, end)
+        self.canvas.draw()
