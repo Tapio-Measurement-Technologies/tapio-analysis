@@ -78,6 +78,8 @@ class FindSamplesWindow(QWidget, DataMixin, ChannelMixin, BandPassFilterMixin):
         # Table for displaying peaks
         self.table = QTableWidget()
         self.table.setColumnCount(1)
+        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.setHorizontalHeaderLabels(["Sample length [m]"])
         self.table.currentCellChanged.connect(self.onTableRowSelected)  # Connect the selection change signal
         self.table.cellDoubleClicked.connect(self.onTableCellDoubleClicked)
@@ -87,9 +89,6 @@ class FindSamplesWindow(QWidget, DataMixin, ChannelMixin, BandPassFilterMixin):
         # Set the size policy to prevent the table from expanding beyond its content
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Preferred)
         self.table.setSizePolicy(sizePolicy)
-
-        # Optionally, you can set a fixed width for the column, e.g., 200 pixels
-        self.table.setColumnWidth(0, 100)
 
         # To center the table in its layout, you might need to add stretch factors to the layout
         # Add stretch before the table to push it to the center
