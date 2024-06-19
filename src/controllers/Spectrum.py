@@ -78,7 +78,7 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
         ax = self.ax
 
         overlap_per = self.overlap
-        noverlap = round(self.nperseg) * overlap_per
+        self.noverlap = round(self.nperseg) * overlap_per
 
         # Extract the segment of data for analysis
         if self.window_type == "MD":
@@ -97,7 +97,7 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
                            fs=self.fs,
                            window='hann',
                            nperseg=self.nperseg,
-                           noverlap=noverlap,
+                           noverlap=self.noverlap,
                            scaling='spectrum')
 
         elif self.window_type == "CD":
@@ -118,14 +118,105 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
                 for sample_idx in self.selected_samples
             ]
 
-            # Calculate individual power spectra, then use the mean. This to prevent opposite phases canceling each other.
-            welches = np.array([
-                welch(y, fs=self.fs, window='hann', nperseg=self.nperseg,
-                      noverlap=noverlap, scaling='spectrum')
-                for y in unfiltered_data
-            ])
+            def calc_mean_power_spectrum(data, nperseg=self.nperseg, noverlap=self.noverlap):
+                # Calculate individual power spectra, then use the mean. This to prevent opposite phases canceling each other.
+                welches = np.array([
+                    welch(y, fs=self.fs, window='hann', nperseg=nperseg,
+                          noverlap=noverlap, scaling='spectrum')
+                    for y in unfiltered_data
+                ])
+                Pxx = np.mean(welches[:, 1], axis=0)
+                return Pxx, welches
+
+            Pxx, welches = calc_mean_power_spectrum(unfiltered_data)
             f = welches[0][0]
-            Pxx = np.mean(welches[:, 1], axis=0)
+
+            ###
+
+            drying_samples = np.array_split(self.dataMixin.cd_distances, 15)
+
+
+            low_index = np.searchsorted(
+                self.dataMixin.cd_distances, drying_samples[0][0])
+            high_index = np.searchsorted(
+                self.dataMixin.cd_distances, drying_samples[0][-1], side='right')
+            unfiltered_data = [
+                self.dataMixin.segments[self.channel][sample_idx][low_index:high_index]
+                for sample_idx in self.selected_samples
+            ]
+            reference_spectrum, _ = calc_mean_power_spectrum(
+                unfiltered_data, nperseg=500, noverlap=400)
+
+            from scipy.interpolate import interp1d
+
+            def similarity_metric(spectrum1, spectrum2):
+                """
+                Compute similarity between two spectra using normalized cross-correlation.
+                """
+                from scipy.stats import pearsonr
+
+                min_len = min(len(spectrum1), len(spectrum2))
+                offset = 50
+                spectrum1 = spectrum1[offset:min_len]
+                spectrum2 = spectrum2[offset:min_len]
+                print(len(spectrum1), len(spectrum2))
+
+                return pearsonr(spectrum1, spectrum2)[0]
+                return np.correlate(spectrum1, spectrum2, mode='valid')[0] / (np.linalg.norm(spectrum1) * np.linalg.norm(spectrum2))
+
+
+
+            def scale_spectrum(power_spectrum, scaling_factor):
+                """
+                Scale the power spectrum by the scaling factor.
+                """
+                n = len(power_spectrum)
+                original_freqs = np.linspace(0, 1, n)
+                scaled_freqs = original_freqs * scaling_factor
+                scaled_spectrum = np.interp(
+                    original_freqs, scaled_freqs, power_spectrum, left=0, right=0)
+                return scaled_spectrum
+
+            scalings = []
+            distances = []
+            for sample in drying_samples:
+                low_index = np.searchsorted(
+                    self.dataMixin.cd_distances, sample[0])
+                high_index = np.searchsorted(
+                    self.dataMixin.cd_distances, sample[-1], side='right')
+                unfiltered_data = [
+                    self.dataMixin.segments[self.channel][sample_idx][low_index:high_index]
+                    for sample_idx in self.selected_samples
+                ]
+                comparison_spectrum, _ = calc_mean_power_spectrum(
+                    unfiltered_data, nperseg=500, noverlap=400)
+                # TODO: compare which scaling produces the best fit for comparison_spectrum and reference_spectrum. Then add that to scalings
+                best_scaling = None
+                best_similarity = -np.inf
+                scaling_factors = np.linspace(0.8, 1.2, 1000)
+
+                print("---")
+                for scaling_factor in scaling_factors:
+                    scaled_spectrum = scale_spectrum(
+                        comparison_spectrum, scaling_factor)
+                    # plt.figure()
+                    # plt.plot(scaled_spectrum)
+                    similarity = similarity_metric(
+                        reference_spectrum, scaled_spectrum)
+                    print("Scaling factor: {} similarity: {} current best similarity {}".format(
+                        scaling_factor, similarity, best_similarity))
+                    if similarity > best_similarity:
+                        best_similarity = similarity
+                        best_scaling = scaling_factor
+                        print("new best")
+
+                print(best_scaling)
+                scalings.append(best_scaling)
+                distances.append(sample[0])
+
+            plt.figure()
+            plt.plot(distances, scalings)
+            plt.show()
 
         f_low_index = np.searchsorted(f, self.frequency_range_low)
         f_high_index = np.searchsorted(
