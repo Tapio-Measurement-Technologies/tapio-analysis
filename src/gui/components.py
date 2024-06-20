@@ -425,6 +425,26 @@ class ShowConfidenceIntervalMixin:
         self.controller.confidence_interval = self.confidence_interval if state else None
         self.refresh()
 
+class ShowTimeLabelsMixin:
+
+    def initShowTimeLabelsCheckbox(self, block_signals=False):
+        # Prevent recursive refresh calls when updating values elsewhere
+        self.showTimeLabelsCheckbox.blockSignals(block_signals)
+        show_time_labels = self.controller.show_time_labels
+        self.showTimeLabelsCheckbox.setChecked(show_time_labels)
+        self.showTimeLabelsCheckbox.blockSignals(False)
+
+    def addShowTimeLabelsCheckbox(self, layout):
+        self.showTimeLabelsCheckbox = QCheckBox("Show time labels", self)
+        self.initShowTimeLabelsCheckbox()
+        self.showTimeLabelsCheckbox.stateChanged.connect(self.update_show_time_labels)
+        layout.addWidget(self.showTimeLabelsCheckbox)
+
+    def update_show_time_labels(self):
+        state = self.showTimeLabelsCheckbox.isChecked()
+        self.controller.show_time_labels = state
+        self.refresh()
+
 
 class ExportMixin:
 
