@@ -61,9 +61,11 @@ def read_channel_names_units_from_ca(cal_file):
                 parts = line.split('\t')
                 if len(parts) >= 3:
                     sensor_name = parts[0]
-                    units[sensor_name] = parts[1]
-                    logical_channel_numbers[sensor_name] = parts[2]
-                    sensor_names.append(sensor_name)
+                    logical_channel_number = parts[2]
+                    if logical_channel_number != "-1":
+                        units[sensor_name] = parts[1]
+                        logical_channel_numbers[sensor_name] = logical_channel_number
+                        sensor_names.append(sensor_name)
 
     return sensor_names, units
 
@@ -107,28 +109,29 @@ def read_calibration_data_from_ca(cal_file, sensor_names):
                 break
             if line and index > 0:
                 parts = line.split('\t')
-                if len(parts) != len(sensor_names):
+                filtered_parts = [parts[i] for i, n in enumerate(sensor_names)]
+                if len(filtered_parts) != len(sensor_names):
                     raise ValueError(
                         "Mismatch between channel and sensor data")
                 if index == 1:
                     calibrated = {
-                        n: float(parts[i]) == 1 for i, n in enumerate(sensor_names)}
+                        n: float(filtered_parts[i]) == 1 for i, n in enumerate(sensor_names)}
                 elif index == 2:
                     sensor_distances = {
-                        n: float(parts[i]) for i, n in enumerate(sensor_names)}
+                        n: float(filtered_parts[i]) for i, n in enumerate(sensor_names)}
                 elif index == 3:
                     sensor_scales = {
-                        n: float(parts[i]) for i, n in enumerate(sensor_names)}
+                        n: float(filtered_parts[i]) for i, n in enumerate(sensor_names)}
                 elif index == 4:
                     sensor_offsets = {
-                        n: float(parts[i]) for i, n in enumerate(sensor_names)}
+                        n: float(filtered_parts[i]) for i, n in enumerate(sensor_names)}
 
                 elif index == 5:
                     sensor_calibration_types = {
-                        n: float(parts[i]) for i, n in enumerate(sensor_names)}
+                        n: float(filtered_parts[i]) for i, n in enumerate(sensor_names)}
                 elif index == 6:
                     asymptotic_values = {
-                        n: float(parts[i]) for i, n in enumerate(sensor_names)}
+                        n: float(filtered_parts[i]) for i, n in enumerate(sensor_names)}
 
             index += 1
 
