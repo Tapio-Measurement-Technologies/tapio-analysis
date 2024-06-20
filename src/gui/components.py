@@ -404,6 +404,27 @@ class ShowLegendMixin:
         self.controller.show_legend = state
         self.refresh()
 
+class ShowConfidenceIntervalMixin:
+
+    def initShowConfidenceIntervalCheckbox(self, block_signals=False):
+        # Prevent recursive refresh calls when updating values elsewhere
+        self.showConfidenceIntervalCheckbox.blockSignals(block_signals)
+        show_conf_int = self.controller.confidence_interval is not None
+        self.showConfidenceIntervalCheckbox.setChecked(show_conf_int)
+        self.showConfidenceIntervalCheckbox.blockSignals(False)
+
+    def addShowConfidenceIntervalCheckbox(self, layout, interval):
+        self.showConfidenceIntervalCheckbox = QCheckBox(f"Show {interval * 100}% confidence interval", self)
+        self.confidence_interval = interval
+        self.initShowConfidenceIntervalCheckbox()
+        self.showConfidenceIntervalCheckbox.stateChanged.connect(self.update_show_confidence_interval)
+        layout.addWidget(self.showConfidenceIntervalCheckbox)
+
+    def update_show_confidence_interval(self):
+        state = self.showConfidenceIntervalCheckbox.isChecked()
+        self.controller.confidence_interval = self.confidence_interval if state else None
+        self.refresh()
+
 
 class ExportMixin:
 
