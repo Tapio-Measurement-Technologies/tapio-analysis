@@ -3,10 +3,11 @@ from PyQt6.QtGui import QAction
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from qtpy.QtCore import Qt
 from utils.data_loader import DataMixin
-from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowMinMaxMixin, ShowLegendMixin, WaterfallOffsetMixin, ExtraDataMixin
+from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowLegendMixin, ShowConfidenceIntervalMixin, WaterfallOffsetMixin, ExtraDataMixin
 from controllers import CDProfileController
+from settings import CD_PROFILE_CONFIDENCE_INTERVAL
 
-class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowMinMaxMixin, ShowLegendMixin, WaterfallOffsetMixin, ExtraDataMixin):
+class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowLegendMixin, ShowConfidenceIntervalMixin, WaterfallOffsetMixin, ExtraDataMixin):
     def __init__(self, window_type="waterfall", controller: CDProfileController | None = None):
         super().__init__()
         self.dataMixin = DataMixin.getInstance()
@@ -57,7 +58,7 @@ class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Band
 
         if not self.window_type == "waterfall":
             self.addShowProfilesCheckbox(mainLayout)
-            self.addShowMinMaxCheckbox(mainLayout)
+            self.addShowConfidenceIntervalCheckbox(mainLayout, CD_PROFILE_CONFIDENCE_INTERVAL)
             self.addShowLegendCheckbox(mainLayout)
         else:
             self.addWaterfallOffsetSlider(mainLayout)
@@ -90,7 +91,7 @@ class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Band
         self.initChannelSelector(block_signals=True)
         if not self.window_type == "waterfall":
             self.initShowLegendCheckbox(block_signals=True)
-            self.initShowMinMaxCheckbox(block_signals=True)
+            self.initShowConfidenceIntervalCheckbox(block_signals=True)
             self.initShowProfilesCheckbox(block_signals=True)
 
     def refresh(self):
