@@ -133,7 +133,15 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
 
             ###
 
-            drying_samples = np.array_split(self.dataMixin.cd_distances, 15)
+
+            def split_into_overlapping_segments(data, segment_length=500, stride=50):
+                # Use sliding_window_view to create overlapping segments
+                segments = np.lib.stride_tricks.sliding_window_view(data, window_shape=segment_length)
+                return segments[::stride]
+
+            drying_samples = split_into_overlapping_segments(self.dataMixin.cd_distances)
+            drying_res_n = 500
+            drying_noverlap = int(0.95*drying_res_n)
 
 
             low_index = np.searchsorted(
@@ -145,7 +153,7 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
                 for sample_idx in self.selected_samples
             ]
             reference_spectrum, _ = calc_mean_power_spectrum(
-                unfiltered_data, nperseg=500, noverlap=400)
+                unfiltered_data, nperseg=drying_res_n, noverlap=drying_noverlap)
 
             from scipy.interpolate import interp1d
 
@@ -156,9 +164,10 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
                 from scipy.stats import pearsonr
 
                 min_len = min(len(spectrum1), len(spectrum2))
-                offset = 50
-                spectrum1 = spectrum1[offset:min_len]
-                spectrum2 = spectrum2[offset:min_len]
+                offset = int(min_len * 0.5)
+                end = int(min_len * 0.95)
+                spectrum1 = spectrum1[offset:end]
+                spectrum2 = spectrum2[offset:end]
                 print(len(spectrum1), len(spectrum2))
 
                 return pearsonr(spectrum1, spectrum2)[0]
@@ -189,11 +198,11 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
                     for sample_idx in self.selected_samples
                 ]
                 comparison_spectrum, _ = calc_mean_power_spectrum(
-                    unfiltered_data, nperseg=500, noverlap=400)
+                    unfiltered_data, nperseg=drying_res_n, noverlap=drying_noverlap)
                 # TODO: compare which scaling produces the best fit for comparison_spectrum and reference_spectrum. Then add that to scalings
                 best_scaling = None
                 best_similarity = -np.inf
-                scaling_factors = np.linspace(0.8, 1.2, 1000)
+                scaling_factors = np.linspace(0.8, 1.2, 100)
 
                 print("---")
                 for scaling_factor in scaling_factors:
