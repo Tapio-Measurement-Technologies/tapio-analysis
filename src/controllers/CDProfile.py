@@ -2,6 +2,7 @@ from utils.data_loader import DataMixin
 from gui.components import ExportMixin, PlotMixin
 from PyQt6.QtCore import QObject, pyqtSignal
 from utils.filters import bandpass_filter
+from scipy.stats import norm
 import matplotlib.pyplot as plt
 import settings
 import numpy as np
@@ -26,6 +27,7 @@ class CDProfileController(QObject, PlotMixin, ExportMixin):
         self.analysis_range_low = settings.CD_PROFILE_RANGE_LOW_DEFAULT * self.max_dist
         self.analysis_range_high = settings.CD_PROFILE_RANGE_HIGH_DEFAULT * self.max_dist
         self.waterfall_offset = settings.CD_PROFILE_WATERFALL_OFFSET_DEFAULT
+        self.confidence_interval = None
         self.show_profiles = False
         self.show_min_max = False
         self.show_legend = False
@@ -61,6 +63,12 @@ class CDProfileController(QObject, PlotMixin, ExportMixin):
         filtered_data = [bandpass_filter(i, self.band_pass_low, self.band_pass_high, self.fs) for i in unfiltered_data]
 
         self.mean_profile = np.mean(filtered_data, axis=0)
+        std_error = np.std(filtered_data, axis=0) / np.sqrt(len(filtered_data))
+
+        # Calculate the z-score for the given confidence level
+        if self.confidence_interval is not None:
+            z_score = norm.ppf(1 - (1 - self.confidence_interval) / 2)
+            confidence_interval = z_score * std_error
 
         if self.window_type == "waterfall":
             tableau_color_cycle = plt.get_cmap('tab10')
@@ -112,6 +120,12 @@ class CDProfileController(QObject, PlotMixin, ExportMixin):
                         label="Maximum")
 
             ax.plot(x * settings.CD_PROFILE_DISPLAY_UNIT_MULTIPLIER, self.mean_profile, label="Mean profile")
+            if self.confidence_interval is not None:
+                ax.fill_between(x * settings.CD_PROFILE_DISPLAY_UNIT_MULTIPLIER,
+                                self.mean_profile - confidence_interval,
+                                self.mean_profile + confidence_interval,
+                                color='tab:blue', alpha=0.3, label=f"{self.confidence_interval * 100}% CI")
+
             ax.set_title(f"{self.dataMixin.measurement_label} ({self.channel})")
 
             if self.show_legend:

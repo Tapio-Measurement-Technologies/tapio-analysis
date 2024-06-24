@@ -22,7 +22,9 @@ class TimeDomainController(QObject, PlotMixin, ExportMixin):
         self.band_pass_low = settings.TIME_DOMAIN_BAND_PASS_LOW_DEFAULT_1M
         self.band_pass_high = settings.TIME_DOMAIN_BAND_PASS_HIGH_DEFAULT_1M
         self.channel = self.dataMixin.channels[0]
+        self.machine_speed = settings.PAPER_MACHINE_SPEED_DEFAULT
         self.show_unfiltered_data = False
+        self.show_time_labels = False
 
     def plot(self):
         # logging.info("Refresh")
@@ -50,6 +52,19 @@ class TimeDomainController(QObject, PlotMixin, ExportMixin):
 
         ax.set_xlabel(f"Distance [{settings.TIME_DOMAIN_ANALYSIS_DISPLAY_UNIT}]")
         ax.set_ylabel(f"{self.channel} [{self.dataMixin.units[self.channel]}]")
+
+        if self.show_time_labels:
+            # Convert machine speed to meters per second
+            machine_speed_m_per_s = self.machine_speed / 60.0
+            # Calculate time in seconds from distances
+            times = self.distances / machine_speed_m_per_s
+            tick_positions = ax.get_xticks()
+            tick_labels = np.interp(tick_positions / settings.TIME_DOMAIN_ANALYSIS_DISPLAY_UNIT_MULTIPLIER,
+                                    self.distances, times)
+            ax2 = ax.secondary_xaxis('top')
+            ax2.set_xlabel('Time [s]')
+            ax2.set_xticks(tick_positions)
+            ax2.set_xticklabels([f"{time:.2f}" for time in tick_labels])
 
         ax.figure.set_constrained_layout(True)
         self.canvas.draw()
