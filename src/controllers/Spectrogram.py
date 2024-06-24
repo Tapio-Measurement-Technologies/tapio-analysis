@@ -52,6 +52,7 @@ class SpectrogramController(QObject, PlotMixin):
 
         self.max_dist = np.max(
             self.dataMixin.cd_distances if self.window_type == "CD" else self.dataMixin.distances)
+
         self.analysis_range_low = config["analysis_range_low"] * self.max_dist
         self.analysis_range_high = config["analysis_range_high"] * \
             self.max_dist

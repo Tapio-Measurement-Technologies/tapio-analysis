@@ -21,6 +21,7 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
         self.paperMachineDataWindow = None
         self.sosAnalysisWindow = None
         self.sampleSelectorWindow = None
+        self.checked_elements = []
         self.initUI()
 
     def initMenuBar(self, layout):
@@ -54,7 +55,7 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
 
     def togglePaperMachineData(self, checked):
         if self.paperMachineDataWindow is None:
-            self.paperMachineDataWindow = PaperMachineDataWindow(self.updateElements, self.window_type)
+            self.paperMachineDataWindow = PaperMachineDataWindow(self.updateElements, self.window_type, self.checked_elements)
             self.paperMachineDataWindow.show()
             self.paperMachineDataWindow.refresh_pm_data(self.controller.machine_speed, self.controller.selected_freq)
             self.paperMachineDataWindow.closed.connect(self.onPaperMachineDataClosed)
@@ -63,6 +64,7 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
             self.paperMachineDataWindow.close()
 
     def updateElements(self, selected_elements=None):
+        self.checked_elements = selected_elements
         self.controller.selected_elements = selected_elements
         self.refresh()
 

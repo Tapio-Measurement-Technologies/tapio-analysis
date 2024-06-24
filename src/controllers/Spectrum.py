@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from utils.signal_processing import get_n_peaks
 
+
 class SpectrumController(QObject, PlotMixin, ExportMixin):
     updated = pyqtSignal()
 
@@ -52,7 +53,9 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
         self.spectrum_length_slider_min = config["spectrum_length_slider_min"]
         self.spectrum_length_slider_max = config["spectrum_length_slider_max"]
 
-        self.max_dist = np.max(self.dataMixin.cd_distances if self.window_type == "CD" else self.dataMixin.distances)
+        self.max_dist = np.max(
+            self.dataMixin.cd_distances if self.window_type == "CD" else self.dataMixin.distances)
+
         self.analysis_range_low = config["analysis_range_low"] * self.max_dist
         self.analysis_range_high = config["analysis_range_high"] * \
             self.max_dist
@@ -79,8 +82,10 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
 
         # Extract the segment of data for analysis
         if self.window_type == "MD":
-            self.low_index = np.searchsorted(self.dataMixin.distances, self.analysis_range_low)
-            self.high_index = np.searchsorted(self.dataMixin.distances, self.analysis_range_high, side='right')
+            self.low_index = np.searchsorted(
+                self.dataMixin.distances, self.analysis_range_low)
+            self.high_index = np.searchsorted(
+                self.dataMixin.distances, self.analysis_range_high, side='right')
             self.data = self.dataMixin.channel_df[self.channel][self.low_index:self.high_index]
 
             if self.nperseg >= (self.high_index - self.low_index):
@@ -96,8 +101,10 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
                            scaling='spectrum')
 
         elif self.window_type == "CD":
-            self.low_index = np.searchsorted(self.dataMixin.cd_distances, self.analysis_range_low)
-            self.high_index = np.searchsorted(self.dataMixin.cd_distances, self.analysis_range_high, side='right')
+            self.low_index = np.searchsorted(
+                self.dataMixin.cd_distances, self.analysis_range_low)
+            self.high_index = np.searchsorted(
+                self.dataMixin.cd_distances, self.analysis_range_high, side='right')
 
             if self.nperseg >= (self.high_index - self.low_index):
                 self.canvas.draw()
@@ -113,14 +120,16 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
 
             # Calculate individual power spectra, then use the mean. This to prevent opposite phases canceling each other.
             welches = np.array([
-                welch(y, fs=self.fs, window='hann', nperseg=self.nperseg, noverlap=noverlap, scaling='spectrum')
+                welch(y, fs=self.fs, window='hann', nperseg=self.nperseg,
+                      noverlap=noverlap, scaling='spectrum')
                 for y in unfiltered_data
             ])
             f = welches[0][0]
             Pxx = np.mean(welches[:, 1], axis=0)
 
         f_low_index = np.searchsorted(f, self.frequency_range_low)
-        f_high_index = np.searchsorted(f, self.frequency_range_high, side='right')
+        f_high_index = np.searchsorted(
+            f, self.frequency_range_high, side='right')
         # Convert power spectral density to amplitude spectrum (sqrt of power)
         amplitude_spectrum = np.sqrt(Pxx)
 
@@ -137,7 +146,8 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
         self.amplitudes = amplitude_spectrum[f_low_index:f_high_index]
 
         ax.plot(self.frequencies, self.amplitudes)
-        ax.set_title(f"{self.dataMixin.measurement_label} ({self.channel}) - Spectrum")
+        ax.set_title(f"{self.dataMixin.measurement_label} ({
+                     self.channel}) - Spectrum")
         ax.set_xlabel("Frequency [1/m]")
         ax.set_ylabel(f"Amplitude [{self.dataMixin.units[self.channel]}]")
 
@@ -150,7 +160,8 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
                 secax.set_xticks(primary_ticks)
                 secax.set_xlim(*ax.get_xlim())
                 secondary_ticks = [100 * (1 / i) for i in secax.get_xticks()]
-                secax.set_xticklabels([f"{tick:.2f}" for tick in secondary_ticks])
+                secax.set_xticklabels(
+                    [f"{tick:.2f}" for tick in secondary_ticks])
 
             secax.set_xlabel(f"Wavelength [cm]")
 
@@ -161,9 +172,11 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
                 secax.set_xticks(primary_ticks)
                 secax.set_xlim(*ax.get_xlim())
                 secondary_ticks = secax.get_xticks() * self.machine_speed / 60
-                secax.set_xticklabels([f"{tick:.2f}" for tick in secondary_ticks])
+                secax.set_xticklabels(
+                    [f"{tick:.2f}" for tick in secondary_ticks])
 
-            secax.set_xlabel(f"Frequency [Hz] at machine speed {self.machine_speed:.1f} m/min")
+            secax.set_xlabel(f"Frequency [Hz] at machine speed {
+                             self.machine_speed:.1f} m/min")
 
         ax.set_zorder(secax.get_zorder() + 1)
         update_secax()  # Initial call to update secondary axis
@@ -236,11 +249,13 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
                     "Frequency:\nWavelength:",
                     f"{self.selected_freq:.2f} 1/m\n{100*wavelength:.3f} m"
                 ])
-        peaks = get_n_peaks(np.column_stack((self.frequencies, self.amplitudes)), 5)
+        peaks = get_n_peaks(np.column_stack(
+            (self.frequencies, self.amplitudes)), 5)
         frequencies = [f"{freq:.2f}" for freq in peaks[:, 0]]
         amplitudes = [f"{amp:.2f}" for amp in peaks[:, 1]]
         stats.append(["Main periodic components:", ""])
-        stats.append(["Frequency [Hz]", f"RMS [{self.dataMixin.units[self.channel]}]"])
+        stats.append(
+            ["Frequency [Hz]", f"RMS [{self.dataMixin.units[self.channel]}]"])
         stats.append([
             "\n".join(frequencies),
             "\n".join(amplitudes)

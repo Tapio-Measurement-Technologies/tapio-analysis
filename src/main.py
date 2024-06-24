@@ -24,6 +24,7 @@ from utils.windows import *
 from utils.dynamic_loader import load_modules_from_folder
 
 import logging
+import os
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -36,8 +37,11 @@ class MainWindow(QMainWindow, DataMixin):
         self.dataMixin = DataMixin.getInstance()
         self.windows = []
         self.findSamplesWindow = None
-        self.loaders = load_modules_from_folder('loaders')
-        self.exporters = load_modules_from_folder('exporters')
+
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        self.loaders = load_modules_from_folder(os.path.join(base_path, 'loaders'))
+        self.exporters = load_modules_from_folder(os.path.join(base_path, 'exporters'))
+
         self.md_export_actions = []
         self.initUI()
 

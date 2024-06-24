@@ -76,14 +76,15 @@ class CollapsibleBox(QWidget):
         self.content_area.setMaximumHeight(0)
         self.content_area.setMinimumHeight(0)
 
-class PaperMachineDataWindow(QWidget, DataMixin):
+class PaperMachineDataWindow(QWidget):
 
     closed = pyqtSignal()
 
-    def __init__(self, change_handler, window_type):
+    def __init__(self, change_handler, window_type, checked_elements):
         super().__init__()
         self.dataMixin = DataMixin.getInstance()
         self.change_handler = change_handler
+        self.checked_elements = checked_elements
         self.checkboxes = []
         self.group_checkboxes = {}
         self.window_type = window_type
@@ -199,7 +200,7 @@ class PaperMachineDataWindow(QWidget, DataMixin):
                             closest_label = label
                             closest_groupbox = groupBox
 
-                    checkbox.setChecked(element.get('checked', False))
+                    checkbox.setChecked(element in self.checked_elements)
                     checkbox.setProperty('element', element)
                     checkbox.stateChanged.connect(lambda state, elem=element, gc=groupCheckbox: self.onElementCheckboxStateChanged(state, elem, gc))
 
@@ -221,12 +222,15 @@ class PaperMachineDataWindow(QWidget, DataMixin):
             closest_label.setStyleSheet("background-color: lightskyblue;")      # Same color for the label
             closest_groupbox.expand()
 
-
     def onElementCheckboxStateChanged(self, state, element, groupCheckbox):
-        element['checked'] = (state == Qt.CheckState.Checked.value)
+        if state == Qt.CheckState.Checked.value:
+            if element not in self.checked_elements:
+                self.checked_elements.append(element)
+        else:
+            if element in self.checked_elements:
+                self.checked_elements.remove(element)
         self.updateGroupCheckboxState(groupCheckbox)
-        checked_elements = [checkbox.property('element') for checkbox in self.checkboxes if checkbox.isChecked()]
-        self.change_handler(checked_elements)
+        self.change_handler(self.checked_elements)
 
     def onGroupCheckboxStateChanged(self, state, group, groupCheckbox):
         if state == Qt.CheckState.PartiallyChecked:
@@ -236,16 +240,20 @@ class PaperMachineDataWindow(QWidget, DataMixin):
         is_checked = (state == Qt.CheckState.Checked.value)
 
         for element in group_elements:
-            element['checked'] = is_checked
+            if is_checked:
+                if element not in self.checked_elements:
+                    self.checked_elements.append(element)
+            else:
+                if element in self.checked_elements:
+                    self.checked_elements.remove(element)
 
         for checkbox in self.group_checkboxes[groupCheckbox]:
             checkbox.blockSignals(True)
             checkbox.setChecked(is_checked)
             checkbox.blockSignals(False)
 
-        checked_elements = [checkbox.property('element') for checkbox in self.checkboxes if checkbox.isChecked()]
         groupCheckbox.setTristate(False)
-        self.change_handler(checked_elements)
+        self.change_handler(self.checked_elements)
 
     def updateGroupCheckboxState(self, groupCheckbox):
         elements_checkboxes = self.group_checkboxes[groupCheckbox]

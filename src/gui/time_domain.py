@@ -3,12 +3,12 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from utils.data_loader import DataMixin
 from qtpy.QtCore import Qt
 
-from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, StatsMixin, ShowUnfilteredMixin
+from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, StatsMixin, ShowUnfilteredMixin, ShowTimeLabelsMixin, MachineSpeedMixin
 from controllers import TimeDomainController
 
 
 class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, StatsMixin,
-                       ShowUnfilteredMixin):
+                       ShowUnfilteredMixin, ShowTimeLabelsMixin, MachineSpeedMixin):
 
     def __init__(self, controller: TimeDomainController | None = None):
         super().__init__()
@@ -42,6 +42,9 @@ class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilter
         self.addAnalysisRangeSlider(mainLayout)
 
         self.addBandPassRangeSlider(mainLayout)
+
+        self.addMachineSpeedSpinner(mainLayout)
+        self.addShowTimeLabelsCheckbox(mainLayout)
 
         self.addShowUnfilteredCheckbox(mainLayout)
 
