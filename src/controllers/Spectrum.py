@@ -220,7 +220,7 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
                         print("new best")
 
                 print(best_scaling)
-                scalings.append(best_scaling)
+                scalings.append(1/best_scaling)
                 distances.append(sample[0])
 
             plt.figure()
