@@ -206,6 +206,8 @@ import os
 script_dir = os.path.dirname(os.path.abspath(__file__))
 ASSETS_DIR = os.path.join(script_dir, "assets")
 
+CALCULATED_CHANNELS = []
+
 try:
     from local_settings import *
 except:
