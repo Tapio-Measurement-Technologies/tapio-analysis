@@ -293,6 +293,8 @@ class BandPassFilterMixin:
             Qt.Orientation.Horizontal)
         self.bandPassFilterSlider.setDecimals(
             settings.BAND_PASS_FILTER_DECIMALS)
+        self.bandPassFilterSlider.setSingleStep(settings.BAND_PASS_FILTER_SINGLESTEP)
+        # self.bandPassFilterSlider.setSizeIncrement(0.001)
         self.initBandPassRangeSlider()
 
         if live_update:
