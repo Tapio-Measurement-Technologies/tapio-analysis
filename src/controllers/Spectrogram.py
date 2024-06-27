@@ -1,22 +1,17 @@
 from utils.data_loader import DataMixin
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from gui.components import PlotMixin
 from PyQt6.QtCore import QObject, pyqtSignal
 import matplotlib.pyplot as plt
 import matplotlib
 import settings
 import numpy as np
-import io
 
-class SpectrogramController(QObject):
+class SpectrogramController(QObject, PlotMixin):
     updated = pyqtSignal()
 
     def __init__(self, window_type="MD"):
         super().__init__()
         self.dataMixin = DataMixin.getInstance()
-        # Matplotlib figure and canvas
-        self.figure = Figure()
-        self.canvas = FigureCanvas(self.figure)
 
         self.window_type = window_type
         self.ax = None
@@ -57,6 +52,7 @@ class SpectrogramController(QObject):
 
         self.max_dist = np.max(
             self.dataMixin.cd_distances if self.window_type == "CD" else self.dataMixin.distances)
+
         self.analysis_range_low = config["analysis_range_low"] * self.max_dist
         self.analysis_range_high = config["analysis_range_high"] * \
             self.max_dist
@@ -118,7 +114,6 @@ class SpectrogramController(QObject):
                                [self.low_index:self.high_index] for sample_idx in self.selected_samples]
             mean_profile = np.mean(unfiltered_data, axis=0)
             mean_profile = mean_profile - np.mean(mean_profile)
-            print(mean_profile)
 
 
             Pxx, freqs, bins, im = ax.specgram(mean_profile,
@@ -239,8 +234,3 @@ class SpectrogramController(QObject):
                     f"{self.selected_freq:.2f} 1/m\n{100*wavelength:.3f} m"
                 ])
         return stats
-
-    def getPlotImage(self):
-        buf = io.BytesIO()
-        self.figure.savefig(buf, format="png")
-        return buf

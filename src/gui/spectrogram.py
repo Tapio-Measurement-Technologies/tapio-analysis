@@ -15,11 +15,15 @@ class SpectrogramWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Fr
     def __init__(self, window_type="MD", controller: SpectrogramController | None = None):
         super().__init__()
         self.dataMixin = DataMixin.getInstance()
-        self.controller = controller if controller else SpectrogramController()
+
+        self.window_type = window_type
+        self.controller = controller if controller else SpectrogramController(window_type)
+
         self.window_type = window_type
         self.paperMachineDataWindow = None
         self.sampleSelectorWindow = None
         self.sosAnalysisWindow = None
+        self.checked_elements = []
         self.initUI()
 
     def initMenuBar(self, layout):
@@ -52,11 +56,11 @@ class SpectrogramWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Fr
 
     def togglePaperMachineData(self, checked):
         if self.paperMachineDataWindow is None:
-            self.paperMachineDataWindow = PaperMachineDataWindow(
-                self.updateElements, self.window_type)
+            self.paperMachineDataWindow = PaperMachineDataWindow(self.updateElements, self.window_type, self.checked_elements)
             self.paperMachineDataWindow.show()
             self.paperMachineDataWindow.refresh_pm_data(
-                self.controller.machine_speed)
+                self.controller.machine_speed,
+                self.controller.selected_freq)
             self.paperMachineDataWindow.closed.connect(
                 self.onPaperMachineDataClosed)
             self.paperMachineDataAction.setChecked(True)
@@ -64,6 +68,7 @@ class SpectrogramWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Fr
             self.paperMachineDataWindow.close()
 
     def updateElements(self, selected_elements=None):
+        self.checked_elements = selected_elements
         self.controller.selected_elements = selected_elements
         self.refresh()
 
@@ -126,7 +131,7 @@ class SpectrogramWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Fr
         self.clearButton.clicked.connect(self.clearFrequency)
         mainLayout.addWidget(self.clearButton)
 
-        self.plot = self.controller.plot()
+        self.plot = self.controller.getCanvas()
         # Add with stretch factor to allow expansion
         mainLayout.addWidget(self.plot, 1)
         self.toolbar = NavigationToolbar(self.plot, self)
@@ -179,7 +184,6 @@ class SpectrogramWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Fr
             ax = event.inaxes
 
             # Check if the x-coordinate is within the axis limits
-            print(event.ydata)
             ylim = ax.get_ylim()
             if not (ylim[0] <= event.ydata <= ylim[1]) or event.ydata < 0:
                 return  # Do not proceed if the x-coordinate is out of bounds
@@ -198,7 +202,7 @@ class SpectrogramWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Fr
             self.initMachineSpeedSpinner(block_signals=True)
 
     def refresh(self, restore_lim=False):
-        self.controller.plot()
+        self.controller.updatePlot()
         self.refresh_widgets()
         machine_speed = self.controller.machine_speed
         selected_freq = self.controller.selected_freq
@@ -214,4 +218,4 @@ class SpectrogramWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Fr
                     f"Selected frequency: {selected_freq:.2f} 1/m (λ = {100*wavelength:.2f} cm)")
 
         if self.paperMachineDataWindow:
-            self.paperMachineDataWindow.refresh_pm_data(machine_speed)
+            self.paperMachineDataWindow.refresh_pm_data(machine_speed, selected_freq)

@@ -1,20 +1,15 @@
 from utils.data_loader import DataMixin
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from gui.components import PlotMixin
 from PyQt6.QtCore import QObject, pyqtSignal
 import settings
-import io
 from utils.filters import bandpass_filter
 
-class FindSamplesController(QObject):
+class FindSamplesController(QObject, PlotMixin):
     updated = pyqtSignal()
 
     def __init__(self):
         super().__init__()
         self.dataMixin = DataMixin.getInstance()
-        # Matplotlib figure and canvas
-        self.figure = Figure()
-        self.canvas = FigureCanvas(self.figure)
 
         self.threshold = self.dataMixin.threshold
         self.peaks = self.dataMixin.peak_locations
@@ -25,6 +20,8 @@ class FindSamplesController(QObject):
         self.band_pass_low  = settings.FIND_SAMPLES_BAND_PASS_LOW_DEFAULT_1M
         self.band_pass_high = settings.FIND_SAMPLES_BAND_PASS_HIGH_DEFAULT_1M
         self.fs = 1 / self.dataMixin.sample_step
+        self.highlighted_intervals = []
+        self.zoomed_in = False
 
     def plot(self):
         self.figure.clear()
@@ -36,7 +33,18 @@ class FindSamplesController(QObject):
         self.filtered_data = bandpass_filter(
             self.data, self.band_pass_low, self.band_pass_high, self.fs)
 
-        ax.plot(self.distances, self.filtered_data)
+        alpha = 0.4 if len(self.dataMixin.selected_samples) else 1
+        # Draw the entire data line with lower alpha
+        ax.plot(self.distances, self.filtered_data, color='tab:blue', alpha=alpha)
+
+        # Highlight the selected samples
+        for i in self.dataMixin.selected_samples:
+            if i < len(self.peaks) - 1:
+                start = self.peaks[i]
+                end = self.peaks[i + 1]
+                mask = (self.distances >= start) & (self.distances <= end)
+                ax.plot(self.distances[mask], self.filtered_data[mask], color='tab:blue', alpha=1.0)
+
         ax.set_title(f"{self.dataMixin.measurement_label} ({self.channel})")
         ax.set_xlabel("Distance [m]")
         ax.set_ylabel(f"{self.channel} [{self.dataMixin.units[self.channel]}]")
@@ -45,15 +53,17 @@ class FindSamplesController(QObject):
         if self.channel == self.dataMixin.peak_channel:
             self.draw_threshold()
 
+        # Highlight selected intervals
+        if not self.zoomed_in:
+            for start, end in self.highlighted_intervals:
+                ax.axvspan(start, end, color='black', alpha=0.1)
+
+        self.zoomed_in = False
+
         self.canvas.draw()
         self.updated.emit()
 
         return self.canvas
-
-    def getPlotImage(self):
-        buf = io.BytesIO()
-        self.figure.savefig(buf, format="png")
-        return buf
 
     def draw_threshold(self):
         if self.threshold:
@@ -118,3 +128,15 @@ class FindSamplesController(QObject):
         self.dataMixin.peak_channel = channel
 
         return peaks
+
+    def highlight_intervals(self, intervals):
+        self.highlighted_intervals = intervals
+        self.plot()  # Redraw the main plot
+
+    def zoom_to_interval(self, start, end):
+        tape_width_meters = settings.TAPE_WIDTH_MM / 1000.0
+        self.zoomed_in = True
+        self.plot()
+        ax = self.figure.gca()
+        ax.set_xlim(start + tape_width_meters / 2, end - tape_width_meters / 2)
+        self.canvas.draw()

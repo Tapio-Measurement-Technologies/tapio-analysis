@@ -31,7 +31,6 @@ class DataLoader():
 
             df = pd.read_csv(f, sep='\t')
 
-        print(df)
         return df
 
     def get_peaks(self, tape_channel):

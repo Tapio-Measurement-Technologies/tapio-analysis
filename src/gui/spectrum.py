@@ -21,6 +21,7 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
         self.paperMachineDataWindow = None
         self.sosAnalysisWindow = None
         self.sampleSelectorWindow = None
+        self.checked_elements = []
         self.initUI()
 
     def initMenuBar(self, layout):
@@ -54,15 +55,16 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
 
     def togglePaperMachineData(self, checked):
         if self.paperMachineDataWindow is None:
-            self.paperMachineDataWindow = PaperMachineDataWindow(self.updateElements, self.window_type)
+            self.paperMachineDataWindow = PaperMachineDataWindow(self.updateElements, self.window_type, self.checked_elements)
             self.paperMachineDataWindow.show()
-            self.paperMachineDataWindow.refresh_pm_data(self.controller.machine_speed)
+            self.paperMachineDataWindow.refresh_pm_data(self.controller.machine_speed, self.controller.selected_freq)
             self.paperMachineDataWindow.closed.connect(self.onPaperMachineDataClosed)
             self.paperMachineDataAction.setChecked(True)
         else:
             self.paperMachineDataWindow.close()
 
     def updateElements(self, selected_elements=None):
+        self.checked_elements = selected_elements
         self.controller.selected_elements = selected_elements
         self.refresh()
 
@@ -123,7 +125,7 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
         self.clearButton.clicked.connect(self.clearFrequency)
         mainLayout.addWidget(self.clearButton)
 
-        self.plot = self.controller.plot()
+        self.plot = self.controller.getCanvas()
 
         # Add with stretch factor to allow expansion
         mainLayout.addWidget(self.plot, 1)
@@ -193,13 +195,13 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
             self.initMachineSpeedSpinner(block_signals=True)
 
     def refresh(self, restore_lim=False):
-        self.controller.plot()
+        self.controller.updatePlot()
         self.refresh_widgets()
+        selected_freq = self.controller.selected_freq
 
         machine_speed = self.controller.machine_speed
         if self.controller.selected_freq:
             wavelength = 1 / self.controller.selected_freq
-            selected_freq = self.controller.selected_freq
 
             if self.window_type == "MD":
                 frequency_in_hz = selected_freq * machine_speed / 60
@@ -212,4 +214,4 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
                     f"Selected frequency: {selected_freq:.2f} 1/m (λ = {100*wavelength:.2f} cm)")
 
         if self.paperMachineDataWindow:
-            self.paperMachineDataWindow.refresh_pm_data(machine_speed)
+            self.paperMachineDataWindow.refresh_pm_data(machine_speed, selected_freq)

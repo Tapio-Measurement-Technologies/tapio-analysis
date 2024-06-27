@@ -65,7 +65,7 @@ class FormationWindow(QWidget, DataMixin, AnalysisRangeMixin, StatsMixin, Sample
         # Now add a stretch factor before adding the figure canvas to give it priority to expand
         # mainLayout.addStretch(1)
 
-        self.plot = self.controller.plot()
+        self.plot = self.controller.getCanvas()
         # Add with stretch factor to allow expansion
         mainLayout.addWidget(self.plot, 1)
         self.toolbar = NavigationToolbar(self.plot, self)
@@ -79,7 +79,7 @@ class FormationWindow(QWidget, DataMixin, AnalysisRangeMixin, StatsMixin, Sample
             self.initShowProfilesCheckbox(block_signals=True)
 
     def refresh(self):
-        self.controller.plot()
+        self.controller.updatePlot()
         self.refresh_widgets()
         self.correlationLabel.setText(f"Correlation coefficient: {self.controller.correlation_coefficient:.2f}")
         self.updateStatistics(self.controller.stats, show_units=False)

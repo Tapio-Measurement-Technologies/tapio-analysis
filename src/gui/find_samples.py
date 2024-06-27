@@ -1,13 +1,22 @@
 from PyQt6.QtGui import QAction
-from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtCore import pyqtSignal, Qt, QEvent
 import json
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTableWidget,
-                             QTableWidgetItem, QSizePolicy, QMenuBar, QFileDialog)
+                             QTableWidgetItem, QSizePolicy, QMenuBar, QFileDialog, QHeaderView)
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import settings
 from utils.data_loader import DataMixin
 from gui.components import ChannelMixin, BandPassFilterMixin
 from controllers import FindSamplesController
+
+class CustomNavigationToolbar(NavigationToolbar):
+    def __init__(self, canvas, parent):
+        super().__init__(canvas, parent)
+        self.parent = parent
+
+    def home(self):
+        # Override home button functionality to reset the view
+        self.parent.refresh()
 
 class FindSamplesWindow(QWidget, DataMixin, ChannelMixin, BandPassFilterMixin):
     closed = pyqtSignal()
@@ -59,27 +68,27 @@ class FindSamplesWindow(QWidget, DataMixin, ChannelMixin, BandPassFilterMixin):
         plotLayout = QVBoxLayout()
         layout.addLayout(plotLayout)
 
-        self.plot = self.controller.plot()
+        self.plot = self.controller.getCanvas()
         self.plot.mpl_connect('button_press_event', self.on_click)
         plotLayout.addWidget(self.plot, 1)
 
-        self.toolbar = NavigationToolbar(self.plot, self)
+        self.toolbar = CustomNavigationToolbar(self.plot, self)
         plotLayout.addWidget(self.toolbar)
 
         # Table for displaying peaks
         self.table = QTableWidget()
         self.table.setColumnCount(1)
-        self.table.setHorizontalHeaderLabels(
-            ["Sample length [m]"])
+        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table.setHorizontalHeaderLabels(["Sample length [m]"])
+        self.table.currentCellChanged.connect(self.onTableRowSelected)  # Connect the selection change signal
+        self.table.cellDoubleClicked.connect(self.onTableCellDoubleClicked)
 
         self.table.itemChanged.connect(self.onTableItemChanged)
 
         # Set the size policy to prevent the table from expanding beyond its content
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Preferred)
         self.table.setSizePolicy(sizePolicy)
-
-        # Optionally, you can set a fixed width for the column, e.g., 200 pixels
-        self.table.setColumnWidth(0, 100)
 
         # To center the table in its layout, you might need to add stretch factors to the layout
         # Add stretch before the table to push it to the center
@@ -94,6 +103,7 @@ class FindSamplesWindow(QWidget, DataMixin, ChannelMixin, BandPassFilterMixin):
         if item.column() == 0:  # Assuming checkboxes are in the first column
             include_samples = self.get_selected_samples()
             self.dataMixin.selected_samples = include_samples
+            self.refresh()
 
     def get_selected_samples(self):
         include_samples = []
@@ -104,11 +114,12 @@ class FindSamplesWindow(QWidget, DataMixin, ChannelMixin, BandPassFilterMixin):
         return include_samples
 
     def refresh(self):
-        self.controller.plot()
+        self.controller.updatePlot()
 
     def on_click(self, event):
         if event.button == 2:  # Middle mouse button
             if event.ydata is not None:
+                self.controller.highlighted_intervals = []
                 self.controller.threshold = event.ydata
                 self.dataMixin.peak_channel = self.controller.channel
                 self.controller.detect_peaks(self.controller.channel)
@@ -154,3 +165,14 @@ class FindSamplesWindow(QWidget, DataMixin, ChannelMixin, BandPassFilterMixin):
                             }
             with open(fileName, 'w') as file:
                 json.dump(samples_data, file, indent=4)
+
+    def onTableRowSelected(self, row, column):
+        if row < len(self.controller.peaks) - 1:
+            selected_interval = (self.controller.peaks[row], self.controller.peaks[row + 1])
+            self.controller.highlight_intervals([selected_interval])
+
+    def onTableCellDoubleClicked(self, row, column):
+        if row < len(self.controller.peaks) - 1:
+            start = self.controller.peaks[row]
+            end = self.controller.peaks[row + 1]
+            self.controller.zoom_to_interval(start, end)

@@ -3,10 +3,13 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from utils.data_loader import DataMixin
 from qtpy.QtCore import Qt
 
-from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, StatsMixin, ShowUnfilteredMixin
+from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, StatsMixin, ShowUnfilteredMixin, ShowTimeLabelsMixin, MachineSpeedMixin
 from controllers import TimeDomainController
 
-class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, StatsMixin, ShowUnfilteredMixin):
+
+class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, StatsMixin,
+                       ShowUnfilteredMixin, ShowTimeLabelsMixin, MachineSpeedMixin):
+
     def __init__(self, controller: TimeDomainController | None = None):
         super().__init__()
         self.dataMixin = DataMixin.getInstance()
@@ -24,8 +27,7 @@ class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilter
         fileMenu.addAction(exportAction)
 
     def initUI(self):
-        self.setWindowTitle(
-            f"Time domain analysis ({self.controller.dataMixin.measurement_label})")
+        self.setWindowTitle(f"Time domain analysis ({self.controller.dataMixin.measurement_label})")
         self.setGeometry(100, 100, 700, 800)
 
         mainLayout = QVBoxLayout()
@@ -40,6 +42,9 @@ class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilter
         self.addAnalysisRangeSlider(mainLayout)
 
         self.addBandPassRangeSlider(mainLayout)
+
+        self.addMachineSpeedSpinner(mainLayout)
+        self.addShowTimeLabelsCheckbox(mainLayout)
 
         self.addShowUnfilteredCheckbox(mainLayout)
 
@@ -61,7 +66,7 @@ class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilter
         # mainLayout.addStretch(1)
 
         # Matplotlib figure and canvas
-        self.plot = self.controller.plot()
+        self.plot = self.controller.getCanvas()
         # Add with stretch factor to allow expansion
         mainLayout.addWidget(self.plot, 1)
         self.toolbar = NavigationToolbar(self.plot, self)
@@ -76,6 +81,6 @@ class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilter
         self.initShowUnfilteredCheckbox(block_signals=True)
 
     def refresh(self):
-        self.controller.plot()
+        self.controller.updatePlot()
         self.refresh_widgets()
         self.updateStatistics(self.controller.data)

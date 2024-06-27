@@ -1,21 +1,16 @@
 from utils.data_loader import DataMixin
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from gui.components import PlotMixin
 from PyQt6.QtCore import QObject, pyqtSignal
 from utils.signal_processing import harmonic_fitting_units
 import numpy as np
-import io
 
-class SOSAnalysisController(QObject):
+class SOSAnalysisController(QObject, PlotMixin):
     updated = pyqtSignal()
 
     def __init__(self, spectrumController):
         super().__init__()
         self.dataMixin = DataMixin.getInstance()
         self.spectrumController = spectrumController
-        # Matplotlib figure and canvas
-        self.figure = Figure()
-        self.canvas = FigureCanvas(self.figure)
 
     def plot(self):
         data = self.spectrumController.data
@@ -45,8 +40,3 @@ class SOSAnalysisController(QObject):
         self.updated.emit()
 
         return self.canvas
-
-    def getPlotImage(self):
-        buf = io.BytesIO()
-        self.figure.savefig(buf, format="png")
-        return buf

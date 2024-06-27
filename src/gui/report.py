@@ -182,9 +182,9 @@ class ReportWindow(QWidget, DataMixin):
 
         # Add MD/CD roll image
         if self.window_type == "MD":
-            roll_image_path = os.path.join("assets", "md_roll.png")
+            roll_image_path = os.path.join(settings.ASSETS_DIR, "md_roll.png")
         elif self.window_type == "CD":
-            roll_image_path = os.path.join("assets", "cd_roll.png")
+            roll_image_path = os.path.join(settings.ASSETS_DIR, "cd_roll.png")
 
         run = cell2.paragraphs[0].add_run()
         run.add_picture(roll_image_path, width=Mm(50))

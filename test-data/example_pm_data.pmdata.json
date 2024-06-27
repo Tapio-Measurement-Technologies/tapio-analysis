@@ -5,7 +5,7 @@
             "elements": [
                 {
                     "name": "Wire 1",
-                    "diameter": 0.200
+                    "diameter": 0.350
                 }
             ]
         },
@@ -18,7 +18,7 @@
                 },
                 {
                     "name": "Size 2",
-                    "diameter": 0.395
+                    "diameter": 0.224
                 },
                 {
                     "name": "Size 3",
@@ -50,7 +50,7 @@
                 },
                 {
                     "name": "Hard nip calander",
-                    "diameter": 0.263
+                    "diameter": 0.115
                 }
             ]
         }
@@ -63,7 +63,7 @@
             },
             {
                 "name": "Wire spacing",
-                "length": "0.1"
+                "length": 0.1
             }
             ]
         },

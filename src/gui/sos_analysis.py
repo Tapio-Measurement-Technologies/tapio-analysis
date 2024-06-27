@@ -25,7 +25,7 @@ class SOSAnalysisWindow(QWidget):
         self.setLayout(mainLayout)
 
         # Matplotlib figure and canvas
-        self.plot = self.controller.plot()
+        self.plot = self.controller.getCanvas()
         # Add with stretch factor to allow expansion
         mainLayout.addWidget(self.plot, 1)
 
@@ -34,4 +34,4 @@ class SOSAnalysisWindow(QWidget):
         mainLayout.addWidget(self.toolbar)
 
     def refresh(self):
-        self.controller.plot()
+        self.controller.updatePlot()
