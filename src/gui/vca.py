@@ -30,7 +30,7 @@ class VCAWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, BandPassFi
     def initUI(self):
         self.setWindowTitle(
             f"Variance component analysis ({self.dataMixin.measurement_label})")
-        self.setGeometry(100, 100, 1000, 1200)
+        self.setGeometry(100, 100, 800, 850)
 
         mainLayout = QVBoxLayout()
         self.setLayout(mainLayout)
