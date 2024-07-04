@@ -71,6 +71,8 @@ TAPE_WIDTH_MM = 50
 CD_SAMPLE_MIN_LENGTH_M = 4
 
 ANALYSIS_RANGE_DECIMALS = 2
+BAND_PASS_FILTER_DECIMALS = 4
+BAND_PASS_FILTER_SINGLESTEP = 0.01 
 
 
 # Time domain default values
@@ -204,6 +206,8 @@ import os
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 ASSETS_DIR = os.path.join(script_dir, "assets")
+
+CALCULATED_CHANNELS = []
 
 try:
     from local_settings import *

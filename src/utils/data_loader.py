@@ -76,6 +76,16 @@ class DataMixin:
 
         sensor_df = sensor_df.drop(columns=settings.IGNORE_CHANNELS, errors='ignore')
 
+        # TODO: Implement here the logic in settings.CALCULATED_CHANNELS
+
+        for channel in settings.CALCULATED_CHANNELS:
+            name = channel['name']
+            unit = channel['unit']
+            function = channel['function']
+            sensor_df[name] = function(sensor_df)
+            units[name] = unit
+            print(f"Added calculated channel {name}")
+
 
         self.measurement_label = info
         self.channels = sensor_df.columns
