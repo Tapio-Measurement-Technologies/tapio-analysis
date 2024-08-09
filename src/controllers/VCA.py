@@ -48,21 +48,14 @@ class VCAController(QObject, PlotMixin):
 
         # Setup the grid and axes
         gs = self.figure.add_gridspec(
-            4, 3, width_ratios=[2, 16, 1], height_ratios=[2, 5, 5, 2], wspace=0.1, hspace=0.5)
+            2, 3, width_ratios=[3, 16, 1], height_ratios=[3, 5], wspace=0.3, hspace=0.3)
         md_mean_ax = self.figure.add_subplot(gs[1, 0])
         cd_profile_ax = self.figure.add_subplot(gs[0, 1])
         cd_profile_ax.margins(x=0)
         ax2 = self.figure.add_subplot(gs[1, 1])
         ax2.yaxis.set_major_locator(MaxNLocator(integer=True))
 
-        ax4 = self.figure.add_subplot(gs[2, 1])  # For the residual heatmap
-        ax4.yaxis.set_major_locator(MaxNLocator(integer=True))
-
-        residual_profile_ax = self.figure.add_subplot(
-            gs[3, 1])  # For the residual profile
-
         data_colorbar_ax = self.figure.add_subplot(gs[1, 2])
-        residual_colorbar_ax = self.figure.add_subplot(gs[2, 2])
 
         # Common settings for the colormap
         cmap = cm.get_cmap(settings.VCA_COLORMAP)
@@ -71,7 +64,7 @@ class VCAController(QObject, PlotMixin):
 
         x_data = self.dataMixin.cd_distances[low_index:high_index]
         xmin, xmax = x_data[0], x_data[-1]
-        ymin, ymax = 0, len(self.filtered_data)
+        ymin, ymax = 1, len(self.filtered_data)
 
         # Plotting the MD mean profile
         md_mean = np.mean(self.filtered_data, axis=1)
@@ -100,21 +93,6 @@ class VCAController(QObject, PlotMixin):
 
         main_heatmap_colorbar.set_label(
             f'{self.channel} [{self.dataMixin.units[self.channel]}]')
-
-        # Plotting the residuals heatmap
-        cax = ax4.imshow(residuals, aspect='auto', origin='lower', cmap=cmap, norm=colors.Normalize(
-            vmin=residuals.min(), vmax=residuals.max()), extent=[xmin, xmax, ymin, ymax])
-        residual_heatmap_colorbar = self.figure.colorbar(cax,
-                                                         cax=residual_colorbar_ax, orientation='vertical')
-
-        residual_heatmap_colorbar.set_label(f'Residual variation [{self.dataMixin.units[self.channel]}]')
-
-        # Plotting the residual profile
-        residual_profile_ax.plot(x_data, np.mean(residuals, axis=0))
-        residual_profile_ax.margins(x=0)
-
-        residual_profile_ax.set(xlabel="Distance [m]", ylabel=f"Residual variation[{self.dataMixin.units[self.channel]}]")
-        residual_profile_ax.grid()
 
         self.canvas.draw()
         self.updated.emit()
