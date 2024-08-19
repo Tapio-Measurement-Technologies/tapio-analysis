@@ -510,8 +510,13 @@ class ExtraDataMixin:
         # Extra data adjustment sliders
         self.extraDataAdjustStartSlider = QLabeledDoubleSlider(self)
         self.extraDataAdjustStartSlider.setOrientation(Qt.Horizontal)
+        self.extraDataAdjustStartSlider.sliderReleased.connect(self.update_adjust_extra_data_start)
+        self.extraDataAdjustStartSlider.editingFinished.connect(self.update_adjust_extra_data_start)
+
         self.extraDataAdjustEndSlider = QLabeledDoubleSlider(self)
         self.extraDataAdjustEndSlider.setOrientation(Qt.Horizontal)
+        self.extraDataAdjustEndSlider.sliderReleased.connect(self.update_adjust_extra_data_end)
+        self.extraDataAdjustEndSlider.editingFinished.connect(self.update_adjust_extra_data_end)
 
         # Slider layout
         slider_layout = QHBoxLayout()
@@ -569,7 +574,7 @@ class ExtraDataMixin:
         self.refresh()
 
     def update_adjust_extra_data_start(self):
-        state = self.extraDataAdjustEndSlider.value()
+        state = self.extraDataAdjustStartSlider.value()
         self.controller.extra_data_adjust_start = state
         self.refresh()
 

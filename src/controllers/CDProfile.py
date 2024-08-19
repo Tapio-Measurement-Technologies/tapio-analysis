@@ -38,6 +38,8 @@ class CDProfileController(QObject, PlotMixin, ExportMixin):
         self.selected_sheet = None
         self.show_extra_data = False
         self.use_same_scale = False
+        self.extra_data_adjust_start = 0
+        self.extra_data_adjust_end = 0
 
     def plot(self):
         # logging.info("Refresh")
@@ -143,13 +145,21 @@ class CDProfileController(QObject, PlotMixin, ExportMixin):
 
                 extra_data = self.extra_data[self.selected_sheet]
                 unit = self.extra_data_units[self.selected_sheet]
+
                 extra_x = extra_data.iloc[:, 0]
                 extra_y = extra_data.iloc[:, 1]
 
-                # TODO: The data needs to be resampled so that the x values are adjusted, the start according to start and end accorind go end. They are given in metres
-                #TODO: Resample according to these
-                extra_data_adjust_start
-                extra_data_adjust_end
+                # Adjust the X values based on the sliders
+                original_x = extra_x.values
+
+                adjusted_first_x = original_x[0] + self.extra_data_adjust_start
+                adjusted_last_x = original_x[-1] + self.extra_data_adjust_end
+
+                original_range = original_x[-1] - original_x[0]
+                adjusted_range = adjusted_last_x - adjusted_first_x
+
+                extra_x = adjusted_first_x + (original_x - original_x[0]) * (adjusted_range / original_range)
+
 
                 ax2 = ax.twinx()
                 ax2.plot(extra_x * settings.CD_PROFILE_DISPLAY_UNIT_MULTIPLIER,
