@@ -30,7 +30,7 @@ Tapio Analysis is an open-source software developed by Tapio Measurement Technol
 ## Installation instructions
 To install Tapio Analysis, follow the steps below:
 
-- [Install Python 3.12.1](https://www.python.org/downloads/release/python-3121/)
+- [Install Python 3.12.1](https://www.python.org/downloads/release/python-3121/) (For Windows systems, use the [64-bit installer](https://www.python.org/ftp/python/3.12.1/python-3.12.1-amd64.exe). During installation, select the option "Add Python to environment variables").
 - [Install Git](https://git-scm.com/)
 
 
