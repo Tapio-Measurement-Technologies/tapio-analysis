@@ -22,9 +22,9 @@ if %ERRORLEVEL% == 0 (
 )
 
 :: Create a virtual environment in the .venv folder if it doesn't exist
-if not exist .venv (
+if not exist ".venv" (
     echo Creating virtual environment...
-    python -m venv .venv
+    python -m venv ".venv"
     if %ERRORLEVEL% neq 0 (
         echo Failed to create virtual environment.
         exit /b 1
@@ -33,7 +33,7 @@ if not exist .venv (
 )
 
 :: Check if the virtual environment was created successfully
-if not exist .venv\Scripts\activate (
+if not exist ".venv\Scripts\activate" (
     echo Failed to create virtual environment. Please check your Python installation.
     exit /b 1
 )
@@ -41,7 +41,7 @@ echo Virtual environment exists.
 
 :: Install the packages from requirements.txt
 echo Activating virtual environment...
-call .\.venv\Scripts\activate
+call ".\.venv\Scripts\activate"
 if %ERRORLEVEL% neq 0 (
     echo Failed to activate virtual environment.
     exit /b 1
@@ -49,7 +49,7 @@ if %ERRORLEVEL% neq 0 (
 echo Virtual environment activated.
 
 echo Installing packages from requirements.txt...
-.\.venv\Scripts\pip.exe install -r requirements.txt
+".\.venv\Scripts\pip.exe" install -r requirements.txt
 if %ERRORLEVEL% neq 0 (
     echo Failed to install packages.
     exit /b 1
@@ -58,12 +58,12 @@ echo Packages installed.
 
 :: Define the paths
 set projectPath=%cd%
-set venvActivatePath=%projectPath%\.venv\Scripts\activate
-set scriptPath=%projectPath%\src\main.py
-set batchFilePath=%projectPath%\run_tapio_analysis.bat
-set localSettingsPath=%projectPath%\src\local_settings.py
-set iconPath=%projectPath%\src\assets\tapio_favicon.ico
-set shortcutPath=%projectPath%\Tapio Analysis.lnk
+set venvActivatePath="%projectPath%\.venv\Scripts\activate"
+set scriptPath="%projectPath%\src\main.py"
+set batchFilePath="%projectPath%\run_tapio_analysis.bat"
+set localSettingsPath="%projectPath%\src\local_settings.py"
+set iconPath="%projectPath%\src\assets\tapio_favicon.ico"
+set shortcutPath="%projectPath%\Tapio Analysis.lnk"
 
 :: Create a batch file to activate the virtual environment and run the script
 echo Creating batch file to run Tapio Analysis...

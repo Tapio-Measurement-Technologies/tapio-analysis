@@ -41,8 +41,8 @@ Run the following in a command prompt:
 git clone https://github.com/Tapio-Measurement-Technologies/tapio-analysis
 # Navigate to the project directory
 cd tapio-analysis
-# Run the installation script (installs python dependencies in a virtualenv, creates local settings, launch script and shortcut)
-./install.ps1
+# Run the installation script (the script installs Python dependencies in a virtualenv, creates local settings, a launch script and a shortcut)
+./install.bat
 ```
 
 # Get the most out of Tapio Analysis
