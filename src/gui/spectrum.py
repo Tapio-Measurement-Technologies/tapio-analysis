@@ -170,6 +170,10 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
         self.controller.selected_freq = refined
         self.refresh()
 
+        if self.sosAnalysisWindow:
+            self.sosAnalysisWindow.refresh()
+
+
     def onclick(self, event):
         # Frequency selector functionality with axis limit check and label update
         if event.inaxes is not None and event.button == 2:
