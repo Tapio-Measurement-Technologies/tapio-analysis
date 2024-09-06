@@ -520,9 +520,9 @@ class ExtraDataMixin:
 
         # Slider layout
         slider_layout = QHBoxLayout()
-        slider_layout.addWidget(QLabel("Adjust extra data start [m]"))
+        extraDataAdjustStartLabel =        slider_layout.addWidget(QLabel("Adjust extra data start [m]"))
         slider_layout.addWidget(self.extraDataAdjustStartSlider)
-        slider_layout.addWidget(QLabel("Adjust extra data end [m]"))
+        extraDataAdjustEndLabel = slider_layout.addWidget(QLabel("Adjust extra data end [m]"))
         slider_layout.addWidget(self.extraDataAdjustEndSlider)
 
         # Add sliders layout to the main layout
@@ -534,6 +534,10 @@ class ExtraDataMixin:
         self.sameScaleCheckBox.hide()
         self.extraDataAdjustStartSlider.hide()
         self.extraDataAdjustEndSlider.hide()
+
+        self.extraDataAdjustStartLabel.hide()
+        self.extraDataAdjustEndLabel.hide()
+
 
     def loadExtraData(self):
         try:
