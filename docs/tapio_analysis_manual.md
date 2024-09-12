@@ -3,10 +3,11 @@
 ## Table of contents
 1. [Installing and updating the software](#installing-and-updating)
 2. [User interface overview](#user-interface-overview)
-3. [Opening Files](#opening-files)
-4. [MD Analysis](#md-analysis)
-5. [CD Analysis](#cd-analysis)
-6. [Reports](#reports)
+3. [Opening files](#opening-files)
+4. [Settings system](#settings-system)
+5. [MD Analysis](#md-analysis)
+6. [CD Analysis](#cd-analysis)
+7. [Reports](#reports)
 
 ## Installing and updating
 Follow the instructions in `README.md` to install the software.
@@ -44,6 +45,33 @@ in the project folder and then re-run:
 ### Other data files
 - The software uses data loaded in a Pandas dataframe. Please contact info@tapiotechnologies.com for more information.
 
+
+## Settings System
+The `src/settings.py` file contains settings that influence the behavior of the software, such as the default positions of sliders, tape widths, and more.
+
+All default settings specified in `src/settings.py` can be overridden by editing `src/local_settings.py`. For example, to change the tape width, add the following line in `local_settings.py`:
+
+```python
+TAPE_WIDTH_MM = 25
+```
+
+### Calculated Channels
+You can define custom calculated channels in `local_settings.py`. For instance, to add a channel for density, you would define a function to calculate the channel and then add it to the list of calculated channels:
+
+```python
+def calc_density(dataframe):
+    return dataframe['BW'] / (dataframe['Caliper'] / 1000)
+
+CALCULATED_CHANNELS = [
+    {"name": "Density", "unit": "g/m^3", "function": calc_density}
+]
+```
+
+#### Note:
+The old calculated channels from **WinTapio** do not work in **Tapio Analysis**. These old channels should be added to the `IGNORE_CHANNELS` list and re-generated using the new calculated channels functionality.
+
+
+
 ## MD Analysis
 
 ### Time domain
@@ -56,6 +84,19 @@ in the project folder and then re-run:
 - `View -> Paper machine data` can be used to open the paper machine file to visualize the components on top of the spectrum.
 
 <br><img src="img/selected-frequency-spectrum.png" alt="Selection of frequency in the spectrum" width="40%"><br><small></small><br>
+
+#### Note about spectral calculations in Tapio Analysis
+All spectral calculations in the software are based on the Welch method, which involves splitting the data into overlapping windows, calculating the a spectrum for each window and averaging the results. This method helps reduce noise and deal with data instationarities but reduces frequencyt resolution. The choice of window length influences both the frequency resolution and noise levels in the spectrum.
+
+The window length can be adjusted to balance between noise reduction and resolution enhancement. Shorter windows give better noise control but reduce frequency detail, while longer windows enhance frequency resolution at the cost of increased noise. The user can adjust the window length using the slider in the analysis interface. It is important to select a window size that highlights the peaks of interest with sufficient detail while minimizing noise.
+
+The maximum frequency is determined by the Nyquist frequency, which depends on the sampling interval. For instance, if the sampling interval is 12.8 mm, the maximum frequency will be half of the sample rate (e.g. 625 cycles per meter for a 12.8 mm sampling interval).
+
+# Visualization of harmonics
+It is typical for rotating elements to cause peaks in the spectrum at integer multiples (harmonics) of their rotating frequency. The software provides tools to visualize these harmonics.  You can control how many harmonic frequencies are displayed by adjusting the setting MAX_HARMONICS in the local_settings.py file.
+
+
+
 
 
 ### Spectrogram
