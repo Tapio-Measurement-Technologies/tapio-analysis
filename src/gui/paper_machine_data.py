@@ -144,8 +144,8 @@ class PaperMachineDataWindow(QWidget):
                         element['spatial_frequency'] = 1 / \
                             (np.pi * element['diameter'])
 
-                    if 'vanes' in element:
-                        element['spatial_frequency'] = element['vanes'] * element['spatial_frequency']
+                    if 'multiplier' in element:
+                        element['spatial_frequency'] = element['multiplier'] * element['spatial_frequency']
                     element['frequency_hz'] = element['spatial_frequency'] * (machine_speed_at_element / 60)
 
     def refresh_pm_data(self, machine_speed, selected_frequency):
