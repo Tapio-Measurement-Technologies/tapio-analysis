@@ -10,7 +10,7 @@ openpyxl==3.1.2
 ordered-set==4.1.0
 packaging==23.2
 pandas==2.2.0
-pillow==10.2.0
+pillow==10.3.0
 Pygments==2.17.2
 PyLaTeX==1.4.2
 pyparsing==3.1.1

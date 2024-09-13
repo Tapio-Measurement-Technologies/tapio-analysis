@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import QComboBox, QLabel, QDoubleSpinBox, QFileDialog, QCheckBox, QHBoxLayout, QMessageBox
 from PyQt6.QtGui import QAction
 from qtpy.QtCore import Qt, Signal
-from superqt import QLabeledDoubleRangeSlider, QLabeledSlider
+from superqt import QLabeledDoubleRangeSlider, QLabeledSlider, QLabeledDoubleSlider
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
@@ -59,25 +59,20 @@ class FrequencyRangeMixin:
         self.frequencyRangeSlider.blockSignals(block_signals)
         self.frequencyRangeSlider.setDecimals(1)
         self.frequencyRangeSlider.setRange(0, self.controller.max_freq)
-        self.frequencyRangeSlider.setValue(
-            (self.controller.frequency_range_low, self.controller.frequency_range_high))
+        self.frequencyRangeSlider.setValue((self.controller.frequency_range_low, self.controller.frequency_range_high))
         self.frequencyRangeSlider.blockSignals(False)
 
     def addFrequencyRangeSlider(self, layout, live_update=settings.UPDATE_ON_SLIDE):
         self.frequencyRangeLabel = QLabel("Frequency range [1/m]")
         layout.addWidget(self.frequencyRangeLabel)
-        self.frequencyRangeSlider = ExtraQLabeledDoubleRangeSlider(
-            Qt.Orientation.Horizontal)
+        self.frequencyRangeSlider = ExtraQLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
         self.initFrequencyRangeSlider()
 
         if live_update:
-            self.frequencyRangeSlider.valueChanged.connect(
-                self.frequencyRangeChanged)
+            self.frequencyRangeSlider.valueChanged.connect(self.frequencyRangeChanged)
         else:
-            self.frequencyRangeSlider.sliderReleased.connect(
-                self.frequencyRangeChanged)
-            self.frequencyRangeSlider.editingFinished.connect(
-                self.frequencyRangeChanged)
+            self.frequencyRangeSlider.sliderReleased.connect(self.frequencyRangeChanged)
+            self.frequencyRangeSlider.editingFinished.connect(self.frequencyRangeChanged)
         layout.addWidget(self.frequencyRangeSlider)
 
     def frequencyRangeChanged(self):
@@ -94,25 +89,20 @@ class AnalysisRangeMixin:
         # Ensure dataMixin is accessible
         # self.max_dist = np.max(self.dataMixin.distances)
         self.analysisRangeSlider.setRange(0, self.controller.max_dist)
-        self.analysisRangeSlider.setValue(
-            (self.controller.analysis_range_low, self.controller.analysis_range_high))
+        self.analysisRangeSlider.setValue((self.controller.analysis_range_low, self.controller.analysis_range_high))
         self.analysisRangeSlider.blockSignals(False)
 
     def addAnalysisRangeSlider(self, layout, live_update=settings.UPDATE_ON_SLIDE):
         self.analysisRangeLabel = QLabel("Analysis range [m]")
         layout.addWidget(self.analysisRangeLabel)
-        self.analysisRangeSlider = ExtraQLabeledDoubleRangeSlider(
-            Qt.Orientation.Horizontal)
+        self.analysisRangeSlider = ExtraQLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
         self.initAnalysisRangeSlider()
 
         if live_update:
-            self.analysisRangeSlider.valueChanged.connect(
-                self.analysisRangeChanged)
+            self.analysisRangeSlider.valueChanged.connect(self.analysisRangeChanged)
         else:
-            self.analysisRangeSlider.sliderReleased.connect(
-                self.analysisRangeChanged)
-            self.analysisRangeSlider.editingFinished.connect(
-                self.analysisRangeChanged)
+            self.analysisRangeSlider.sliderReleased.connect(self.analysisRangeChanged)
+            self.analysisRangeSlider.editingFinished.connect(self.analysisRangeChanged)
         layout.addWidget(self.analysisRangeSlider)
 
     def analysisRangeChanged(self):
@@ -206,28 +196,22 @@ class SpectrumLengthMixin:
     def initSpectrumLengthSlider(self, block_signals=False):
         # Prevent recursive refresh calls when updating values elsewhere
         self.spectrumLengthSlider.blockSignals(block_signals)
-        self.spectrumLengthSlider.setMinimum(
-            self.controller.spectrum_length_slider_min)
-        self.spectrumLengthSlider.setMaximum(
-            self.controller.spectrum_length_slider_max)
+        self.spectrumLengthSlider.setMinimum(self.controller.spectrum_length_slider_min)
+        self.spectrumLengthSlider.setMaximum(self.controller.spectrum_length_slider_max)
         self.spectrumLengthSlider.setSingleStep(1000)
         self.spectrumLengthSlider.setValue(self.controller.nperseg)
         self.spectrumLengthSlider.blockSignals(False)
 
     def addSpectrumLengthSlider(self, layout, live_update=settings.UPDATE_ON_SLIDE):
-        self.spectrumLengthSlider = ExtraQLabeledSlider(
-            Qt.Orientation.Horizontal)
+        self.spectrumLengthSlider = ExtraQLabeledSlider(Qt.Orientation.Horizontal)
         self.initSpectrumLengthSlider()
         layout.addWidget(self.spectrumLengthSlider)
 
         if live_update:
-            self.spectrumLengthSlider.valueChanged.connect(
-                self.spectrumLengthChanged)
+            self.spectrumLengthSlider.valueChanged.connect(self.spectrumLengthChanged)
         else:
-            self.spectrumLengthSlider.sliderReleased.connect(
-                self.spectrumLengthChanged)
-            self.spectrumLengthSlider.editingFinished.connect(
-                self.spectrumLengthChanged)
+            self.spectrumLengthSlider.sliderReleased.connect(self.spectrumLengthChanged)
+            self.spectrumLengthSlider.editingFinished.connect(self.spectrumLengthChanged)
 
     def spectrumLengthChanged(self):
         # Update your nperseg value based on the slider
@@ -240,29 +224,23 @@ class WaterfallOffsetMixin:
     def initWaterfallOffsetSlider(self, block_signals=False):
         # Prevent recursive refresh calls when updating values elsewhere
         self.waterfallOffsetSlider.blockSignals(block_signals)
-        self.waterfallOffsetSlider.setMinimum(
-            settings.WATERFALL_OFFSET_LOW_DEFAULT)
-        self.waterfallOffsetSlider.setMaximum(
-            settings.WATERFALL_OFFSET_HIGH_DEFAULT)
+        self.waterfallOffsetSlider.setMinimum(settings.WATERFALL_OFFSET_LOW_DEFAULT)
+        self.waterfallOffsetSlider.setMaximum(settings.WATERFALL_OFFSET_HIGH_DEFAULT)
         self.waterfallOffsetSlider.setValue(self.controller.waterfall_offset)
         self.waterfallOffsetSlider.blockSignals(False)
 
     def addWaterfallOffsetSlider(self, layout, live_update=settings.UPDATE_ON_SLIDE):
         self.bandPassFilterLabel = QLabel("Waterfall y-offset")
         layout.addWidget(self.bandPassFilterLabel)
-        self.waterfallOffsetSlider = ExtraQLabeledSlider(
-            Qt.Orientation.Horizontal)
+        self.waterfallOffsetSlider = ExtraQLabeledSlider(Qt.Orientation.Horizontal)
         self.initWaterfallOffsetSlider()
         layout.addWidget(self.waterfallOffsetSlider)
 
         if live_update:
-            self.waterfallOffsetSlider.valueChanged.connect(
-                self.waterfallOffsetChanged)
+            self.waterfallOffsetSlider.valueChanged.connect(self.waterfallOffsetChanged)
         else:
-            self.waterfallOffsetSlider.sliderReleased.connect(
-                self.waterfallOffsetChanged)
-            self.waterfallOffsetSlider.editingFinished.connect(
-                self.waterfallOffsetChanged)
+            self.waterfallOffsetSlider.sliderReleased.connect(self.waterfallOffsetChanged)
+            self.waterfallOffsetSlider.editingFinished.connect(self.waterfallOffsetChanged)
 
     def waterfallOffsetChanged(self):
         self.controller.waterfall_offset = self.waterfallOffsetSlider.value()
@@ -278,10 +256,9 @@ class BandPassFilterMixin:
     def initBandPassRangeSlider(self, block_signals=False):
         # Prevent recursive refresh calls when updating values elsewhere
         self.bandPassFilterSlider.blockSignals(block_signals)
-        self.bandPassFilterSlider.setRange(
-            0, (self.controller.fs / 2)*((settings.FILTER_NUMTAPS-1)/settings.FILTER_NUMTAPS))
-        self.bandPassFilterSlider.setValue(
-            (self.controller.band_pass_low, self.controller.band_pass_high))
+        self.bandPassFilterSlider.setRange(0, (self.controller.fs / 2) *
+                                           ((settings.FILTER_NUMTAPS - 1) / settings.FILTER_NUMTAPS))
+        self.bandPassFilterSlider.setValue((self.controller.band_pass_low, self.controller.band_pass_high))
 
         self.bandPassFilterSlider.blockSignals(False)
 
@@ -289,22 +266,17 @@ class BandPassFilterMixin:
         # Band pass filter range slider
         self.bandPassFilterLabel = QLabel("Band pass filter [1/m]")
         layout.addWidget(self.bandPassFilterLabel)
-        self.bandPassFilterSlider = ExtraQLabeledDoubleRangeSlider(
-            Qt.Orientation.Horizontal)
-        self.bandPassFilterSlider.setDecimals(
-            settings.BAND_PASS_FILTER_DECIMALS)
+        self.bandPassFilterSlider = ExtraQLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
+        self.bandPassFilterSlider.setDecimals(settings.BAND_PASS_FILTER_DECIMALS)
         self.bandPassFilterSlider.setSingleStep(settings.BAND_PASS_FILTER_SINGLESTEP)
         # self.bandPassFilterSlider.setSizeIncrement(0.001)
         self.initBandPassRangeSlider()
 
         if live_update:
-            self.bandPassFilterSlider.valueChanged.connect(
-                self.bandPassFilterRangeChanged)
+            self.bandPassFilterSlider.valueChanged.connect(self.bandPassFilterRangeChanged)
         else:
-            self.bandPassFilterSlider.sliderReleased.connect(
-                self.bandPassFilterRangeChanged)
-            self.bandPassFilterSlider.editingFinished.connect(
-                self.bandPassFilterRangeChanged)
+            self.bandPassFilterSlider.sliderReleased.connect(self.bandPassFilterRangeChanged)
+            self.bandPassFilterSlider.editingFinished.connect(self.bandPassFilterRangeChanged)
 
         layout.addWidget(self.bandPassFilterSlider)
 
@@ -316,8 +288,7 @@ class SampleSelectMixin:
     def toggleSelectSamples(self):
         """Toggle the visibility of the sample selector window."""
         if self.sampleSelectorWindow is None:
-            self.sampleSelectorWindow = SampleSelectorWindow(
-                self.controller.selected_samples, self.selectSamples)
+            self.sampleSelectorWindow = SampleSelectorWindow(self.controller.selected_samples, self.selectSamples)
             self.sampleSelectorWindow.show()
         elif self.sampleSelectorWindow.isVisible():
             self.sampleSelectorWindow.hide()
@@ -345,8 +316,7 @@ class ShowUnfilteredMixin:
     def addShowUnfilteredCheckbox(self, layout):
         self.showUnfilteredCheckBox = QCheckBox("Show unfiltered data", self)
         self.initShowUnfilteredCheckbox()
-        self.showUnfilteredCheckBox.stateChanged.connect(
-            self.update_show_unfiltered)
+        self.showUnfilteredCheckBox.stateChanged.connect(self.update_show_unfiltered)
         layout.addWidget(self.showUnfilteredCheckBox)
 
     def update_show_unfiltered(self):
@@ -367,8 +337,7 @@ class ShowWavelengthMixin:
     def addShowWavelengthCheckbox(self, layout):
         self.wavelengthCheckbox = QCheckBox("Wavelength labels", self)
         self.initShowWavelengthCheckbox()
-        self.wavelengthCheckbox.stateChanged.connect(
-            self.update_show_wavelength)
+        self.wavelengthCheckbox.stateChanged.connect(self.update_show_wavelength)
         layout.addWidget(self.wavelengthCheckbox)
 
     def update_show_wavelength(self):
@@ -389,8 +358,7 @@ class ShowProfilesMixin:
     def addShowProfilesCheckbox(self, layout):
         self.showProfilesCheckBox = QCheckBox("Show individual profiles", self)
         self.initShowProfilesCheckbox()
-        self.showProfilesCheckBox.stateChanged.connect(
-            self.update_show_profiles)
+        self.showProfilesCheckBox.stateChanged.connect(self.update_show_profiles)
         layout.addWidget(self.showProfilesCheckBox)
 
     def update_show_profiles(self):
@@ -451,12 +419,10 @@ class ShowConfidenceIntervalMixin:
         self.showConfidenceIntervalCheckbox.blockSignals(False)
 
     def addShowConfidenceIntervalCheckbox(self, layout, interval):
-        self.showConfidenceIntervalCheckbox = QCheckBox(
-            f"Show {interval * 100}% confidence interval", self)
+        self.showConfidenceIntervalCheckbox = QCheckBox(f"Show {interval * 100}% confidence interval", self)
         self.confidence_interval = interval
         self.initShowConfidenceIntervalCheckbox()
-        self.showConfidenceIntervalCheckbox.stateChanged.connect(
-            self.update_show_confidence_interval)
+        self.showConfidenceIntervalCheckbox.stateChanged.connect(self.update_show_confidence_interval)
         layout.addWidget(self.showConfidenceIntervalCheckbox)
 
     def update_show_confidence_interval(self):
@@ -477,8 +443,7 @@ class ShowTimeLabelsMixin:
     def addShowTimeLabelsCheckbox(self, layout):
         self.showTimeLabelsCheckbox = QCheckBox("Show time labels", self)
         self.initShowTimeLabelsCheckbox()
-        self.showTimeLabelsCheckbox.stateChanged.connect(
-            self.update_show_time_labels)
+        self.showTimeLabelsCheckbox.stateChanged.connect(self.update_show_time_labels)
         layout.addWidget(self.showTimeLabelsCheckbox)
 
     def update_show_time_labels(self):
@@ -522,8 +487,7 @@ class ExportMixin:
                 logging.info("Exported data to CSV file successfully.")
 
     def getExportData(self):
-        raise NotImplementedError(
-            "Subclasses should implement this method to return the data as a DataFrame.")
+        raise NotImplementedError("Subclasses should implement this method to return the data as a DataFrame.")
 
 
 class ExtraDataMixin:
@@ -533,12 +497,9 @@ class ExtraDataMixin:
         # Extra data controls
         self.extraDataComboBox = QComboBox(self)
         self.extraDataCheckBox = QCheckBox("Show extra data", self)
-        self.sameScaleCheckBox = QCheckBox(
-            "Use same scale for primary and secondary axis", self)
-        self.extraDataComboBox.currentIndexChanged.connect(
-            self.update_extra_data)
-        self.extraDataCheckBox.stateChanged.connect(
-            self.update_show_extra_data)
+        self.sameScaleCheckBox = QCheckBox("Use same scale for primary and secondary axis", self)
+        self.extraDataComboBox.currentIndexChanged.connect(self.update_extra_data)
+        self.extraDataCheckBox.stateChanged.connect(self.update_show_extra_data)
         self.sameScaleCheckBox.stateChanged.connect(self.update_use_same_scale)
 
         layout.addWidget(self.extraDataLabel)
@@ -546,31 +507,80 @@ class ExtraDataMixin:
         layout.addWidget(self.extraDataCheckBox)
         layout.addWidget(self.sameScaleCheckBox)
 
+        # Extra data adjustment sliders
+        self.extraDataAdjustStartSlider = QLabeledDoubleSlider(self)
+        self.extraDataAdjustStartSlider.setOrientation(Qt.Horizontal)
+        self.extraDataAdjustStartSlider.sliderReleased.connect(self.update_adjust_extra_data_start)
+        self.extraDataAdjustStartSlider.editingFinished.connect(self.update_adjust_extra_data_start)
+
+        self.extraDataAdjustEndSlider = QLabeledDoubleSlider(self)
+        self.extraDataAdjustEndSlider.setOrientation(Qt.Horizontal)
+        self.extraDataAdjustEndSlider.sliderReleased.connect(self.update_adjust_extra_data_end)
+        self.extraDataAdjustEndSlider.editingFinished.connect(self.update_adjust_extra_data_end)
+
+        # Slider layout
+        slider_layout = QHBoxLayout()
+        extraDataAdjustStartLabel =        slider_layout.addWidget(QLabel("Adjust extra data start [m]"))
+        slider_layout.addWidget(self.extraDataAdjustStartSlider)
+        extraDataAdjustEndLabel = slider_layout.addWidget(QLabel("Adjust extra data end [m]"))
+        slider_layout.addWidget(self.extraDataAdjustEndSlider)
+
+        # Add sliders layout to the main layout
+        layout.addLayout(slider_layout)
+
         self.extraDataLabel.hide()
         self.extraDataComboBox.hide()
         self.extraDataCheckBox.hide()
         self.sameScaleCheckBox.hide()
+        self.extraDataAdjustStartSlider.hide()
+        self.extraDataAdjustEndSlider.hide()
+
+        self.extraDataAdjustStartLabel.hide()
+        self.extraDataAdjustEndLabel.hide()
+
 
     def loadExtraData(self):
         try:
-            file_path, _ = QFileDialog.getOpenFileName(
-                self, "Load extra data", "", "Excel Files (*.xlsx)")
+            file_path, _ = QFileDialog.getOpenFileName(self, "Load extra data", "", "Excel Files (*.xlsx)")
             if file_path:
-                self.controller.extra_data = pd.read_excel(
-                    file_path, sheet_name=None)
+                self.controller.extra_data = pd.read_excel(file_path, sheet_name=None)
                 self.extraDataComboBox.clear()
                 for sheet_name, df in self.controller.extra_data.items():
                     self.extraDataComboBox.addItem(sheet_name)
-                    unit = df.columns[1].split(
-                        '[')[-1].replace(']', '').strip()
+                    unit = df.columns[1].split('[')[-1].replace(']', '').strip()
                     self.controller.extra_data_units[sheet_name] = unit
                 self.extraDataLabel.show()
                 self.extraDataComboBox.show()
                 self.extraDataCheckBox.show()
                 self.sameScaleCheckBox.show()
+
+                self.extraDataAdjustStartSlider.setMinimum(-1 * settings.EXTRA_DATA_ADJUST_RANGE)
+                self.extraDataAdjustStartSlider.setMaximum(settings.EXTRA_DATA_ADJUST_RANGE)
+                self.extraDataAdjustStartSlider.setValue(0)
+                self.extraDataAdjustStartSlider.show()
+
+                self.extraDataAdjustEndSlider.setMinimum(-1 * settings.EXTRA_DATA_ADJUST_RANGE)
+                self.extraDataAdjustEndSlider.setMaximum(settings.EXTRA_DATA_ADJUST_RANGE)
+                self.extraDataAdjustEndSlider.setValue(0)
+                self.extraDataAdjustEndSlider.show()
+
         except Exception as e:
-            QMessageBox.critical(
-                self, "Error", f"Failed to load file: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to load file: {str(e)}")
+
+    def update_adjust_extra_data_start(self):
+        state = self.extraDataAdjustStartSlider.value()
+        self.controller.extra_data_adjust_start = state
+        self.refresh()
+
+    def update_adjust_extra_data_end(self):
+        state = self.extraDataAdjustEndSlider.value()
+        self.controller.extra_data_adjust_end = state
+        self.refresh()
+
+    def update_adjust_extra_data_start(self):
+        state = self.extraDataAdjustStartSlider.value()
+        self.controller.extra_data_adjust_start = state
+        self.refresh()
 
     def update_show_extra_data(self):
         state = self.extraDataCheckBox.isChecked()
@@ -630,8 +640,7 @@ class PlotMixin:
             # Print the exception details with traceback
             print("Exception occurred:")
             traceback.print_exc()
-            self.figure.text(0.5, 0.5, "Invalid parameters",
-                             fontsize=14, ha='center', va='center')
+            self.figure.text(0.5, 0.5, "Invalid parameters", fontsize=14, ha='center', va='center')
             self.canvas.draw()
 
     def getPlotImage(self):
