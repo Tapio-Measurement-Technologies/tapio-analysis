@@ -520,9 +520,11 @@ class ExtraDataMixin:
 
         # Slider layout
         slider_layout = QHBoxLayout()
-        extraDataAdjustStartLabel =        slider_layout.addWidget(QLabel("Adjust extra data start [m]"))
+        self.extraDataAdjustStartLabel = QLabel("Adjust extra data start [m]")
+        slider_layout.addWidget(self.extraDataAdjustStartLabel)
         slider_layout.addWidget(self.extraDataAdjustStartSlider)
-        extraDataAdjustEndLabel = slider_layout.addWidget(QLabel("Adjust extra data end [m]"))
+        self.extraDataAdjustEndLabel = QLabel("Adjust extra data end [m]")
+        slider_layout.addWidget(self.extraDataAdjustEndLabel)
         slider_layout.addWidget(self.extraDataAdjustEndSlider)
 
         # Add sliders layout to the main layout
@@ -538,7 +540,6 @@ class ExtraDataMixin:
         self.extraDataAdjustStartLabel.hide()
         self.extraDataAdjustEndLabel.hide()
 
-
     def loadExtraData(self):
         try:
             file_path, _ = QFileDialog.getOpenFileName(self, "Load extra data", "", "Excel Files (*.xlsx)")
@@ -550,6 +551,8 @@ class ExtraDataMixin:
                     unit = df.columns[1].split('[')[-1].replace(']', '').strip()
                     self.controller.extra_data_units[sheet_name] = unit
                 self.extraDataLabel.show()
+                self.extraDataAdjustStartLabel.show()
+                self.extraDataAdjustEndLabel.show()
                 self.extraDataComboBox.show()
                 self.extraDataCheckBox.show()
                 self.sameScaleCheckBox.show()
