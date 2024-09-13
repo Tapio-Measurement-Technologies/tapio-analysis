@@ -82,6 +82,7 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
 
         # Extract the segment of data for analysis
         if self.window_type == "MD":
+            ylim = settings.MD_SPECTRUM_FIXED_YLIM.get(self.channel)
             self.low_index = np.searchsorted(
                 self.dataMixin.distances, self.analysis_range_low)
             self.high_index = np.searchsorted(
@@ -101,6 +102,9 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
                            scaling='spectrum')
 
         elif self.window_type == "CD":
+
+            ylim = settings.MD_SPECTRUM_FIXED_YLIM.get(self.channel)
+
             self.low_index = np.searchsorted(
                 self.dataMixin.cd_distances, self.analysis_range_low)
             self.high_index = np.searchsorted(
@@ -135,10 +139,8 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
 
         if self.ax:
             xlim = self.ax.get_xlim()
-            ylim = self.ax.get_ylim()
         else:
             xlim = None
-            ylim = None
 
         # Plot the amplitude spectrum
 
@@ -150,6 +152,8 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
                      self.channel}) - Spectrum")
         ax.set_xlabel("Frequency [1/m]")
         ax.set_ylabel(f"Amplitude [{self.dataMixin.units[self.channel]}]")
+        if ylim:
+            ax.set_ylim(bottom=ylim[0], top=ylim[1])
 
         secax = ax.twiny()
 
