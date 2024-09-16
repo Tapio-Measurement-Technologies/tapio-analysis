@@ -10,15 +10,31 @@
 7. [Reports](#reports)
 
 ## Installing and updating
-Follow the instructions in `README.md` to install the software.
 
-To update to the most recent version, run the command: 
+### First-time install
+To install Tapio Analysis, follow the steps below:
+- [Install Python 3.12.1](https://www.python.org/downloads/release/python-3121/) (For Windows systems, use the [64-bit installer](https://www.python.org/ftp/python/3.12.1/python-3.12.1-amd64.exe). During installation, select the option "Add Python to environment variables").
+- [Install Git](https://git-scm.com/)
+
+Run the following in a command prompt:
+```bash
+# First navigate to the preferred installation folder
+# Clone the repository
+git clone https://github.com/Tapio-Measurement-Technologies/tapio-analysis
+# Navigate to the project directory
+cd tapio-analysis
+# Run the installation script (the script installs Python dependencies in a virtualenv, creates src/local_settings.py, a launch script and a shortcut)
+./install.bat
+```
+
+### Updating Tapio Analysis
+To update to the most recent version , open a command prompt in the install folder and run the commands:
 ```bash
 git pull
 ```
-in the project folder and then re-run:
+and then run the installation script again (only necessary if packages have been updated):
 ```bash
-./install.ps1
+./install.bat
 ```
 
 ## User interface overview
@@ -49,14 +65,18 @@ in the project folder and then re-run:
 ## Settings System
 The `src/settings.py` file contains settings that influence the behavior of the software, such as the default positions of sliders, tape widths, and more.
 
-All default settings specified in `src/settings.py` can be overridden by editing `src/local_settings.py`. For example, to change the tape width, add the following line in `local_settings.py`:
+All default settings visible in `src/settings.py` can be overridden by editing `src/local_settings.py`. For example, to change the tape width, add the following line in `local_settings.py`:
 
 ```python
 TAPE_WIDTH_MM = 25
 ```
 
+#### Note:
+It is possible to edit settings directly in  `src/settings.py`, but this will be re-written on updates of the software. Use `src/local_settings.py` to override default settings.
+
+
 ### Calculated Channels
-You can define custom calculated channels in `local_settings.py`. For instance, to add a channel for density, you would define a function to calculate the channel and then add it to the list of calculated channels:
+You can define custom calculated channels in settings. For instance, to add a channel for density, you would define a function to calculate the channel and then add it to the list of calculated channels:
 
 ```python
 def calc_density(dataframe):
@@ -66,6 +86,44 @@ CALCULATED_CHANNELS = [
     {"name": "Density", "unit": "g/m^3", "function": calc_density}
 ]
 ```
+
+### Fixed Y limits for spectrum
+To allow for better comparison of the spectral content of different samples, the Y limits of spectra can be fixed per channel in settings.
+
+```python
+CD_SPECTRUM_FIXED_YLIM = {"Caliper": [0, 1], "Basis Weight": [0,1]}
+MD_SPECTRUM_FIXED_YLIM = {"Caliper": [0, 1], "Basis Weight": [0,1]}
+```
+
+### Band pass filter slider decimals
+The step and number of decimals visible in the filter slider can be edited:
+```python
+BAND_PASS_FILTER_DECIMALS = 5
+BAND_PASS_FILTER_SINGLESTEP = 0.001
+```
+
+### Extra data adjustment sliders
+It is possible to stretch and compress loaded supplementary CD data by altering the start and end points with sliders. The adjustment range can be controlled with a setting.
+```python
+EXTRA_DATA_ADJUST_RANGE = 1
+```
+
+### Display unit multipliers
+The default unit of the software is meters. In profile views is possible to set a custom scaling factor and unit name for the plots.
+```python
+CD_PROFILE_DISPLAY_UNIT_MULTIPLIER = 1
+CD_PROFILE_DISPLAY_UNIT = "m"
+```
+
+
+
+
+
+
+
+
+
+
 
 #### Note:
 The old calculated channels from **WinTapio** do not work in **Tapio Analysis**. These old channels should be added to the `IGNORE_CHANNELS` list and re-generated using the new calculated channels functionality.

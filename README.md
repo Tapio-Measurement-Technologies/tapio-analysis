@@ -1,7 +1,7 @@
 # Tapio Analysis
 
 ## Overview
-Tapio Analysis is an open-source software developed by Tapio Measurement Technologies Oy. It is engineered to perform advanced analysis of measurements obtained from Tapio Analyzers, which are used extensively in the paper, board, and nonwoven industries.
+Tapio Analysis is an open-source software developed by Tapio Measurement Technologies Oy. It is engineered to perform advanced analysis of measurements obtained from Tapio Analyzers, which are used extensively for troubleshooting, diagnostics and quality monitoring in the paper, board, and nonwoven industries.
 
 ![Tapio Analysis](tapio-analysis-screenshot.png)
 
@@ -15,7 +15,7 @@ Tapio Analysis is an open-source software developed by Tapio Measurement Technol
 ## Key features
 
 - **MD Profile**: Accurate and sub-millimeter resolution MD profiles with filtering and statistics display.
-- **MD Spectrum**: Identifies wavelengths and frequencies where variations occur in the sample.
+- **MD Spectrum**: Identifies wavelengths and frequencies where variations occur in the sample. Includes troubleshooting tools for connecting spectrum peaks to known rotating frequencies of machine elements.
 - **MD Formation**: Long-term variations in formation index, an indicator describing short-term basis weight variation.
 - **CD Profile**: True CD profile from actual CD strips with tools for filtering, mean profile calculation and statistics. Accurate data with sub-millimeter resolution.
 - **CD Spectrum**: Quantify and find root cause of periodic CD variations originating from CD controls, actuators etc.

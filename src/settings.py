@@ -1,3 +1,4 @@
+import os
 DEBUG = False
 
 # Meters per minute
@@ -67,9 +68,14 @@ SPECTROGRAM_COLORMAP = "viridis"
 
 MAX_HARMONICS = 10
 # CD Find samples settings
+
+# Tape width which will be cut off from all CD samples
 TAPE_WIDTH_MM = 50
+# Minimum length of CD Sample the software will detect
 CD_SAMPLE_MIN_LENGTH_M = 4
 
+
+# Number of decimals in the analysis range slider
 ANALYSIS_RANGE_DECIMALS = 2
 BAND_PASS_FILTER_DECIMALS = 1
 BAND_PASS_FILTER_SINGLESTEP = 0.01
@@ -207,7 +213,6 @@ WATERFALL_OFFSET_HIGH_DEFAULT = 100
 
 REPORT_ADDITIONAL_INFO_DEFAULT = "Speed at reel: \nGrammage: \nAperture: "
 
-import os
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 ASSETS_DIR = os.path.join(script_dir, "assets")
