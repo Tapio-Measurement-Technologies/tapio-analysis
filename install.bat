@@ -57,13 +57,13 @@ if %ERRORLEVEL% neq 0 (
 echo Packages installed.
 
 :: Define the paths
-set projectPath=%cd%
-set venvActivatePath="%projectPath%\.venv\Scripts\activate"
-set scriptPath="%projectPath%\src\main.py"
-set batchFilePath="%projectPath%\run_tapio_analysis.bat"
-set localSettingsPath="%projectPath%\src\local_settings.py"
-set iconPath="%projectPath%\src\assets\tapio_favicon.ico"
-set shortcutPath="%projectPath%\Tapio Analysis.lnk"
+set "projectPath=%cd%"
+set "venvActivatePath=%projectPath%\.venv\Scripts\activate"
+set "scriptPath=%projectPath%\src\main.py"
+set "batchFilePath=%projectPath%\run_tapio_analysis.bat"
+set "localSettingsPath=%projectPath%\src\local_settings.py"
+set "iconPath=%projectPath%\src\assets\tapio_favicon.ico"
+set "shortcutPath=%projectPath%\Tapio Analysis.lnk"
 
 :: Create a batch file to activate the virtual environment and run the script
 echo Creating batch file to run Tapio Analysis...
@@ -74,13 +74,17 @@ if %ERRORLEVEL% neq 0 (
     echo Failed to create batch file.
     exit /b 1
 )
-echo Batch file created: %batchFilePath%
+echo Batch file created: "%batchFilePath%"
 
 :: Create local_settings.py if it does not already exist
 if not exist "%localSettingsPath%" (
     echo Creating local_settings.py...
     type nul > "%localSettingsPath%"
-    echo local_settings.py created at %localSettingsPath%
+    if %ERRORLEVEL% neq 0 (
+        echo Failed to create local_settings.py.
+        exit /b 1
+    )
+    echo local_settings.py created at "%localSettingsPath%"
 )
 
 :: Create a Windows shortcut to the batch file
@@ -90,14 +94,14 @@ if %ERRORLEVEL% neq 0 (
     echo Failed to create shortcut.
     exit /b 1
 )
-echo Shortcut created: %shortcutPath%
+echo Shortcut created: "%shortcutPath%"
 
 :: Display a verbose completion message
 echo *******************************************************************************
 echo Tapio Analysis successfully installed.
 echo - A shortcut to launch Tapio Analysis has been created in this directory. Move or copy it to a suitable location.
 echo - Override default settings defined in settings.py by editing local_settings.py at:
-echo %localSettingsPath%
+echo "%localSettingsPath%"
 echo - For support, training and customizations contact info@tapiotechnologies.com
 echo *******************************************************************************
 
