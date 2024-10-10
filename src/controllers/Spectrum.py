@@ -65,7 +65,7 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
 
         self.selected_elements = []
         self.selected_samples = self.dataMixin.selected_samples.copy()
-        self.selected_freq = None
+        self.selected_freqs = None
         self.show_wavelength = False
 
         self.current_vlines = []
@@ -190,22 +190,46 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
         ax.figure.canvas.mpl_connect('resize_event', update_secax)
 
         # Draw new lines and update frequency label
-        if self.selected_freq:
+        if self.selected_freqs:
 
             xlim = ax.get_xlim()
+            if settings.MULTIPLE_SELECT_MODE:
+                for i, selected_freq in enumerate(self.selected_freqs):
 
-            for i in range(1, settings.MAX_HARMONICS):
-                if (self.selected_freq * i > xlim[1]) or (self.selected_freq * i < xlim[0]):
-                    # Skip drawing the line if it is out of bounds
-                    continue
+                    if (selected_freq > xlim[1]) or (selected_freq < xlim[0]):
+                        continue
 
-                label = "Selected frequency" if (i == 1) else None
-                vl = ax.axvline(x=self.selected_freq * i,
-                                color='r',
-                                linestyle='--',
-                                alpha=1 - (1 / settings.MAX_HARMONICS) * i,
-                                label=label)
-                self.current_vlines.append(vl)
+                    label = f"{selected_freq:.2f} 1/m ({self.get_freq_in_hz(selected_freq):.2f} Hz) λ = {100*1/selected_freq:.2f} cm"
+
+                    def get_color_cycler(num_colors):
+                        # You can change 'tab10' to any colormap you prefer
+                        cmap = plt.get_cmap('tab10')
+                        colors = [cmap(i) for i in range(num_colors)]
+                        return colors
+
+                    num_lines = len(self.selected_freqs)
+                    color_cycle = get_color_cycler(num_lines)
+
+                    vl = ax.axvline(x=selected_freq,
+                                    linestyle='--',
+                                    alpha=0.5,
+                                    color=color_cycle[i % num_lines],
+                                    label=label)
+                    self.current_vlines.append(vl)
+
+            else:
+                for i in range(1, settings.MAX_HARMONICS):
+                    if (self.selected_freqs[-1] * i > xlim[1]) or (self.selected_freqs[-1] * i < xlim[0]):
+                        # Skip drawing the line if it is out of bounds
+                        continue
+
+                    label = "Selected frequency" if (i == 1) else None
+                    vl = ax.axvline(x=self.selected_freqs[-1] * i,
+                                    color='r',
+                                    linestyle='--',
+                                    alpha=1 - (1 / settings.MAX_HARMONICS) * i,
+                                    label=label)
+                    self.current_vlines.append(vl)
 
         colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
@@ -238,20 +262,23 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
 
         return self.canvas
 
+    def get_freq_in_hz(self, freq_1m):
+        return freq_1m * self.machine_speed / 60
+
     def getStatsTableData(self):
         stats = []
-        if self.selected_freq:
-            wavelength = 1 / self.selected_freq
+        if self.selected_freqs[-1]:
+            wavelength = 1 / self.selected_freqs[-1]
             stats.append(["Selected frequency:", ""])
             if self.window_type == "MD":
-                frequency_in_hz = self.selected_freq * self.machine_speed / 60
+                frequency_in_hz = self.get_freq_in_hz(self.selected_freqs[-1])
                 stats.append([
                     "Frequency:\nWavelength:",
-                    f"{self.selected_freq:.2f} 1/m ({frequency_in_hz:.2f} Hz)\n{100*wavelength:.2f} m"])
+                    f"{self.selected_freqs[-1]:.2f} 1/m ({frequency_in_hz:.2f} Hz)\n{100*wavelength:.2f} m"])
             elif self.window_type == "CD":
                 stats.append([
                     "Frequency:\nWavelength:",
-                    f"{self.selected_freq:.2f} 1/m\n{100*wavelength:.3f} m"
+                    f"{self.selected_freqs[-1]:.2f} 1/m\n{100*wavelength:.3f} m"
                 ])
         peaks = get_n_peaks(np.column_stack(
             (self.frequencies, self.amplitudes)), 5)

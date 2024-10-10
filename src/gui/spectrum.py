@@ -57,7 +57,7 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
         if self.paperMachineDataWindow is None:
             self.paperMachineDataWindow = PaperMachineDataWindow(self.updateElements, self.window_type, self.checked_elements)
             self.paperMachineDataWindow.show()
-            self.paperMachineDataWindow.refresh_pm_data(self.controller.machine_speed, self.controller.selected_freq)
+            self.paperMachineDataWindow.refresh_pm_data(self.controller.machine_speed, self.controller.selected_freqs[-1])
             self.paperMachineDataWindow.closed.connect(self.onPaperMachineDataClosed)
             self.paperMachineDataAction.setChecked(True)
         else:
@@ -137,18 +137,18 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
         self.refresh()
 
     def clearFrequency(self):
-        self.controller.selected_freq = None
+        self.controller.selected_freqs = None
         self.selectedFrequencyLabel.setText(f"Selected frequency:")
 
         self.refresh()
 
     def refineFrequency(self):
-        selected_freq = self.controller.selected_freq
-        if not selected_freq:
+        selected_freqs = self.controller.selected_freqs
+        if not selected_freqs:
             print("No selected frequency")
             return
 
-        print("Original frequency: ", selected_freq)
+        print("Original frequency: ", selected_freqs[-1])
         d = self.dataMixin.channel_df[self.controller.channel][self.controller.low_index:self.controller.high_index]
         import time
         start_time = time.time()  # Capture start time
@@ -157,7 +157,7 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
         plot_max = self.controller.ax.get_xlim()[1]
         wrange = (plot_max - plot_min) * 0.01
 
-        refined = hs_units(d, self.controller.fs, selected_freq, wrange, plot_min, plot_max, settings.MAX_HARMONICS)
+        refined = hs_units(d, self.controller.fs, selected_freqs[-1], wrange, plot_min, plot_max, settings.MAX_HARMONICS)
 
         print(self.controller.fs)
         # Todo: Only search withing the visible window
@@ -167,7 +167,7 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
         # Print elapsed time
         print(f"Fundamental frequency estimation took {elapsed_time_ms:.2f} ms")
         print("Refined frequency: ", refined)
-        self.controller.selected_freq = refined
+        self.controller.selected_freqs[-1] = refined
         self.refresh()
 
         if self.sosAnalysisWindow:
@@ -184,7 +184,10 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
             xlim = ax.get_xlim()
             if not (xlim[0] <= event.xdata <= xlim[1]) or event.xdata < 0:
                 return  # Do not proceed if the x-coordinate is out of bounds
-            self.controller.selected_freq = event.xdata
+            if not self.controller.selected_freqs:
+                self.controller.selected_freqs = []
+
+            self.controller.selected_freqs.append(event.xdata)
             self.refresh(restore_lim=True)
             if self.sosAnalysisWindow:
                 self.sosAnalysisWindow.refresh()
@@ -201,21 +204,21 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
     def refresh(self, restore_lim=False):
         self.controller.updatePlot()
         self.refresh_widgets()
-        selected_freq = self.controller.selected_freq
+        selected_freqs = self.controller.selected_freqs
 
         machine_speed = self.controller.machine_speed
-        if self.controller.selected_freq:
-            wavelength = 1 / self.controller.selected_freq
+        if self.controller.selected_freqs:
+            wavelength = 1 / self.controller.selected_freqs[-1]
 
             if self.window_type == "MD":
-                frequency_in_hz = selected_freq * machine_speed / 60
+                frequency_in_hz = selected_freqs[-1] * machine_speed / 60
                 self.selectedFrequencyLabel.setText(
-                    f"Selected frequency: {selected_freq:.2f} 1/m ({frequency_in_hz:.2f} Hz) λ = {100*wavelength:.2f} cm"
+                    f"Selected frequency: {selected_freqs[-1]:.2f} 1/m ({frequency_in_hz:.2f} Hz) λ = {100*wavelength:.2f} cm"
                 )
 
             elif self.window_type == "CD":
                 self.selectedFrequencyLabel.setText(
-                    f"Selected frequency: {selected_freq:.2f} 1/m (λ = {100*wavelength:.2f} cm)")
+                    f"Selected frequency: {selected_freqs[-1]:.2f} 1/m (λ = {100*wavelength:.2f} cm)")
 
         if self.paperMachineDataWindow:
-            self.paperMachineDataWindow.refresh_pm_data(machine_speed, selected_freq)
+            self.paperMachineDataWindow.refresh_pm_data(machine_speed, selected_freqs[-1])

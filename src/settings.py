@@ -219,6 +219,9 @@ ASSETS_DIR = os.path.join(script_dir, "assets")
 
 CALCULATED_CHANNELS = []
 
+MULTIPLE_SELECT_MODE = False
+
+
 try:
     from local_settings import *
 except:

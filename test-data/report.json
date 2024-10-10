@@ -37,7 +37,7 @@
                         "analysis_range_high": 1,
                         "frequency_range_low": 0,
                         "frequency_range_high": 0.5,
-                        "selected_frequency": 151,
+                        "selected_frequencies": [151],
                         "nperseg": 3001,
                         "show_wavelength_labels": true
                     },
@@ -49,7 +49,7 @@
                         "analysis_range_high": 1,
                         "frequency_range_low": 0,
                         "frequency_range_high": 0.7,
-                        "selected_frequency": 151,
+                        "selected_frequencies": [151],
                         "nperseg": 3001,
                         "show_wavelength_labels": true
                     }
@@ -120,7 +120,7 @@
                         "machine_speed": 1701,
                         "frequency_range_low": 0,
                         "frequency_range_high": 1,
-                        "selected_frequency": 151,
+                        "selected_frequencies": [151],
                         "nperseg": 3001,
                         "show_wavelength_labels": true
                     },
@@ -133,7 +133,7 @@
                         "machine_speed": 1701,
                         "frequency_range_low": 0,
                         "frequency_range_high": 0.5,
-                        "selected_frequency": 151,
+                        "selected_frequencies": [151],
                         "nperseg": 3001,
                         "show_wavelength_labels": true
                     },

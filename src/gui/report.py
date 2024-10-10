@@ -307,8 +307,8 @@ class ReportWindow(QWidget, DataMixin):
                                 widget.controller.frequency_range_low = analysis["frequency_range_low"] * max_freq
                             if "frequency_range_high" in analysis:
                                 widget.controller.frequency_range_high = analysis["frequency_range_high"] * max_freq
-                            if "selected_frequency" in analysis:
-                                widget.controller.selected_freq = analysis["selected_frequency"]
+                            if "selected_frequencies" in analysis:
+                                widget.controller.selected_freqs = analysis["selected_frequencies"]
                             if "nperseg" in analysis:
                                 widget.controller.nperseg = analysis["nperseg"]
                             widget.preview_window.refresh()
