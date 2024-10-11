@@ -199,7 +199,10 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
                     if (selected_freq > xlim[1]) or (selected_freq < xlim[0]):
                         continue
 
-                    label = f"{selected_freq:.2f} 1/m ({self.get_freq_in_hz(selected_freq):.2f} Hz) λ = {100*1/selected_freq:.2f} cm"
+                    if self.window_type == "CD":
+                        label = f"{selected_freq:.2f} 1/m λ = {100*1/selected_freq:.2f} cm"
+                    elif self.window_type == "MD":
+                        label = f"{selected_freq:.2f} 1/m ({self.get_freq_in_hz(selected_freq):.2f} Hz) λ = {100*1/selected_freq:.2f} cm"
 
                     def get_color_cycler(num_colors):
                         # You can change 'tab10' to any colormap you prefer
