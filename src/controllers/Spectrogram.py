@@ -124,7 +124,7 @@ class SpectrogramController(QObject, PlotMixin):
 
 
 
-        amplitudes = np.sqrt(Pxx)
+        amplitudes = np.sqrt(Pxx*2) * settings.SPECTRUM_AMPLITUDE_SCALING
         freq_indices = (freqs >= self.frequency_range_low) & (
             freqs <= self.frequency_range_high)
         freqs_cut = freqs[freq_indices]

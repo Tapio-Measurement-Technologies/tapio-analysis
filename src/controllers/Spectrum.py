@@ -2,7 +2,7 @@ from utils.data_loader import DataMixin
 from gui.components import ExportMixin, PlotMixin
 from PyQt6.QtCore import QObject, pyqtSignal
 import matplotlib.pyplot as plt
-from scipy.signal import welch
+from scipy.signal import welch, get_window
 import settings
 import numpy as np
 import pandas as pd
@@ -70,6 +70,8 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
 
         self.current_vlines = []
 
+        self.spectral_window = settings.SPECTRUM_WELCH_WINDOW
+
     def plot(self):
         self.figure.clear()
         # This to avoid crash due to a too long spectrum calculation on too short data
@@ -96,7 +98,7 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
 
             f, Pxx = welch(self.data,
                            fs=self.fs,
-                           window='hann',
+                           window=self.spectral_window,
                            nperseg=self.nperseg,
                            noverlap=noverlap,
                            scaling='spectrum')
@@ -135,7 +137,8 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
         f_high_index = np.searchsorted(
             f, self.frequency_range_high, side='right')
         # Convert power spectral density to amplitude spectrum (sqrt of power)
-        amplitude_spectrum = np.sqrt(Pxx)
+        amplitude_spectrum = np.sqrt(
+            Pxx*2) * settings.SPECTRUM_AMPLITUDE_SCALING
 
         if self.ax:
             xlim = self.ax.get_xlim()
@@ -200,9 +203,11 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
                         continue
 
                     if self.window_type == "CD":
-                        label = f"{selected_freq:.2f} 1/m λ = {100*1/selected_freq:.2f} cm"
+                        label = f"{selected_freq:.2f} 1/m λ = {100 *
+                                                               1/selected_freq:.2f} cm"
                     elif self.window_type == "MD":
-                        label = f"{selected_freq:.2f} 1/m ({self.get_freq_in_hz(selected_freq):.2f} Hz) λ = {100*1/selected_freq:.2f} cm"
+                        label = f"{selected_freq:.2f} 1/m ({self.get_freq_in_hz(
+                            selected_freq):.2f} Hz) λ = {100*1/selected_freq:.2f} cm"
 
                     def get_color_cycler(num_colors):
                         # You can change 'tab10' to any colormap you prefer
@@ -281,7 +286,7 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
             elif self.window_type == "CD":
                 stats.append([
                     "Frequency:\nWavelength:",
-                    f"{self.selected_freqs[-1]:.2f} 1/m\n{100*wavelength:.3f} m"
+                    f"{self.selected_freqs[-1]                        :.2f} 1/m\n{100*wavelength:.3f} m"
                 ])
         peaks = get_n_peaks(np.column_stack(
             (self.frequencies, self.amplitudes)), 5)

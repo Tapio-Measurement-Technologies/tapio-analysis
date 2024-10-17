@@ -7,6 +7,8 @@ FILTER_NUMTAPS = 1200
 
 FORCE_PRIMARY_SCALE_SUPPLEMENTARY = False
 
+
+
 ANALYSES = {
     "CD": {
         "profile": {
@@ -90,6 +92,10 @@ TIME_DOMAIN_ANALYSIS_RANGE_HIGH_DEFAULT = 0.1
 
 TIME_DOMAIN_ANALYSIS_DISPLAY_UNIT_MULTIPLIER = 1
 TIME_DOMAIN_ANALYSIS_DISPLAY_UNIT = "m"
+
+SPECTRUM_WELCH_WINDOW = "hann"
+SPECTRUM_AMPLITUDE_SCALING = 1 # Set to 2 for peak-to-peak, 1/sqrt(2) for RMS
+
 
 
 # MD (Machine Direction) Spectrum Analysis Settings
