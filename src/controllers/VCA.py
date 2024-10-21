@@ -7,6 +7,7 @@ import numpy as np
 from matplotlib.ticker import MaxNLocator
 from matplotlib import colors, cm
 
+
 class VCAController(QObject, PlotMixin):
     updated = pyqtSignal()
 
@@ -16,6 +17,10 @@ class VCAController(QObject, PlotMixin):
 
         self.selected_samples = self.dataMixin.selected_samples.copy()
         self.max_dist = np.max(self.dataMixin.cd_distances)
+
+        self.remove_cd_variations = False
+        self.remove_md_variations = False
+
         self.channel = self.dataMixin.channels[0]
         self.band_pass_low = settings.VCA_BAND_PASS_LOW_DEFAULT_1M
         self.band_pass_high = settings.VCA_BAND_PASS_HIGH_DEFAULT_1M
@@ -42,7 +47,7 @@ class VCAController(QObject, PlotMixin):
             self.band_pass_low, self.band_pass_high, self.fs) for sample_idx in self.selected_samples]
 
         # Calculate the mean profile and residuals
-        mean_profile = np.mean(self.filtered_data, axis=0)
+        cd_mean_profile = np.mean(self.filtered_data, axis=0)
         residuals, residual_variance = self.calculate_residuals_and_variance(
             np.array(self.filtered_data), 0, 0)
 
@@ -57,14 +62,7 @@ class VCAController(QObject, PlotMixin):
 
         data_colorbar_ax = self.figure.add_subplot(gs[1, 2])
 
-        # Common settings for the colormap
-        cmap = cm.get_cmap(settings.VCA_COLORMAP)
-        norm = colors.Normalize(vmin=mean_profile.min(),
-                                vmax=mean_profile.max())
-
         x_data = self.dataMixin.cd_distances[low_index:high_index]
-        xmin, xmax = x_data[0], x_data[-1]
-        ymin, ymax = 1, len(self.filtered_data)
 
         # Plotting the MD mean profile
         md_mean = np.mean(self.filtered_data, axis=1)
@@ -80,13 +78,35 @@ class VCAController(QObject, PlotMixin):
         md_mean_ax.margins(y=0)
 
         # Plotting the CD profile on top
-        cd_profile_ax.plot(x_data, mean_profile)
+        cd_profile_ax.plot(x_data, cd_mean_profile)
         cd_profile_ax.set(
             xlabel="Distance [m]", ylabel=f"CD mean [{self.dataMixin.units[self.channel]}]")
         cd_profile_ax.grid()
 
+        self.plot_data = self.filtered_data
+
+        md_mean = np.mean(self.filtered_data, axis=1, keepdims=True)
+        md_mean -= np.mean(md_mean)
+        cd_mean = np.mean(self.filtered_data, axis=0, keepdims=True)
+        cd_mean -= np.mean(cd_mean)
+
+        if self.remove_cd_variations:
+            self.plot_data -= cd_mean
+
+        if self.remove_md_variations:
+            self.plot_data -= md_mean
+
+        # Common settings for the colormap
+        cmap = cm.get_cmap(settings.VCA_COLORMAP)
+        norm = colors.Normalize(vmin=np.min(
+            cd_mean_profile), vmax=(np.max(cd_mean_profile)))
+
+        xmin, xmax = x_data[0], x_data[-1]
+        ymin, ymax = 1, len(self.plot_data)
+
         # Plotting the main heatmap
-        cax = ax2.imshow(self.filtered_data, aspect='auto', origin='lower',
+
+        cax = ax2.imshow(self.plot_data, aspect='auto', origin='lower',
                          cmap=cmap, norm=norm, extent=[xmin, xmax, ymin, ymax])
         main_heatmap_colorbar = self.figure.colorbar(
             cax, cax=data_colorbar_ax, orientation='vertical')
@@ -120,7 +140,7 @@ class VCAController(QObject, PlotMixin):
         stats.append(["", "% of mean"])
         stats.append([
             "MD Stdev:\nCD Stdev:\nTotal Stdev:\nResidual Stdev:",
-            f"{(100 * md / mean):.2f}\n{(100 * cd / mean):.2f}\n{(100 * total / mean):.2f}\n{(100 * res / mean):.2f}"
+            f"{(100 * md / mean):.2f}\n{(100 * cd / mean)                                        :.2f}\n{(100 * total / mean):.2f}\n{(100 * res / mean):.2f}"
         ])
 
         return stats

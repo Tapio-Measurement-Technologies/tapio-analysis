@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QMenuBar, QGridLayout
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QMenuBar, QGridLayout, QHBoxLayout, QCheckBox
 from PyQt6.QtGui import QAction
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from qtpy.QtCore import Qt
@@ -26,6 +26,16 @@ class VCAWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, BandPassFi
         self.selectSamplesAction = QAction('Select samples', self)
         viewMenu.addAction(self.selectSamplesAction)
         self.selectSamplesAction.triggered.connect(self.toggleSelectSamples)
+
+    def update_remove_md_variations(self):
+        state = self.md_checkbox.isChecked()
+        self.controller.remove_md_variations = state
+        self.refresh()
+
+    def update_remove_cd_variations(self):
+        state = self.cd_checkbox.isChecked()
+        self.controller.remove_cd_variations = state
+        self.refresh()
 
     def initUI(self):
         self.setWindowTitle(
@@ -79,14 +89,22 @@ class VCAWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, BandPassFi
         statsLayout.addWidget(self.cd_std_dev_p_label, 3, 2)
         statsLayout.addWidget(self.residual_std_dev_p_label, 4, 2)
 
-
         mainLayout.addLayout(statsLayout)
 
         for label in [self.total_std_dev_label, self.md_std_dev_label, self.cd_std_dev_label, self.residual_std_dev_label]:
-            label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            label.setTextInteractionFlags(
+                Qt.TextInteractionFlag.TextSelectableByMouse)
 
-        # Now add a stretch factor before adding the figure canvas to give it priority to expand
-        # mainLayout.addStretch(1)
+        checkboxLayout = QHBoxLayout()
+        self.md_checkbox = QCheckBox("Remove MD variations")
+        self.md_checkbox.setChecked(False)
+        self.md_checkbox.stateChanged.connect(self.update_remove_md_variations)
+        checkboxLayout.addWidget(self.md_checkbox)
+        self.cd_checkbox = QCheckBox("Remove CD variations")
+        self.cd_checkbox.setChecked(False)
+        self.cd_checkbox.stateChanged.connect(self.update_remove_cd_variations)
+        checkboxLayout.addWidget(self.cd_checkbox)
+        mainLayout.addLayout(checkboxLayout)
 
         self.plot = self.controller.getCanvas()
         # Add with stretch factor to allow expansion
@@ -124,14 +142,17 @@ class VCAWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, BandPassFi
         vca_stats["residual_std_dev_p"] = 100 * \
             vca_stats["residual_std_dev"] / mean
 
-
-        self.unit_label.setText(f"{self.dataMixin.units[self.controller.channel]}")
+        self.unit_label.setText(
+            f"{self.dataMixin.units[self.controller.channel]}")
         self.total_std_dev_label.setText(f"{vca_stats['total_std_dev']:.2f}")
         self.md_std_dev_label.setText(f"{vca_stats['md_std_dev']:.2f}")
         self.cd_std_dev_label.setText(f"{vca_stats['cd_std_dev']:.2f}")
-        self.residual_std_dev_label.setText(f"{vca_stats['residual_std_dev']:.2f}")
+        self.residual_std_dev_label.setText(
+            f"{vca_stats['residual_std_dev']:.2f}")
 
-        self.total_std_dev_p_label.setText(f"{vca_stats['total_std_dev_p']:.2f}")
+        self.total_std_dev_p_label.setText(
+            f"{vca_stats['total_std_dev_p']:.2f}")
         self.md_std_dev_p_label.setText(f"{vca_stats['md_std_dev_p']:.2f}")
         self.cd_std_dev_p_label.setText(f"{vca_stats['cd_std_dev_p']:.2f}")
-        self.residual_std_dev_p_label.setText(f"{vca_stats['residual_std_dev_p']:.2f}")
+        self.residual_std_dev_p_label.setText(
+            f"{vca_stats['residual_std_dev_p']:.2f}")

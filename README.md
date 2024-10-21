@@ -1,7 +1,7 @@
 # Tapio Analysis
 
 ## Overview
-Tapio Analysis is an open-source software developed by Tapio Measurement Technologies Oy. It is engineered to perform advanced analysis of measurements obtained from Tapio Analyzers, which are used extensively in the paper, board, and nonwoven industries.
+Tapio Analysis is an open-source software developed by Tapio Measurement Technologies Oy. It is engineered to perform advanced analysis of measurements obtained from Tapio Analyzers, which are used extensively for troubleshooting, diagnostics and quality monitoring in the paper, board, and nonwoven industries.
 
 ![Tapio Analysis](tapio-analysis-screenshot.png)
 
@@ -15,7 +15,7 @@ Tapio Analysis is an open-source software developed by Tapio Measurement Technol
 ## Key features
 
 - **MD Profile**: Accurate and sub-millimeter resolution MD profiles with filtering and statistics display.
-- **MD Spectrum**: Identifies wavelengths and frequencies where variations occur in the sample.
+- **MD Spectrum**: Identifies wavelengths and frequencies where variations occur in the sample. Includes troubleshooting tools for connecting spectrum peaks to known rotating frequencies of machine elements.
 - **MD Formation**: Long-term variations in formation index, an indicator describing short-term basis weight variation.
 - **CD Profile**: True CD profile from actual CD strips with tools for filtering, mean profile calculation and statistics. Accurate data with sub-millimeter resolution.
 - **CD Spectrum**: Quantify and find root cause of periodic CD variations originating from CD controls, actuators etc.
@@ -30,7 +30,7 @@ Tapio Analysis is an open-source software developed by Tapio Measurement Technol
 ## Installation instructions
 To install Tapio Analysis, follow the steps below:
 
-- [Install Python 3.12.1](https://www.python.org/downloads/release/python-3121/) **Important: Tapio Analysis requires that the pip package manager is also installed and that Python is added to path/environment variables. Select these options in Python installation. **
+- [Install Python 3.12.1](https://www.python.org/downloads/release/python-3121/) (For Windows systems, use the [64-bit installer](https://www.python.org/ftp/python/3.12.1/python-3.12.1-amd64.exe). During installation, select the option "Add Python to environment variables").
 - [Install Git](https://git-scm.com/)
 
 
@@ -41,8 +41,8 @@ Run the following in a command prompt:
 git clone https://github.com/Tapio-Measurement-Technologies/tapio-analysis
 # Navigate to the project directory
 cd tapio-analysis
-# Run the installation script (installs python dependencies in a virtualenv, creates local settings, launch script and shortcut)
-./install.ps1
+# Run the installation script (the script installs Python dependencies in a virtualenv, creates src/local_settings.py, a launch script and a shortcut)
+./install.bat
 ```
 
 # Get the most out of Tapio Analysis

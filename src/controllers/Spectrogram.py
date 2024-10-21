@@ -62,7 +62,7 @@ class SpectrogramController(QObject, PlotMixin):
 
         self.selected_elements = []
         self.selected_samples = self.dataMixin.selected_samples.copy()
-        self.selected_freq = None
+        self.selected_freqs = None
         self.show_wavelength = False
 
         self.current_hlines = []
@@ -124,7 +124,7 @@ class SpectrogramController(QObject, PlotMixin):
 
 
 
-        amplitudes = np.sqrt(Pxx)
+        amplitudes = np.sqrt(Pxx*2) * settings.SPECTRUM_AMPLITUDE_SCALING
         freq_indices = (freqs >= self.frequency_range_low) & (
             freqs <= self.frequency_range_high)
         freqs_cut = freqs[freq_indices]
@@ -171,17 +171,17 @@ class SpectrogramController(QObject, PlotMixin):
         ax.figure.canvas.mpl_connect('resize_event', update_secax)
 
         # Draw new lines and update frequency label
-        if self.selected_freq:
+        if self.selected_freqs:
 
             ylim = ax.get_ylim()
 
             for i in range(1, settings.MAX_HARMONICS):
-                if (self.selected_freq * i > ylim[1]) or (self.selected_freq * i < ylim[0]):
+                if (self.selected_freqs[-1] * i > ylim[1]) or (self.selected_freqs[-1] * i < ylim[0]):
                     # Skip drawing the line if it is out of bounds
                     continue
 
                 label = "Selected frequency" if (i == 1) else None
-                hl = ax.axhline(y=self.selected_freq * i,
+                hl = ax.axhline(y=self.selected_freqs[-1] * i,
                                 color='r', linestyle='--', alpha=1 - (1/settings.MAX_HARMONICS) * i, label=label)
                 self.current_hlines.append(hl)
 
@@ -220,17 +220,17 @@ class SpectrogramController(QObject, PlotMixin):
 
     def getStatsTableData(self):
         stats = []
-        if self.selected_freq:
-            wavelength = 1 / self.selected_freq
+        if self.selected_freqs[-1]:
+            wavelength = 1 / self.selected_freqs[-1]
             stats.append(["Selected frequency:", ""])
             if self.window_type == "MD":
-                frequency_in_hz = self.selected_freq * self.machine_speed / 60
+                frequency_in_hz = self.selected_freqs[-1] * self.machine_speed / 60
                 stats.append([
                     "Frequency:\nWavelength:",
-                    f"{self.selected_freq:.2f} 1/m ({frequency_in_hz:.2f} Hz)\n{100*wavelength:.2f} m"])
+                    f"{self.selected_freqs[-1]:.2f} 1/m ({frequency_in_hz:.2f} Hz)\n{100*wavelength:.2f} m"])
             elif self.window_type == "CD":
                 stats.append([
                     "Frequency:\nWavelength:",
-                    f"{self.selected_freq:.2f} 1/m\n{100*wavelength:.3f} m"
+                    f"{self.selected_freqs[-1]:.2f} 1/m\n{100*wavelength:.3f} m"
                 ])
         return stats
