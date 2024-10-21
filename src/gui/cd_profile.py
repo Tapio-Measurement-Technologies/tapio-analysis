@@ -100,4 +100,6 @@ class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Band
         # logging.info("Refresh")
         self.controller.updatePlot()
         self.refresh_widgets()
+
+
         self.updateStatistics(self.controller.mean_profile)
