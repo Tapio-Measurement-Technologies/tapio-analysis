@@ -15,7 +15,7 @@ class SOSAnalysisController(QObject, PlotMixin):
     def plot(self):
         data = self.spectrumController.data
         fs = self.spectrumController.fs
-        selected_freq = self.spectrumController.selected_freqs[-1]
+        selected_freq = self.spectrumController.selected_freqs[-1] if self.spectrumController.selected_freqs else None
         channel = self.spectrumController.channel
 
         if not selected_freq:
