@@ -29,7 +29,7 @@ class FormationController(QObject, PlotMixin):
             self.selected_samples = self.dataMixin.selected_samples.copy()
             self.sampleSelectorWindow = None
 
-        self.channel = self.dataMixin.channels[1]
+        self.channel = settings.FORMATION_BW_CHANNEL
         self.transmission_channel = settings.FORMATION_TRANSMISSION_CHANNEL
         self.bw_channel = settings.FORMATION_BW_CHANNEL
         self.show_profiles = False

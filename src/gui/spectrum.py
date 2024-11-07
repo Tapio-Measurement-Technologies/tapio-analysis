@@ -57,7 +57,8 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
         if self.paperMachineDataWindow is None:
             self.paperMachineDataWindow = PaperMachineDataWindow(self.updateElements, self.window_type, self.checked_elements)
             self.paperMachineDataWindow.show()
-            self.paperMachineDataWindow.refresh_pm_data(self.controller.machine_speed, self.controller.selected_freqs[-1])
+            selected_freq = self.controller.selected_freqs[-1] if self.controller.selected_freqs else None
+            self.paperMachineDataWindow.refresh_pm_data(self.controller.machine_speed, selected_freq)
             self.paperMachineDataWindow.closed.connect(self.onPaperMachineDataClosed)
             self.paperMachineDataAction.setChecked(True)
         else:
