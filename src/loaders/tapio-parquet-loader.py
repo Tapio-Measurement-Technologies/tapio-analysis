@@ -10,6 +10,7 @@ import zipfile
 from io import BytesIO
 
 menu_text = "Load Tapio Parquet data"
+menu_priority = 2
 
 dataMixin = DataMixin.getInstance()
 file_types = "All Files (*);;Parquet files (*.parquet);;Calibration files (*.tcal);;Paper machine files (*.pmdata.json)"

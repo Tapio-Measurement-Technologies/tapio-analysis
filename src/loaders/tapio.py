@@ -2,6 +2,7 @@ from utils.data_loader import DataMixin
 import os
 
 menu_text = "Load Tapio data"
+menu_priority = 1
 
 dataMixin = DataMixin.getInstance()
 file_types = "All Files (*);;Calibration files (*.ca2);;Data files (*.da2);;Header files (*.pk2);;Paper machine files (*.pmdata.json);;CD Sample location files (*.samples.json)"

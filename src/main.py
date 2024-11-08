@@ -39,8 +39,10 @@ class MainWindow(QMainWindow, DataMixin):
         self.findSamplesWindow = None
 
         base_path = os.path.dirname(os.path.abspath(__file__))
-        self.loaders = load_modules_from_folder(os.path.join(base_path, 'loaders'))
-        self.exporters = load_modules_from_folder(os.path.join(base_path, 'exporters'))
+        self.loaders = load_modules_from_folder(
+            os.path.join(base_path, 'loaders'))
+        self.exporters = load_modules_from_folder(
+            os.path.join(base_path, 'exporters'))
 
         self.md_export_actions = []
         self.initUI()
@@ -54,20 +56,35 @@ class MainWindow(QMainWindow, DataMixin):
         fileMenu = mainMenu.addMenu('File')
 
         # Create menu items for each loaded module
-        for module_name, module in self.loaders.items():
+        # Todo: Before adding the actions order these by menu_priority which is available from
+        # action_priority = getattr(module, 'menu_priority', module_name)
+
+        modules_sorted = sorted(
+            self.loaders.items(),
+            key=lambda item: getattr(item[1], 'menu_priority', item[0])
+        )
+
+        first = True
+        for module_name, module in modules_sorted:
             action_text = getattr(module, 'menu_text', module_name)
             action = QAction(action_text, self)
-            action.triggered.connect(lambda checked, module=module: self.loadFiles(module))
+
+            # Set the action to load files for the specific module
+            action.triggered.connect(
+                lambda checked, mod=module: self.loadFiles(mod))
             fileMenu.addAction(action)
 
-            if len(self.loaders.items()) == 1:
+            # Assign shortcut to the first action only
+            if first:
                 action.setShortcut('Ctrl+O')
+                first = False
 
         # Create menu items for export module
         for module_name, module in self.exporters.items():
             action_text = getattr(module, 'menu_text', module_name)
             action = QAction(action_text, self)
-            action.triggered.connect(lambda checked, module=module: self.exportData(module))
+            action.triggered.connect(
+                lambda checked, module=module: self.exportData(module))
             fileMenu.addAction(action)
 
             if len(self.loaders.items()) == 1:
@@ -290,11 +307,13 @@ class MainWindow(QMainWindow, DataMixin):
 
         self.MDReportButton = QPushButton("MD report", self)
         reportLayout.addWidget(self.MDReportButton)
-        self.MDReportButton.clicked.connect(lambda: self.openReport(window_type="MD"))
+        self.MDReportButton.clicked.connect(
+            lambda: self.openReport(window_type="MD"))
 
         self.CDReportButton = QPushButton("CD report", self)
         reportLayout.addWidget(self.CDReportButton)
-        self.CDReportButton.clicked.connect(lambda: self.openReport(window_type="CD"))
+        self.CDReportButton.clicked.connect(
+            lambda: self.openReport(window_type="CD"))
 
         self.CustomReportButton = QPushButton("Custom report", self)
         reportLayout.addWidget(self.CustomReportButton)
