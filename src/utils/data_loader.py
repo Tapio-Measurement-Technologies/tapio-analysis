@@ -5,6 +5,7 @@ from utils.tapio_legacy_parser import load_legacy_data
 import json
 import settings
 
+import traceback
 
 class DataMixin:
     _instance = None
@@ -78,13 +79,20 @@ class DataMixin:
 
         # TODO: Implement here the logic in settings.CALCULATED_CHANNELS
 
+
         for channel in settings.CALCULATED_CHANNELS:
             name = channel['name']
             unit = channel['unit']
             function = channel['function']
-            sensor_df[name] = function(sensor_df)
-            units[name] = unit
-            print(f"Added calculated channel {name}")
+            try:
+                sensor_df[name] = function(sensor_df)
+                units[name] = unit
+                print(f"Added calculated channel {name}")
+            except Exception as e:
+                print(f"Failed to calculate channel {name}: {e}")
+                traceback.print_exc()
+
+
 
 
         self.measurement_label = info
