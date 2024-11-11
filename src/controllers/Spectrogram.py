@@ -6,6 +6,7 @@ import matplotlib
 import settings
 import numpy as np
 
+
 class SpectrogramController(QObject, PlotMixin):
     updated = pyqtSignal()
 
@@ -115,14 +116,13 @@ class SpectrogramController(QObject, PlotMixin):
             mean_profile = np.mean(unfiltered_data, axis=0)
             mean_profile = mean_profile - np.mean(mean_profile)
 
-
             Pxx, freqs, bins, im = ax.specgram(mean_profile,
                                                NFFT=self.nperseg,
                                                Fs=self.fs,
                                                noverlap=noverlap,
                                                window=np.hanning(self.nperseg))
-
-
+            row_means = np.mean(Pxx, axis=1, keepdims=True)
+            Pxx = Pxx - row_means
 
         amplitudes = np.sqrt(Pxx*2) * settings.SPECTRUM_AMPLITUDE_SCALING
         freq_indices = (freqs >= self.frequency_range_low) & (
@@ -134,6 +134,45 @@ class SpectrogramController(QObject, PlotMixin):
                        norm=matplotlib.colors.Normalize(vmin=0, vmax=3*np.mean(amplitudes_cut)), cmap=settings.SPECTROGRAM_COLORMAP)
 
         # Set the axis labels, title, and colorbar
+        # ax.set_yscale('log')
+
+        def shrinkage_fit(K):
+            W = x[-1] - x[0]
+            L = W / 10
+
+            total_power = 0
+            # base_freqs = np.array([20, 40, 60, 80, 100, 120])
+            base_freqs = np.linspace(0, 300, 100)
+            for xi in x:
+                # Find the closest time bin in Pxx for the current xi position
+                closest_bin_idx = (np.abs(bins - xi)).argmin()
+
+                # Compute the frequency scaler at position xi
+                def shrinkage(xloc):
+                    return (np.exp(-K * (W - xloc) / L) + np.exp(-K * (W - xloc) / L))
+
+                s = 1 / (shrinkage(xi)-shrinkage(W/2))
+
+                # Scale each base frequency by the scaler
+                scaled_freqs = base_freqs * s
+
+                # Find power values in Pxx closest to these scaled frequencies at the specific xi location
+                power_values = []
+                for f in scaled_freqs:
+                    # Get index of closest frequency in freqs
+                    closest_idx = (np.abs(freqs - f)).argmin()
+                    # Use power at this frequency and this specific xi location
+                    power_values.append(Pxx[closest_idx, closest_bin_idx])
+
+                # Sum the power values at this position and add to total power
+                total_power += np.sum(power_values)
+
+            return total_power
+        print(f"W = {x[-1] - x[0]}")
+
+        for i in np.linspace(0, 0.06, 50):
+            print(f"K={i:.4f}: P={shrinkage_fit(i):.4f}")
+
         ax.set_title(f"{self.dataMixin.measurement_label} ({self.channel})")
         ax.set_xlabel("Distance [m]")
         ax.set_ylabel("Frequency [1/m]")
@@ -202,10 +241,10 @@ class SpectrogramController(QObject, PlotMixin):
                                  alpha=0.8*(1-i*1/settings.MAX_HARMONICS))
                 self.current_hlines.append(hlw)
 
-                hl=ax.axhline(y=f * i, linestyle='--', alpha=1 -
+                hl = ax.axhline(y=f * i, linestyle='--', alpha=1 -
                                 (1/settings.MAX_HARMONICS) * i, label=label, color=current_color)
                 self.current_hlines.append(hl)
-        handles, labels=ax.get_legend_handles_labels()
+        handles, labels = ax.get_legend_handles_labels()
         if labels:  # This list will be non-empty if there are items to include in the legend
             ax.legend(handles, labels, loc="upper right")
 
@@ -224,13 +263,14 @@ class SpectrogramController(QObject, PlotMixin):
             wavelength = 1 / self.selected_freqs[-1]
             stats.append(["Selected frequency:", ""])
             if self.window_type == "MD":
-                frequency_in_hz = self.selected_freqs[-1] * self.machine_speed / 60
+                frequency_in_hz = self.selected_freqs[-1] * \
+                    self.machine_speed / 60
                 stats.append([
                     "Frequency:\nWavelength:",
                     f"{self.selected_freqs[-1]:.2f} 1/m ({frequency_in_hz:.2f} Hz)\n{100*wavelength:.2f} m"])
             elif self.window_type == "CD":
                 stats.append([
                     "Frequency:\nWavelength:",
-                    f"{self.selected_freqs[-1]:.2f} 1/m\n{100*wavelength:.3f} m"
+                    f"{self.selected_freqs[-1]                        :.2f} 1/m\n{100*wavelength:.3f} m"
                 ])
         return stats
