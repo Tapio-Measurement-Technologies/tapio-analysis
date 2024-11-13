@@ -44,8 +44,10 @@ def load_data(main_window, fileNames: list[str]):
                 file_list = zip_ref.namelist()
 
                 # Extract parquet and tcal files
-                parquet_file = next((f for f in file_list if f.endswith('.parquet')), None)
-                tcal_file = next((f for f in file_list if f.endswith('.tcal')), None)
+                parquet_file = next(
+                    (f for f in file_list if f.endswith('.parquet')), None)
+                tcal_file = next((f for f in file_list if f.endswith(
+                    '.json') and "-calibration" in f), None)
 
                 if parquet_file:
                     with zip_ref.open(parquet_file) as parquet_data:
@@ -69,37 +71,45 @@ def load_data(main_window, fileNames: list[str]):
                             delta_distance = np.diff(distances).mean()
                             sampling_frequency = 1000  # Hz
                             delta_t = 1 / sampling_frequency
-                            dataMixin.pm_speed = 60 * (delta_distance / delta_t)
-                            print(f"Average measurement speed [m/min]: {dataMixin.pm_speed:.2f}")
+                            dataMixin.pm_speed = 60 * \
+                                (delta_distance / delta_t)
+                            print(
+                                f"Average measurement speed [m/min]: {dataMixin.pm_speed:.2f}")
 
                             total_samples = len(distances)
                             total_time_seconds = total_samples / sampling_frequency
                             total_distance = distances[-1] - distances[0]
 
                             print(f"Total number of samples: {total_samples}")
-                            print(f"Total length of measurement [seconds]: {total_time_seconds:.2f}")
-                            print(f"Total distance of measurement [m]: {total_distance:.2f}")
+                            print(f"Total length of measurement [seconds]: {
+                                  total_time_seconds:.2f}")
+                            print(f"Total distance of measurement [m]: {
+                                  total_distance:.2f}")
 
                         raw_data = data_df.iloc[:, 1:].values
 
                         print("Ensuring unique distance")
-                        unique_distances, first_occurrence_indices = np.unique(distances, return_index=True)
+                        unique_distances, first_occurrence_indices = np.unique(
+                            distances, return_index=True)
                         aggregated_data = raw_data[first_occurrence_indices, :]
                         print("Resampling")
 
                         resampled_distances = np.arange(unique_distances[0], unique_distances[-1],
                                                         (RESAMPLE_STEP_DEFAULT_MM / 1000))
-                        resampled_data = np.zeros((len(resampled_distances), aggregated_data.shape[1]))
+                        resampled_data = np.zeros(
+                            (len(resampled_distances), aggregated_data.shape[1]))
 
                         for i in range(aggregated_data.shape[1]):
                             voltage_interp = interp1d(unique_distances,
                                                       aggregated_data[:, i],
                                                       kind='linear',
                                                       fill_value="extrapolate")
-                            resampled_data[:, i] = voltage_interp(resampled_distances)
+                            resampled_data[:, i] = voltage_interp(
+                                resampled_distances)
 
                         dataMixin.sample_step = RESAMPLE_STEP_DEFAULT_MM / 1000
-                        dataMixin.channel_df = pd.DataFrame(resampled_data, columns=data_df.columns[1:])
+                        dataMixin.channel_df = pd.DataFrame(
+                            resampled_data, columns=data_df.columns[1:])
                         dataMixin.distances = resampled_distances
                         dataMixin.channels = dataMixin.channel_df.columns
                         dataMixin.measurement_label = os.path.basename(fn)
@@ -115,7 +125,8 @@ def load_data(main_window, fileNames: list[str]):
                             cal_data = tcal_json.get(channel_name)
                             if cal_data:
                                 apply_calibration(channel_name, cal_data)
-                                units_dict[channel_name] = cal_data.get("unit", "Unknown")
+                                units_dict[channel_name] = cal_data.get(
+                                    "unit", "Unknown")
                             else:
                                 units_dict[channel_name] = "V"
 
