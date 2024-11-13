@@ -194,6 +194,7 @@ class ReportWindow(QWidget, DataMixin):
             paragraph = doc.add_heading(section.section_name)
             set_paragraph_spacing(paragraph, 0, 6)
             for analysis in section.analysis_widgets:
+                apply_plot_customizations(analysis)
                 paragraph = doc.add_heading(f"{analysis.analysis_name} {analysis.get_channel_text()}", 2)
                 set_paragraph_spacing(paragraph)
 
