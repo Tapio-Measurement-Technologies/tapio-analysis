@@ -479,8 +479,8 @@ class AnalysisWidget(QWidget):
 
         if self.controller:
             self.controller.updated.connect(self.update_analysis_label)
-            self.controller.updated.connect(lambda: apply_plot_customizations(self.controller.figure))
-            apply_plot_customizations(self.controller.figure)
+            self.controller.updated.connect(lambda: apply_plot_customizations(self))
+            apply_plot_customizations(self)
 
         self.layout = QHBoxLayout()
         self.layout.setAlignment(Qt.AlignmentFlag.AlignTop)
