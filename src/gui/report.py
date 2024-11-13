@@ -9,7 +9,7 @@ import datetime
 from docx import Document
 from docx.shared import Mm, Cm, Pt
 from docx.enum.table import WD_ALIGN_VERTICAL
-from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
 import numpy as np
 import json
 import os
@@ -237,6 +237,9 @@ class ReportWindow(QWidget, DataMixin):
                         cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
                         cell.paragraphs[0].style.font.size = Pt(10)
                         cell.paragraphs[0].style.font.name = "Nimbus Mono PS"
+
+            # Add a page break after each section
+            doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
 
         # Open save file dialog
         dialog = QFileDialog()
