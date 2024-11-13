@@ -285,25 +285,44 @@ class ReportWindow(QWidget, DataMixin):
                             if invalid_channel:
                                 continue  # Continue to the next analysis in the analyses loop
                             widget = AnalysisWidget(self.main_window, analysis_name, self.window_type)
-                            max_dist = getattr(widget.controller, "max_dist", 0)
-                            max_freq = getattr(widget.controller, "max_freq", 0)
-                            widget.controller.channel               = analysis.get("channel",  "")
-                            widget.controller.channel1              = analysis.get("channel1", "")
-                            widget.controller.channel2              = analysis.get("channel2", "")
-                            widget.controller.analysis_range_low    = analysis.get("analysis_range_low",  0) * max_dist
-                            widget.controller.analysis_range_high   = analysis.get("analysis_range_high", 0) * max_dist
-                            widget.controller.band_pass_low         = analysis.get("band_pass_low",  0)
-                            widget.controller.band_pass_high        = analysis.get("band_pass_high", 0)
-                            widget.controller.show_profiles         = analysis.get("show_individual_profiles", False)
-                            widget.controller.show_min_max          = analysis.get("show_min_max", False)
-                            widget.controller.show_legend           = analysis.get("show_legend",  False)
-                            widget.controller.show_wavelength       = analysis.get("show_wavelength_labels", False)
-                            widget.controller.show_unfiltered_data  = analysis.get("show_unfiltered_data",   False)
-                            widget.controller.machine_speed         = analysis.get("machine_speed", 0)
-                            widget.controller.frequency_range_low   = analysis.get("frequency_range_low",  0) * max_freq
-                            widget.controller.frequency_range_high  = analysis.get("frequency_range_high", 0) * max_freq
-                            widget.controller.selected_freqs        = analysis.get("selected_frequencies", [])
-                            widget.controller.nperseg               = analysis.get("nperseg", 0)
+                            if hasattr(widget.controller, "max_dist"):
+                                max_dist = widget.controller.max_dist
+                            if hasattr(widget.controller, "max_freq"):
+                                max_freq = widget.controller.max_freq
+                            if "channel" in analysis:
+                                widget.controller.channel = analysis["channel"]
+                            if "channel1" in analysis:
+                                widget.controller.channel1 = analysis["channel1"]
+                            if "channel2" in analysis:
+                                widget.controller.channel2 = analysis["channel2"]
+                            if "analysis_range_low" in analysis:
+                                widget.controller.analysis_range_low = analysis["analysis_range_low"] * max_dist
+                            if "analysis_range_high" in analysis:
+                                widget.controller.analysis_range_high = analysis["analysis_range_high"] * max_dist
+                            if "band_pass_low" in analysis:
+                                widget.controller.band_pass_low = analysis["band_pass_low"]
+                            if "band_pass_high" in analysis:
+                                widget.controller.band_pass_high = analysis["band_pass_high"]
+                            if "show_individual_profiles" in analysis:
+                                widget.controller.show_profiles = analysis["show_individual_profiles"]
+                            if "show_min_max" in analysis:
+                                widget.controller.show_min_max = analysis["show_min_max"]
+                            if "show_legend" in analysis:
+                                widget.controller.show_legend = analysis["show_legend"]
+                            if "show_wavelength_labels" in analysis:
+                                widget.controller.show_wavelength = analysis["show_wavelength_labels"]
+                            if "show_unfiltered_data" in analysis:
+                                widget.controller.show_unfiltered_data = analysis["show_unfiltered_data"]
+                            if "machine_speed" in analysis:
+                                widget.controller.machine_speed = analysis["machine_speed"]
+                            if "frequency_range_low" in analysis:
+                                widget.controller.frequency_range_low = analysis["frequency_range_low"] * max_freq
+                            if "frequency_range_high" in analysis:
+                                widget.controller.frequency_range_high = analysis["frequency_range_high"] * max_freq
+                            if "selected_frequencies" in analysis:
+                                widget.controller.selected_freqs = analysis["selected_frequencies"]
+                            if "nperseg" in analysis:
+                                widget.controller.nperseg = analysis["nperseg"]
                             widget.preview_window.refresh()
                             section_widget.add_analysis(widget)
                 except Exception as e:
