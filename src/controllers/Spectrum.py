@@ -65,7 +65,7 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
 
         self.selected_elements = []
         self.selected_samples = self.dataMixin.selected_samples.copy()
-        self.selected_freqs = None
+        self.selected_freqs = []
         self.show_wavelength = False
 
         self.current_vlines = []
@@ -193,7 +193,7 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
         ax.figure.canvas.mpl_connect('resize_event', update_secax)
 
         # Draw new lines and update frequency label
-        if self.selected_freqs:
+        if len(self.selected_freqs) > 0:
 
             xlim = ax.get_xlim()
             if settings.MULTIPLE_SELECT_MODE:
@@ -275,7 +275,7 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
 
     def getStatsTableData(self):
         stats = []
-        if self.selected_freqs[-1]:
+        if len(self.selected_freqs) > 0 and self.selected_freqs[-1]:
             wavelength = 1 / self.selected_freqs[-1]
             stats.append(["Selected frequency:", ""])
             if self.window_type == "MD":

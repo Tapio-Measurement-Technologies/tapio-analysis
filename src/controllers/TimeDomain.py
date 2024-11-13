@@ -74,14 +74,15 @@ class TimeDomainController(QObject, PlotMixin, ExportMixin):
 
     def getStatsTableData(self):
         stats = []
-        mean = np.mean(self.data)
-        std = np.std(self.data)
-        min_val = np.min(self.data)
-        max_val = np.max(self.data)
-        units = self.dataMixin.units[self.channel]
+        if len(self.data) > 0:
+            mean = np.mean(self.data)
+            std = np.std(self.data)
+            min_val = np.min(self.data)
+            max_val = np.max(self.data)
+            units = self.dataMixin.units[self.channel]
 
-        stats.append(["", f"{self.channel} [{units}]"])
-        stats.append(["Mean:\nStdev:\nMin:\nMax:", f"{mean:.2f}\n{std:.2f}\n{min_val:.2f}\n{max_val:.2f}"])
+            stats.append(["", f"{self.channel} [{units}]"])
+            stats.append(["Mean:\nStdev:\nMin:\nMax:", f"{mean:.2f}\n{std:.2f}\n{min_val:.2f}\n{max_val:.2f}"])
 
         return stats
 
