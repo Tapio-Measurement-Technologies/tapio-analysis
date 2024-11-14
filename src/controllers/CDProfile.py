@@ -52,8 +52,10 @@ class CDProfileController(QObject, PlotMixin, ExportMixin):
         # Todo: These are in meters, li
         # Todo: These are in meters, like distances array. Convert these to indices and have them have an effect on the displayed slice of the datamixin
 
-        low_index = np.searchsorted(self.dataMixin.cd_distances, self.analysis_range_low)
-        high_index = np.searchsorted(self.dataMixin.cd_distances, self.analysis_range_high, side='right')
+        low_index = np.searchsorted(
+            self.dataMixin.cd_distances, self.analysis_range_low)
+        high_index = np.searchsorted(
+            self.dataMixin.cd_distances, self.analysis_range_high, side='right')
 
         x = self.dataMixin.cd_distances[low_index:high_index]
 
@@ -62,7 +64,8 @@ class CDProfileController(QObject, PlotMixin, ExportMixin):
             for sample_idx in self.selected_samples
         ]
 
-        filtered_data = [bandpass_filter(i, self.band_pass_low, self.band_pass_high, self.fs) for i in unfiltered_data]
+        filtered_data = [bandpass_filter(
+            i, self.band_pass_low, self.band_pass_high, self.fs) for i in unfiltered_data]
 
         self.mean_profile = np.mean(filtered_data, axis=0)
         std_error = np.std(filtered_data, axis=0) / np.sqrt(len(filtered_data))
@@ -75,26 +78,56 @@ class CDProfileController(QObject, PlotMixin, ExportMixin):
         if self.window_type == "waterfall":
             tableau_color_cycle = plt.get_cmap('tab10')
 
+            y_offset = self.waterfall_offset
             ax = self.figure.add_subplot(111)
-            ax.set_yticks([])
-            for offset, sample_idx in enumerate(self.selected_samples):
-                unfiltered_data = self.dataMixin.segments[self.channel][sample_idx][low_index:high_index]
-                filtered_data = bandpass_filter(unfiltered_data, self.band_pass_low, self.band_pass_high, self.fs)
 
-                y_offset = self.waterfall_offset
+            y_ticks = []
+            y_tick_labels = []
+
+            ax.set_yticks(y_ticks)
+            ax.set_yticklabels(y_tick_labels)
+
+            for offset_index, sample_idx in enumerate(self.selected_samples):
+                unfiltered_data = self.dataMixin.segments[self.channel][sample_idx][low_index:high_index]
+                filtered_data = bandpass_filter(
+                    unfiltered_data, self.band_pass_low, self.band_pass_high, self.fs)
 
                 color = tableau_color_cycle(sample_idx % 10)
                 ax.plot(x * settings.CD_PROFILE_DISPLAY_UNIT_MULTIPLIER,
-                        filtered_data - offset * y_offset,
+                        filtered_data - offset_index * y_offset,
                         lw=1,
                         alpha=0.9,
                         color=color)
 
                 # Calculate mean and add horizontal line
-                mean_value = np.mean(filtered_data) - offset * y_offset
-                ax.axhline(mean_value, color='gray', linestyle='-', linewidth=1)
+                mean_value = np.mean(filtered_data) - offset_index * y_offset
+                ax.axhline(mean_value, color='gray',
+                           linestyle='-', linewidth=1)
 
-            ax.set_title(f"{self.dataMixin.measurement_label} ({self.channel})")
+                if offset_index == 0:
+                    ax.text(
+                        0.10, 1.05,
+                        f"Sample spacing\n{y_offset:.2f} {
+                            self.dataMixin.units[self.channel]}",
+                        ha='center',
+                        va='center',
+                        fontsize=8,
+                        color="tab:gray",
+                        transform=ax.transAxes
+                    )
+
+                ax.text(
+                    x[0] - 0.06 * (x[-1] - x[0]),
+                    mean_value,
+                    f"{offset_index + 1}",
+                    ha='center',
+                    va='center',
+                    fontsize=10,
+                    color="black"
+                )
+
+            ax.set_title(
+                f"{self.dataMixin.measurement_label} ({self.channel})")
             ax.set_xlabel("Distance [m]")
             # ax.set_ylabel("Sample Index")
             # ax.set_zlabel(
@@ -107,7 +140,8 @@ class CDProfileController(QObject, PlotMixin, ExportMixin):
 
             if self.show_profiles:
                 for i in filtered_data:
-                    ax.plot(x * settings.CD_PROFILE_DISPLAY_UNIT_MULTIPLIER, i, alpha=0.2, color="gray")
+                    ax.plot(x * settings.CD_PROFILE_DISPLAY_UNIT_MULTIPLIER,
+                            i, alpha=0.2, color="gray")
 
             if self.show_min_max:
                 ax.plot(x * settings.CD_PROFILE_DISPLAY_UNIT_MULTIPLIER,
@@ -121,14 +155,16 @@ class CDProfileController(QObject, PlotMixin, ExportMixin):
                         color="green",
                         label="Maximum")
 
-            ax.plot(x * settings.CD_PROFILE_DISPLAY_UNIT_MULTIPLIER, self.mean_profile, label="Mean profile")
+            ax.plot(x * settings.CD_PROFILE_DISPLAY_UNIT_MULTIPLIER,
+                    self.mean_profile, label="Mean profile")
             if self.confidence_interval is not None:
                 ax.fill_between(x * settings.CD_PROFILE_DISPLAY_UNIT_MULTIPLIER,
                                 self.mean_profile - confidence_interval,
                                 self.mean_profile + confidence_interval,
                                 color='tab:blue', alpha=0.3, label=f"{self.confidence_interval * 100}% CI")
 
-            ax.set_title(f"{self.dataMixin.measurement_label} ({self.channel})")
+            ax.set_title(
+                f"{self.dataMixin.measurement_label} ({self.channel})")
 
             if self.show_legend:
 
@@ -139,7 +175,8 @@ class CDProfileController(QObject, PlotMixin, ExportMixin):
             ax.grid()
 
             ax.set_xlabel(f"Distance [{settings.CD_PROFILE_DISPLAY_UNIT}]")
-            ax.set_ylabel(f"{self.channel} [{self.dataMixin.units[self.channel]}]")
+            ax.set_ylabel(
+                f"{self.channel} [{self.dataMixin.units[self.channel]}]")
 
             if self.show_extra_data and self.selected_sheet and self.extra_data is not None:
 
@@ -158,19 +195,22 @@ class CDProfileController(QObject, PlotMixin, ExportMixin):
                 original_range = original_x[-1] - original_x[0]
                 adjusted_range = adjusted_last_x - adjusted_first_x
 
-                extra_x = adjusted_first_x + (original_x - original_x[0]) * (adjusted_range / original_range)
-
+                extra_x = adjusted_first_x + \
+                    (original_x - original_x[0]) * \
+                    (adjusted_range / original_range)
 
                 ax2 = ax.twinx()
                 ax2.plot(extra_x * settings.CD_PROFILE_DISPLAY_UNIT_MULTIPLIER,
                          extra_y,
                          label=f"{self.selected_sheet} [{unit}]",
                          color="green")
-                ax2.set_ylabel(f"{self.selected_sheet} [{unit}]", color="tab:green")
+                ax2.set_ylabel(f"{self.selected_sheet} [{
+                               unit}]", color="tab:green")
                 ax2.tick_params(axis='y', labelcolor='tab:green')
 
                 # Also colour primary axis
-                ax.set_ylabel(f"{self.channel} [{self.dataMixin.units[self.channel]}]", color="tab:blue")
+                ax.set_ylabel(
+                    f"{self.channel} [{self.dataMixin.units[self.channel]}]", color="tab:blue")
                 ax.tick_params(axis='y', labelcolor='tab:blue')
 
                 if self.use_same_scale:
@@ -206,7 +246,8 @@ class CDProfileController(QObject, PlotMixin, ExportMixin):
         units = self.dataMixin.units[self.channel]
 
         stats.append(["", f"{self.channel} [{units}]"])
-        stats.append(["Mean:\nStdev:\nMin:\nMax:", f"{mean:.2f}\n{std:.2f}\n{min_val:.2f}\n{max_val:.2f}"])
+        stats.append(["Mean:\nStdev:\nMin:\nMax:", f"{mean:.2f}\n{
+                     std:.2f}\n{min_val:.2f}\n{max_val:.2f}"])
 
         return stats
 

@@ -232,7 +232,7 @@ class WaterfallOffsetMixin:
     def addWaterfallOffsetSlider(self, layout, live_update=settings.UPDATE_ON_SLIDE):
         self.bandPassFilterLabel = QLabel("Waterfall y-offset")
         layout.addWidget(self.bandPassFilterLabel)
-        self.waterfallOffsetSlider = ExtraQLabeledSlider(Qt.Orientation.Horizontal)
+        self.waterfallOffsetSlider = QLabeledDoubleSlider(Qt.Orientation.Horizontal)
         self.initWaterfallOffsetSlider()
         layout.addWidget(self.waterfallOffsetSlider)
 
