@@ -238,8 +238,3 @@ try:
     from local_settings import *
 except:
     pass
-
-try:
-    from customizations import *
-except:
-    pass
