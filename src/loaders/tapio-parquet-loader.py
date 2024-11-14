@@ -112,7 +112,8 @@ def load_data(main_window, fileNames: list[str]):
                             resampled_data, columns=data_df.columns[1:])
                         dataMixin.distances = resampled_distances
                         dataMixin.channels = dataMixin.channel_df.columns
-                        dataMixin.measurement_label = os.path.basename(fn)
+                        dataMixin.measurement_label = os.path.splitext(
+                            os.path.basename(fn))[0]
 
                 if tcal_file:
                     with zip_ref.open(tcal_file) as tcal_data:
@@ -151,8 +152,10 @@ def apply_calibration_with_uniform_trimming(calibration_data):
 
     # Calculate the zero offset to handle negative minimum distances
     sample_step = dataMixin.sample_step
-    min_distance_offset = min(cal_data.get('offset', 0) for cal_data in calibration_data.values())
-    distance_zero_offset = abs(min_distance_offset) if min_distance_offset < 0 else 0
+    min_distance_offset = min(cal_data.get('offset', 0)
+                              for cal_data in calibration_data.values())
+    distance_zero_offset = abs(
+        min_distance_offset) if min_distance_offset < 0 else 0
 
     # Calibrate and align data for each channel
     for channel_name, cal_data in calibration_data.items():
@@ -170,22 +173,26 @@ def apply_calibration_with_uniform_trimming(calibration_data):
             # Logarithmic interpolation for multi-point calibration
             points = cal_data['points']
             x_vals, y_vals = zip(*points)
-            interpolator = interp1d(np.log(x_vals), y_vals, fill_value="extrapolate")
+            interpolator = interp1d(
+                np.log(x_vals), y_vals, fill_value="extrapolate")
             calibrated_values = interpolator(np.log(voltage_values))
         else:
-            print(f"Warning: Unsupported calibration type '{cal_data['type']}' for channel '{channel_name}'")
+            print(f"Warning: Unsupported calibration type '{
+                  cal_data['type']}' for channel '{channel_name}'")
             calibrated_values = voltage_values  # Fallback to original values if unsupported
 
         # Calculate the starting trim index for alignment
         offset = cal_data.get('offset', 0)
-        align_start_index = round((distance_zero_offset + offset) / sample_step)
+        align_start_index = round(
+            (distance_zero_offset + offset) / sample_step)
         align_data_slices[channel_name] = align_start_index
 
         # Store the calibrated values temporarily
         calibrated_channels[channel_name] = calibrated_values
 
     # Determine the final uniform length for trimming based on the maximum alignment slice
-    data_len = min(len(values) - align_data_slices[channel] for channel, values in calibrated_channels.items())
+    data_len = min(len(values) - align_data_slices[channel]
+                   for channel, values in calibrated_channels.items())
 
     # Initialize a new array to store the aligned and trimmed data
     trimmed_data = np.empty((data_len, len(calibrated_channels)))
@@ -195,8 +202,9 @@ def apply_calibration_with_uniform_trimming(calibration_data):
         trimmed_data[:, index] = calibrated_values[start_trim:start_trim + data_len]
 
     # Update the dataMixin with the trimmed DataFrame
-    dataMixin.channel_df = pd.DataFrame(trimmed_data, columns=calibrated_channels.keys())
+    dataMixin.channel_df = pd.DataFrame(
+        trimmed_data, columns=calibrated_channels.keys())
 
     # Update distances to match the trimmed data length
-    dataMixin.distances = dataMixin.distances[align_data_slices[min(align_data_slices, key=align_data_slices.get)]:][:data_len]
-
+    dataMixin.distances = dataMixin.distances[align_data_slices[min(
+        align_data_slices, key=align_data_slices.get)]:][:data_len]
