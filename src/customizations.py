@@ -1,4 +1,5 @@
 from matplotlib.figure import Figure
+import importlib
 
 
 def apply_plot_customizations(figure: Figure):
@@ -21,3 +22,12 @@ def apply_plot_customizations(figure: Figure):
         new_width = height * aspect_ratio  # adjust width based on current height
         figure.set_size_inches(new_width, height*0.9)
         figure.tight_layout()
+
+
+try:
+    local_customizations = importlib.import_module("local_customizations")
+    if hasattr(local_customizations, "apply_plot_customizations"):
+        apply_plot_customizations = local_customizations.apply_plot_customizations
+except ModuleNotFoundError:
+    # local_customizations.py does not exist, continue with the default function
+    pass

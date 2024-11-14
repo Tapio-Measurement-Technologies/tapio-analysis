@@ -161,6 +161,7 @@ cython_debug/
 #.idea/
 
 local_settings.py
+local_customizations.py
 Tapio Analysis.lnk
 run_tapio_analysis.bat
 
@@ -168,5 +169,6 @@ src/loaders/*
 !src/loaders/tapio.py
 !src/loaders/__init__.py
 !src/loaders/tapio-parquet-loader.py
+
 
 
