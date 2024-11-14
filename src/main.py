@@ -49,7 +49,19 @@ class MainWindow(QMainWindow, DataMixin):
 
     def initUI(self):
         self.setWindowTitle('Tapio Analysis')
-        self.setGeometry(200, 200, 800, 600)  # x, y, width, height
+        # self.setGeometry(200, 200, 800, 600)  # x, y, width, height
+        self.resize(800, 600)  # x, y, width, height
+
+        screen = QApplication.primaryScreen()
+        screen_geometry = screen.geometry()
+        screen_center = screen_geometry.center()
+
+        # Center the main window on the primary screen
+        frame_geometry = self.frameGeometry()
+        frame_geometry.moveCenter(screen_center)
+        self.move(frame_geometry.topLeft())
+
+
 
         # Menu
         mainMenu = self.menuBar()

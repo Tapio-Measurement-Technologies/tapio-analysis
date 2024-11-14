@@ -44,8 +44,10 @@ def load_data(main_window, fileNames: list[str]):
                 file_list = zip_ref.namelist()
 
                 # Extract parquet and tcal files
-                parquet_file = next((f for f in file_list if f.endswith('.parquet')), None)
-                tcal_file = next((f for f in file_list if f.endswith('.tcal')), None)
+                parquet_file = next(
+                    (f for f in file_list if f.endswith('.parquet')), None)
+                tcal_file = next(
+                    (f for f in file_list if f.endswith('.json')), None)
 
                 if parquet_file:
                     with zip_ref.open(parquet_file) as parquet_data:
@@ -69,37 +71,45 @@ def load_data(main_window, fileNames: list[str]):
                             delta_distance = np.diff(distances).mean()
                             sampling_frequency = 1000  # Hz
                             delta_t = 1 / sampling_frequency
-                            dataMixin.pm_speed = 60 * (delta_distance / delta_t)
-                            print(f"Average measurement speed [m/min]: {dataMixin.pm_speed:.2f}")
+                            dataMixin.pm_speed = 60 * \
+                                (delta_distance / delta_t)
+                            print(
+                                f"Average measurement speed [m/min]: {dataMixin.pm_speed:.2f}")
 
                             total_samples = len(distances)
                             total_time_seconds = total_samples / sampling_frequency
                             total_distance = distances[-1] - distances[0]
 
                             print(f"Total number of samples: {total_samples}")
-                            print(f"Total length of measurement [seconds]: {total_time_seconds:.2f}")
-                            print(f"Total distance of measurement [m]: {total_distance:.2f}")
+                            print(f"Total length of measurement [seconds]: {
+                                  total_time_seconds:.2f}")
+                            print(f"Total distance of measurement [m]: {
+                                  total_distance:.2f}")
 
                         raw_data = data_df.iloc[:, 1:].values
 
                         print("Ensuring unique distance")
-                        unique_distances, first_occurrence_indices = np.unique(distances, return_index=True)
+                        unique_distances, first_occurrence_indices = np.unique(
+                            distances, return_index=True)
                         aggregated_data = raw_data[first_occurrence_indices, :]
                         print("Resampling")
 
                         resampled_distances = np.arange(unique_distances[0], unique_distances[-1],
                                                         (RESAMPLE_STEP_DEFAULT_MM / 1000))
-                        resampled_data = np.zeros((len(resampled_distances), aggregated_data.shape[1]))
+                        resampled_data = np.zeros(
+                            (len(resampled_distances), aggregated_data.shape[1]))
 
                         for i in range(aggregated_data.shape[1]):
                             voltage_interp = interp1d(unique_distances,
                                                       aggregated_data[:, i],
                                                       kind='linear',
                                                       fill_value="extrapolate")
-                            resampled_data[:, i] = voltage_interp(resampled_distances)
+                            resampled_data[:, i] = voltage_interp(
+                                resampled_distances)
 
                         dataMixin.sample_step = RESAMPLE_STEP_DEFAULT_MM / 1000
-                        dataMixin.channel_df = pd.DataFrame(resampled_data, columns=data_df.columns[1:])
+                        dataMixin.channel_df = pd.DataFrame(
+                            resampled_data, columns=data_df.columns[1:])
                         dataMixin.distances = resampled_distances
                         dataMixin.channels = dataMixin.channel_df.columns
                         dataMixin.measurement_label = os.path.basename(fn)
@@ -111,14 +121,19 @@ def load_data(main_window, fileNames: list[str]):
                         tcal_json = json.loads(tcal_content)
 
                         units_dict = {}
+                        calibration_data = {}
+
                         for channel_name in dataMixin.channel_df.columns:
                             cal_data = tcal_json.get(channel_name)
                             if cal_data:
-                                apply_calibration(channel_name, cal_data)
-                                units_dict[channel_name] = cal_data.get("unit", "Unknown")
+                                calibration_data[channel_name] = cal_data
+                                units_dict[channel_name] = cal_data.get(
+                                    "unit", "Unknown")
                             else:
                                 units_dict[channel_name] = "V"
 
+                        apply_calibration_with_uniform_trimming(
+                            calibration_data)
                         dataMixin.units = units_dict
 
         elif fn.endswith('.pmdata.json'):
@@ -128,18 +143,60 @@ def load_data(main_window, fileNames: list[str]):
             dataMixin.load_pm_file()
 
 
-def apply_calibration(channel_name, cal_data):
-    """Apply calibration based on the points in the .tcal file."""
-    voltage_values = dataMixin.channel_df[channel_name].values
+def apply_calibration_with_uniform_trimming(calibration_data):
+    """Apply calibration and uniform trimming across all channels based on offset values, aligning distances."""
+    # Dictionary to hold calibrated data temporarily and offset alignment values
+    calibrated_channels = {}
+    align_data_slices = {}
 
-    if cal_data['type'] == 'linregr':
-        points = cal_data['points']
-        x_vals, y_vals = zip(*points)
+    # Calculate the zero offset to handle negative minimum distances
+    sample_step = dataMixin.sample_step
+    min_distance_offset = min(cal_data.get('offset', 0) for cal_data in calibration_data.values())
+    distance_zero_offset = abs(min_distance_offset) if min_distance_offset < 0 else 0
 
-        interpolator = interp1d(x_vals, y_vals, fill_value="extrapolate")
-        calibrated_values = interpolator(voltage_values)
+    # Calibrate and align data for each channel
+    for channel_name, cal_data in calibration_data.items():
+        print(f"Calibrating channel: {channel_name}")
+        voltage_values = dataMixin.channel_df[channel_name].values
 
+        # Apply calibration based on the type
+        if cal_data['type'] == 'linregr':
+            # Linear interpolation based on provided points
+            points = cal_data['points']
+            x_vals, y_vals = zip(*points)
+            interpolator = interp1d(x_vals, y_vals, fill_value="extrapolate")
+            calibrated_values = interpolator(voltage_values)
+        elif cal_data['type'] == 'multi-point-log':
+            # Logarithmic interpolation for multi-point calibration
+            points = cal_data['points']
+            x_vals, y_vals = zip(*points)
+            interpolator = interp1d(np.log(x_vals), y_vals, fill_value="extrapolate")
+            calibrated_values = interpolator(np.log(voltage_values))
+        else:
+            print(f"Warning: Unsupported calibration type '{cal_data['type']}' for channel '{channel_name}'")
+            calibrated_values = voltage_values  # Fallback to original values if unsupported
+
+        # Calculate the starting trim index for alignment
         offset = cal_data.get('offset', 0)
-        calibrated_values += offset
+        align_start_index = round((distance_zero_offset + offset) / sample_step)
+        align_data_slices[channel_name] = align_start_index
 
-        dataMixin.channel_df[channel_name] = calibrated_values
+        # Store the calibrated values temporarily
+        calibrated_channels[channel_name] = calibrated_values
+
+    # Determine the final uniform length for trimming based on the maximum alignment slice
+    data_len = min(len(values) - align_data_slices[channel] for channel, values in calibrated_channels.items())
+
+    # Initialize a new array to store the aligned and trimmed data
+    trimmed_data = np.empty((data_len, len(calibrated_channels)))
+    for index, (channel_name, calibrated_values) in enumerate(calibrated_channels.items()):
+        start_trim = align_data_slices[channel_name]
+        # Align and trim each channel based on the calculated slice
+        trimmed_data[:, index] = calibrated_values[start_trim:start_trim + data_len]
+
+    # Update the dataMixin with the trimmed DataFrame
+    dataMixin.channel_df = pd.DataFrame(trimmed_data, columns=calibrated_channels.keys())
+
+    # Update distances to match the trimmed data length
+    dataMixin.distances = dataMixin.distances[align_data_slices[min(align_data_slices, key=align_data_slices.get)]:][:data_len]
+
