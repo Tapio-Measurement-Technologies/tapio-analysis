@@ -169,13 +169,13 @@ def apply_calibration_with_uniform_trimming(calibration_data):
             x_vals, y_vals = zip(*points)
             interpolator = interp1d(x_vals, y_vals, fill_value="extrapolate")
             calibrated_values = interpolator(voltage_values)
-        elif cal_data['type'] == 'multi-point-log':
-            # Logarithmic interpolation for multi-point calibration
-            points = cal_data['points']
-            x_vals, y_vals = zip(*points)
-            interpolator = interp1d(
-                np.log(x_vals), y_vals, fill_value="extrapolate")
-            calibrated_values = interpolator(np.log(voltage_values))
+        # elif cal_data['type'] == 'multi-point-log':
+        #     # Logarithmic interpolation for multi-point calibration
+        #     points = cal_data['points']
+        #     x_vals, y_vals = zip(*points)
+        #     interpolator = interp1d(
+        #         np.log(x_vals), y_vals, fill_value="extrapolate")
+        #     calibrated_values = interpolator(np.log(voltage_values))
         else:
             print(f"Warning: Unsupported calibration type '{
                   cal_data['type']}' for channel '{channel_name}'")

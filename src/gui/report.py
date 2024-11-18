@@ -15,6 +15,7 @@ import json
 import os
 from customizations import apply_plot_customizations
 from utils.report import get_text_width, set_paragraph_spacing
+import traceback
 
 class Editor(QTextEdit):
     def __init__(self):
@@ -240,7 +241,8 @@ class ReportWindow(QWidget, DataMixin):
                         cell.paragraphs[0].style.font.name = "Nimbus Mono PS"
 
             # Add a page break after each section
-            doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
+            # TODO: this causes a problem where empty pages may appear
+            # doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
 
         # Open save file dialog
         dialog = QFileDialog()
@@ -330,6 +332,7 @@ class ReportWindow(QWidget, DataMixin):
                             widget.preview_window.refresh()
                             section_widget.add_analysis(widget)
                 except Exception as e:
+                    traceback.print_exc()
                     errors.append(str(e))
 
             if len(errors) > 0:
