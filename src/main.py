@@ -61,7 +61,7 @@ class MainWindow(QMainWindow, DataMixin):
 
         modules_sorted = sorted(
             self.loaders.items(),
-            key=lambda item: getattr(item[1], 'menu_priority', item[0])
+            key=lambda item: getattr(item[1], 'menu_priority', 1)
         )
 
         first = True

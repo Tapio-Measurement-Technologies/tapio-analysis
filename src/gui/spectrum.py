@@ -222,4 +222,4 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
                     f"Selected frequency: {selected_freqs[-1]:.2f} 1/m (λ = {100*wavelength:.2f} cm)")
 
         if self.paperMachineDataWindow:
-            self.paperMachineDataWindow.refresh_pm_data(machine_speed, selected_freqs[-1])
+            self.paperMachineDataWindow.refresh_pm_data(machine_speed, selected_freqs[-1] if selected_freqs else None)
