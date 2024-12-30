@@ -46,8 +46,8 @@ def load_data(main_window, fileNames: list[str]):
                 # Extract parquet and tcal files
                 parquet_file = next(
                     (f for f in file_list if f.endswith('.parquet')), None)
-                tcal_file = next(
-                    (f for f in file_list if f.endswith('.json')), None)
+                tcal_file = next((f for f in file_list if f.endswith(
+                    '.json') and "-calibration" in f), None)
 
                 if parquet_file:
                     with zip_ref.open(parquet_file) as parquet_data:
@@ -127,7 +127,7 @@ def load_data(main_window, fileNames: list[str]):
                         for channel_name in dataMixin.channel_df.columns:
                             cal_data = tcal_json.get(channel_name)
                             if cal_data:
-                                calibration_data[channel_name] = cal_data
+                                apply_calibration(channel_name, cal_data)
                                 units_dict[channel_name] = cal_data.get(
                                     "unit", "Unknown")
                             else:

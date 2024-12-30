@@ -1,11 +1,11 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QMenuBar
+from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QMenuBar
+from PyQt6.QtGui import QImage
+from PyQt6.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from utils.data_loader import DataMixin
-from qtpy.QtCore import Qt
-
 from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, StatsMixin, ShowUnfilteredMixin, ShowTimeLabelsMixin, MachineSpeedMixin
 from controllers import TimeDomainController
-
+from io import BytesIO
 
 class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, StatsMixin,
                        ShowUnfilteredMixin, ShowTimeLabelsMixin, MachineSpeedMixin):
@@ -18,7 +18,6 @@ class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilter
 
     def initMenuBar(self, layout):
         menuBar = QMenuBar()
-
         layout.setMenuBar(menuBar)
 
         fileMenu = menuBar.addMenu('File')
@@ -31,7 +30,6 @@ class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilter
         self.setGeometry(100, 100, 700, 800)
 
         mainLayout = QVBoxLayout()
-
         self.setLayout(mainLayout)
         self.initMenuBar(mainLayout)
 
@@ -40,17 +38,13 @@ class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilter
 
         # Analysis range slider
         self.addAnalysisRangeSlider(mainLayout)
-
         self.addBandPassRangeSlider(mainLayout)
-
         self.addMachineSpeedSpinner(mainLayout)
         self.addShowTimeLabelsCheckbox(mainLayout)
-
         self.addShowUnfilteredCheckbox(mainLayout)
 
         # Add statistics labels
-        statsLayout = QVBoxLayout()  # Separate layout for statistics labels
-        statsLayout = QVBoxLayout()  # Use a vertical layout for statistics labels
+        statsLayout = QVBoxLayout()
         self.meanLabel = QLabel("Mean: ")
         self.stdLabel = QLabel("σ: ")
         self.minLabel = QLabel("Min: ")
@@ -59,15 +53,10 @@ class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilter
         for label in [self.meanLabel, self.stdLabel, self.minLabel, self.maxLabel]:
             label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
             statsLayout.addWidget(label)
-        # Add the stats layout to the main layout
         mainLayout.addLayout(statsLayout)
-
-        # Now add a stretch factor before adding the figure canvas to give it priority to expand
-        # mainLayout.addStretch(1)
 
         # Matplotlib figure and canvas
         self.plot = self.controller.getCanvas()
-        # Add with stretch factor to allow expansion
         mainLayout.addWidget(self.plot, 1)
         self.toolbar = NavigationToolbar(self.plot, self)
         mainLayout.addWidget(self.toolbar)
@@ -84,3 +73,22 @@ class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilter
         self.controller.updatePlot()
         self.refresh_widgets()
         self.updateStatistics(self.controller.data)
+
+    def keyPressEvent(self, event):
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_C:
+            self.copyPlotToClipboard()
+
+    def copyPlotToClipboard(self):
+        print("Plot copied to clipboard")
+        buffer = BytesIO()
+        self.plot.figure.savefig(buffer, format='png', dpi=300)
+        buffer.seek(0)
+
+        # Convert buffer to QImage
+        image = QImage()
+        image.loadFromData(buffer.read(), format='PNG')
+        buffer.close()
+
+        # Copy to clipboard
+        clipboard = QApplication.clipboard()
+        clipboard.setImage(image)

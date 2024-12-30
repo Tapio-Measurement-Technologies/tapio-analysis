@@ -71,14 +71,10 @@ class MainWindow(QMainWindow, DataMixin):
         # Todo: Before adding the actions order these by menu_priority which is available from
         # action_priority = getattr(module, 'menu_priority', module_name)
 
-
-        print(self.loaders.items())
-        modules_sorted = self.loaders.items()
-        # modules_sorted = sorted(
-        #     self.loaders.items(),
-        #     # key=lambda item: getattr(item[1], 'menu_priority', item[0])
-        #     key=1
-        # )
+        modules_sorted = sorted(
+            self.loaders.items(),
+            key=lambda item: getattr(item[1], 'menu_priority', 1)
+        )
 
         first = True
         for module_name, module in modules_sorted:
