@@ -3,12 +3,12 @@ from PyQt6.QtGui import QImage
 from PyQt6.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from utils.data_loader import DataMixin
-from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, StatsMixin, ShowUnfilteredMixin, ShowTimeLabelsMixin, MachineSpeedMixin
+from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, StatsMixin, ShowUnfilteredMixin, ShowTimeLabelsMixin, MachineSpeedMixin, CopyPlotMixin
 from controllers import TimeDomainController
 from io import BytesIO
 
 class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, StatsMixin,
-                       ShowUnfilteredMixin, ShowTimeLabelsMixin, MachineSpeedMixin):
+                       ShowUnfilteredMixin, ShowTimeLabelsMixin, MachineSpeedMixin, CopyPlotMixin):
 
     def __init__(self, controller: TimeDomainController | None = None):
         super().__init__()
@@ -74,21 +74,6 @@ class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilter
         self.refresh_widgets()
         self.updateStatistics(self.controller.data)
 
-    def keyPressEvent(self, event):
-        if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_C:
-            self.copyPlotToClipboard()
 
-    def copyPlotToClipboard(self):
-        print("Plot copied to clipboard")
-        buffer = BytesIO()
-        self.plot.figure.savefig(buffer, format='png', dpi=300)
-        buffer.seek(0)
 
-        # Convert buffer to QImage
-        image = QImage()
-        image.loadFromData(buffer.read(), format='PNG')
-        buffer.close()
 
-        # Copy to clipboard
-        clipboard = QApplication.clipboard()
-        clipboard.setImage(image)

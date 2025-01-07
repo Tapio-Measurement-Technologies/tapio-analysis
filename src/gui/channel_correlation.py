@@ -2,20 +2,23 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QMenuBar
 from PyQt6.QtGui import QAction
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from utils.data_loader import DataMixin
-from gui.components import AnalysisRangeMixin, BandPassFilterMixin, SampleSelectMixin, ShowUnfilteredMixin, DoubleChannelMixin
+from gui.components import AnalysisRangeMixin, BandPassFilterMixin, SampleSelectMixin, ShowUnfilteredMixin, DoubleChannelMixin, CopyPlotMixin
 from controllers import ChannelCorrelationController
 
-class ChannelCorrelationWindow(QWidget, DataMixin, AnalysisRangeMixin, BandPassFilterMixin, SampleSelectMixin, ShowUnfilteredMixin, DoubleChannelMixin):
+
+class ChannelCorrelationWindow(QWidget, DataMixin, AnalysisRangeMixin, BandPassFilterMixin, SampleSelectMixin, ShowUnfilteredMixin, DoubleChannelMixin, CopyPlotMixin):
     def __init__(self, window_type="MD", controller: ChannelCorrelationController | None = None):
         super().__init__()
         self.window_type = window_type
         self.dataMixin = DataMixin.getInstance()
-        self.controller = controller if controller else ChannelCorrelationController(window_type)
+        self.controller = controller if controller else ChannelCorrelationController(
+            window_type)
         self.sampleSelectorWindow = None
         self.initUI()
 
     def initUI(self):
-        self.setWindowTitle(f"{self.window_type.upper()} Channel correlation analysis ({self.dataMixin.measurement_label})")
+        self.setWindowTitle(f"{self.window_type.upper()} Channel correlation analysis ({
+                            self.dataMixin.measurement_label})")
 
         self.setGeometry(100, 100, 700, 950)
 

@@ -233,6 +233,8 @@ CALCULATED_CHANNELS = []
 
 MULTIPLE_SELECT_MODE = False
 
+PLOT_COPY_FORMAT = "png"
+PLOT_COPY_DPI = 300
 
 try:
     from local_settings import *

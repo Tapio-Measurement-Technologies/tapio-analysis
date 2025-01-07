@@ -3,15 +3,17 @@ from PyQt6.QtGui import QAction
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from qtpy.QtCore import Qt
 from utils.data_loader import DataMixin
-from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowLegendMixin, ShowConfidenceIntervalMixin, ShowMinMaxMixin, WaterfallOffsetMixin, ExtraDataMixin
+from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowLegendMixin, ShowConfidenceIntervalMixin, ShowMinMaxMixin, WaterfallOffsetMixin, ExtraDataMixin, CopyPlotMixin
 from controllers import CDProfileController
 from settings import CD_PROFILE_CONFIDENCE_INTERVAL
 
-class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowLegendMixin, ShowConfidenceIntervalMixin, ShowMinMaxMixin, WaterfallOffsetMixin, ExtraDataMixin):
+
+class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowLegendMixin, ShowConfidenceIntervalMixin, ShowMinMaxMixin, WaterfallOffsetMixin, ExtraDataMixin, CopyPlotMixin):
     def __init__(self, window_type="waterfall", controller: CDProfileController | None = None):
         super().__init__()
         self.dataMixin = DataMixin.getInstance()
-        self.controller = controller if controller else CDProfileController(window_type)
+        self.controller = controller if controller else CDProfileController(
+            window_type)
         self.window_type = window_type
         self.sampleSelectorWindow = None
         self.initUI()
@@ -21,7 +23,8 @@ class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Band
         layout.setMenuBar(menuBar)
 
         fileMenu = menuBar.addMenu('File')
-        exportAction = self.controller.initExportAction(self, "Export mean profile")
+        exportAction = self.controller.initExportAction(
+            self, "Export mean profile")
         fileMenu.addAction(exportAction)
 
         if not self.window_type == "waterfall":
@@ -58,7 +61,8 @@ class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Band
 
         if not self.window_type == "waterfall":
             self.addShowProfilesCheckbox(mainLayout)
-            self.addShowConfidenceIntervalCheckbox(mainLayout, CD_PROFILE_CONFIDENCE_INTERVAL)
+            self.addShowConfidenceIntervalCheckbox(
+                mainLayout, CD_PROFILE_CONFIDENCE_INTERVAL)
             self.addShowMinMaxCheckbox(mainLayout)
             self.addShowLegendCheckbox(mainLayout)
         else:
@@ -72,7 +76,8 @@ class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Band
         self.maxLabel = QLabel("Max: ")
 
         for label in [self.meanLabel, self.stdLabel, self.minLabel, self.maxLabel]:
-            label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            label.setTextInteractionFlags(
+                Qt.TextInteractionFlag.TextSelectableByMouse)
             statsLayout.addWidget(label)
 
         mainLayout.addLayout(statsLayout)
@@ -100,6 +105,5 @@ class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Band
         # logging.info("Refresh")
         self.controller.updatePlot()
         self.refresh_widgets()
-
 
         self.updateStatistics(self.controller.mean_profile)

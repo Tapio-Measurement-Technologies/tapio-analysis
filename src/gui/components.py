@@ -256,7 +256,8 @@ class WaterfallOffsetMixin:
     def addWaterfallOffsetSlider(self, layout, live_update=settings.UPDATE_ON_SLIDE):
         self.bandPassFilterLabel = QLabel("Waterfall y-offset")
         layout.addWidget(self.bandPassFilterLabel)
-        self.waterfallOffsetSlider = QLabeledDoubleSlider(Qt.Orientation.Horizontal)
+        self.waterfallOffsetSlider = QLabeledDoubleSlider(
+            Qt.Orientation.Horizontal)
         self.initWaterfallOffsetSlider()
         layout.addWidget(self.waterfallOffsetSlider)
 
@@ -711,3 +712,42 @@ class PlotMixin:
 
     def plot(self):
         raise NotImplementedError("Subclasses should implement this method.")
+
+
+class CopyPlotMixin:
+    def keyPressEvent(self, event):
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_C:
+            # Attempt to copy the plot if it exists
+            if hasattr(self, 'plot') and self.plot:
+                self.copyPlotToClipboard(self.plot)
+            else:
+                print("Warning: No plot available to copy.")
+                return
+
+        parent = super(CopyPlotMixin, self)
+        if hasattr(parent, 'keyPressEvent'):
+            parent.keyPressEvent(event)
+
+    def copyPlotToClipboard(self, plot):
+        """
+        Copies the given plot's figure to the clipboard.
+
+        Parameters:
+        - plot: The matplotlib plot canvas to copy.
+        """
+        try:
+            buffer = BytesIO()
+            plot.figure.savefig(buffer, format='png', dpi=300)
+            buffer.seek(0)
+
+            # Convert buffer to QImage
+            image = QImage()
+            image.loadFromData(buffer.read(), format='PNG')
+            buffer.close()
+
+            # Copy to clipboard
+            clipboard = QApplication.clipboard()
+            clipboard.setImage(image)
+            print("Plot copied to clipboard.")
+        except Exception as e:
+            print(f"Error copying plot to clipboard: {e}")

@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QMenuBar, QPushButton
 from PyQt6.QtGui import QAction
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-from gui.components import AnalysisRangeMixin, ChannelMixin, FrequencyRangeMixin, MachineSpeedMixin, SampleSelectMixin, SpectrumLengthMixin, ShowWavelengthMixin
+from gui.components import AnalysisRangeMixin, ChannelMixin, FrequencyRangeMixin, MachineSpeedMixin, SampleSelectMixin, SpectrumLengthMixin, ShowWavelengthMixin, CopyPlotMixin
 from utils.data_loader import DataMixin
 from gui.paper_machine_data import PaperMachineDataWindow
 from gui.sos_analysis import SOSAnalysisWindow
@@ -11,13 +11,14 @@ import settings
 
 
 class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, FrequencyRangeMixin, MachineSpeedMixin,
-                     SampleSelectMixin, SpectrumLengthMixin, ShowWavelengthMixin):
+                     SampleSelectMixin, SpectrumLengthMixin, ShowWavelengthMixin, CopyPlotMixin):
 
     def __init__(self, window_type="MD", controller: SpectrumController | None = None):
         super().__init__()
         self.dataMixin = DataMixin.getInstance()
         self.window_type = window_type
-        self.controller = controller if controller else SpectrumController(window_type)
+        self.controller = controller if controller else SpectrumController(
+            window_type)
         self.paperMachineDataWindow = None
         self.sosAnalysisWindow = None
         self.sampleSelectorWindow = None
@@ -28,7 +29,8 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
         menuBar = QMenuBar()
         layout.setMenuBar(menuBar)
         fileMenu = menuBar.addMenu('File')
-        exportAction = self.controller.initExportAction(self, "Export spectrum")
+        exportAction = self.controller.initExportAction(
+            self, "Export spectrum")
         fileMenu.addAction(exportAction)
 
         viewMenu = menuBar.addMenu('View')
@@ -46,20 +48,25 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
         if self.window_type == "CD":
             self.selectSamplesAction = QAction('Select samples', self)
             viewMenu.addAction(self.selectSamplesAction)
-            self.selectSamplesAction.triggered.connect(self.toggleSelectSamples)
+            self.selectSamplesAction.triggered.connect(
+                self.toggleSelectSamples)
 
         self.paperMachineDataAction.setCheckable(True)
         self.sosAnalysisAction.setCheckable(True)
-        self.paperMachineDataAction.triggered.connect(self.togglePaperMachineData)
+        self.paperMachineDataAction.triggered.connect(
+            self.togglePaperMachineData)
         self.sosAnalysisAction.triggered.connect(self.toggleSOSAnalysis)
 
     def togglePaperMachineData(self, checked):
         if self.paperMachineDataWindow is None:
-            self.paperMachineDataWindow = PaperMachineDataWindow(self.updateElements, self.window_type, self.checked_elements)
+            self.paperMachineDataWindow = PaperMachineDataWindow(
+                self.updateElements, self.window_type, self.checked_elements)
             self.paperMachineDataWindow.show()
             selected_freq = self.controller.selected_freqs[-1] if self.controller.selected_freqs else None
-            self.paperMachineDataWindow.refresh_pm_data(self.controller.machine_speed, selected_freq)
-            self.paperMachineDataWindow.closed.connect(self.onPaperMachineDataClosed)
+            self.paperMachineDataWindow.refresh_pm_data(
+                self.controller.machine_speed, selected_freq)
+            self.paperMachineDataWindow.closed.connect(
+                self.onPaperMachineDataClosed)
             self.paperMachineDataAction.setChecked(True)
         else:
             self.paperMachineDataWindow.close()
@@ -91,7 +98,8 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
 
     def initUI(self):
 
-        self.setWindowTitle(f"{self.window_type} Spectral analysis ({self.dataMixin.measurement_label})")
+        self.setWindowTitle(f"{self.window_type} Spectral analysis ({
+                            self.dataMixin.measurement_label})")
         self.setGeometry(200, 200, 750, 750)
 
         mainLayout = QVBoxLayout()
@@ -108,9 +116,7 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
         self.addSpectrumLengthSlider(mainLayout)
         self.addFrequencyRangeSlider(mainLayout)
 
-
         # self.frequencyRangeSlider.setValue((self.frequency_range_low, self.frequency_range_high))
-
 
         if self.window_type == "MD":
             self.addShowWavelengthCheckbox(mainLayout)
@@ -138,7 +144,7 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
         self.refresh()
 
     def clearFrequency(self):
-        self.controller.selected_freqs = None
+        self.controller.selected_freqs = []
         self.selectedFrequencyLabel.setText(f"Selected frequency:")
 
         self.refresh()
@@ -154,11 +160,13 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
         import time
         start_time = time.time()  # Capture start time
 
-        plot_min = self.controller.ax.get_xlim()[0] if self.controller.ax.get_xlim()[0] > 0 else 0
+        plot_min = self.controller.ax.get_xlim()[0] if self.controller.ax.get_xlim()[
+            0] > 0 else 0
         plot_max = self.controller.ax.get_xlim()[1]
         wrange = (plot_max - plot_min) * 0.01
 
-        refined = hs_units(d, self.controller.fs, selected_freqs[-1], wrange, plot_min, plot_max, settings.MAX_HARMONICS)
+        refined = hs_units(
+            d, self.controller.fs, selected_freqs[-1], wrange, plot_min, plot_max, settings.MAX_HARMONICS)
 
         print(self.controller.fs)
         # Todo: Only search withing the visible window
@@ -166,14 +174,14 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
         # Calculate elapsed time in milliseconds
         elapsed_time_ms = (end_time - start_time) * 1000
         # Print elapsed time
-        print(f"Fundamental frequency estimation took {elapsed_time_ms:.2f} ms")
+        print(f"Fundamental frequency estimation took {
+              elapsed_time_ms:.2f} ms")
         print("Refined frequency: ", refined)
         self.controller.selected_freqs[-1] = refined
         self.refresh()
 
         if self.sosAnalysisWindow:
             self.sosAnalysisWindow.refresh()
-
 
     def onclick(self, event):
         # Frequency selector functionality with axis limit check and label update
@@ -214,7 +222,8 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
             if self.window_type == "MD":
                 frequency_in_hz = selected_freqs[-1] * machine_speed / 60
                 self.selectedFrequencyLabel.setText(
-                    f"Selected frequency: {selected_freqs[-1]:.2f} 1/m ({frequency_in_hz:.2f} Hz) λ = {100*wavelength:.2f} cm"
+                    f"Selected frequency: {
+                        selected_freqs[-1]:.2f} 1/m ({frequency_in_hz:.2f} Hz) λ = {100*wavelength:.2f} cm"
                 )
 
             elif self.window_type == "CD":
@@ -222,4 +231,5 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
                     f"Selected frequency: {selected_freqs[-1]:.2f} 1/m (λ = {100*wavelength:.2f} cm)")
 
         if self.paperMachineDataWindow:
-            self.paperMachineDataWindow.refresh_pm_data(machine_speed, selected_freqs[-1] if selected_freqs else None)
+            self.paperMachineDataWindow.refresh_pm_data(
+                machine_speed, selected_freqs[-1] if selected_freqs else None)

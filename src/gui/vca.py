@@ -5,11 +5,11 @@ from qtpy.QtCore import Qt
 import numpy as np
 from utils.data_loader import DataMixin
 
-from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin
+from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, CopyPlotMixin
 from controllers import VCAController
 
 
-class VCAWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin):
+class VCAWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, CopyPlotMixin):
     def __init__(self, controller: VCAController | None = None):
         super().__init__()
         self.dataMixin = DataMixin.getInstance()

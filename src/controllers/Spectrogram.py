@@ -62,7 +62,7 @@ class SpectrogramController(QObject, PlotMixin):
 
         self.selected_elements = []
         self.selected_samples = self.dataMixin.selected_samples.copy()
-        self.selected_freqs = None
+        self.selected_freqs = []
         self.show_wavelength = False
 
         self.current_hlines = []
