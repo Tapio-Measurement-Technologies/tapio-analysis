@@ -201,7 +201,8 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
                 self.amplitudes[peaks])][::-1]
 
             if settings.MULTIPLE_SELECT_MODE:
-                top_peaks = sorted_peak_indices[:settings.SPECTRUM_AUTO_DETECT_PEAKS]
+                top_peaks = sorted_peak_indices[:
+                                                settings.SPECTRUM_AUTO_DETECT_PEAKS]
             else:
                 top_peaks = sorted_peak_indices[:1]
 
@@ -225,9 +226,11 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
                     if self.window_type == "CD":
                         label = f"{selected_freq:.2f} 1/m λ = {100 *
                                                                1/selected_freq:.2f} cm A = {amplitude:.2f} {self.dataMixin.units[self.channel]}"
+                        print(f"Spectral peak in {self.channel}: {label}")
                     elif self.window_type == "MD":
                         label = f"{selected_freq:.2f} 1/m ({self.get_freq_in_hz(selected_freq):.2f} Hz) λ = {
                             100 * 1/selected_freq:.2f} cm A = {amplitude:.2f} {self.dataMixin.units[self.channel]}"
+                        print(f"Spectral peak in {self.channel}: {label}")
 
                     def get_color_cycler(num_colors):
                         # You can change 'tab10' to any colormap you prefer
@@ -251,7 +254,18 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
                         # Skip drawing the line if it is out of bounds
                         continue
 
-                    label = "Selected frequency" if (i == 1) else None
+                    if (i == 1):
+                        if self.window_type == "CD":
+                            label = f"{selected_freq:.2f} 1/m λ = {100 * 1/selected_freq:.2f} cm A = {
+                                amplitude:.2f} {self.dataMixin.units[self.channel]}"
+                            print(f"Spectral peak in {self.channel}: {label}")
+                        elif self.window_type == "MD":
+                            label = f"{selected_freq:.2f} 1/m ({self.get_freq_in_hz(selected_freq):.2f} Hz) λ = {
+                                100 * 1/selected_freq:.2f} cm A = {amplitude:.2f} {self.dataMixin.units[self.channel]}"
+                            print(f"Spectral peak in {self.channel}: {label}")
+                    else:
+                        label = None
+
                     vl = ax.axvline(x=self.selected_freqs[-1] * i,
                                     color='r',
                                     linestyle='--',
