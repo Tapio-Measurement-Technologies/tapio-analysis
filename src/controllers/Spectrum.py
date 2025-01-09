@@ -200,8 +200,11 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
             sorted_peak_indices = peaks[np.argsort(
                 self.amplitudes[peaks])][::-1]
 
-            top_peaks = sorted_peak_indices[:
-                                            settings.SPECTRUM_AUTO_DETECT_PEAKS]
+            if settings.MULTIPLE_SELECT_MODE:
+                top_peaks = sorted_peak_indices[:settings.SPECTRUM_AUTO_DETECT_PEAKS]
+            else:
+                top_peaks = sorted_peak_indices[:1]
+
             self.selected_freqs = [self.frequencies[peak]
                                    for peak in top_peaks]
 
