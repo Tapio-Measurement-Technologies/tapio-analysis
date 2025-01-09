@@ -8,6 +8,8 @@ import numpy as np
 import pandas as pd
 from utils.signal_processing import get_n_peaks
 
+from scipy.signal import find_peaks
+
 
 class SpectrumController(QObject, PlotMixin, ExportMixin):
     updated = pyqtSignal()
@@ -67,6 +69,7 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
         self.selected_samples = self.dataMixin.selected_samples.copy()
         self.selected_freqs = []
         self.show_wavelength = False
+        self.auto_detect_peaks = False
 
         self.current_vlines = []
 
@@ -192,22 +195,36 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
         ax.callbacks.connect('xlim_changed', update_secax)
         ax.figure.canvas.mpl_connect('resize_event', update_secax)
 
+        if self.auto_detect_peaks:
+            peaks, properties = find_peaks(self.amplitudes)
+            sorted_peak_indices = peaks[np.argsort(
+                self.amplitudes[peaks])][::-1]
+
+            top_peaks = sorted_peak_indices[:
+                                            settings.SPECTRUM_AUTO_DETECT_PEAKS]
+            self.selected_freqs = [self.frequencies[peak]
+                                   for peak in top_peaks]
+
         # Draw new lines and update frequency label
         if len(self.selected_freqs) > 0:
 
             xlim = ax.get_xlim()
             if settings.MULTIPLE_SELECT_MODE:
+
                 for i, selected_freq in enumerate(self.selected_freqs):
 
                     if (selected_freq > xlim[1]) or (selected_freq < xlim[0]):
                         continue
 
+                    amplitude = self.amplitudes[np.searchsorted(
+                        self.frequencies, selected_freq)]
+
                     if self.window_type == "CD":
                         label = f"{selected_freq:.2f} 1/m λ = {100 *
-                                                               1/selected_freq:.2f} cm"
+                                                               1/selected_freq:.2f} cm A = {amplitude:.2f} {self.dataMixin.units[self.channel]}"
                     elif self.window_type == "MD":
-                        label = f"{selected_freq:.2f} 1/m ({self.get_freq_in_hz(
-                            selected_freq):.2f} Hz) λ = {100*1/selected_freq:.2f} cm"
+                        label = f"{selected_freq:.2f} 1/m ({self.get_freq_in_hz(selected_freq):.2f} Hz) λ = {
+                            100 * 1/selected_freq:.2f} cm A = {amplitude:.2f} {self.dataMixin.units[self.channel]}"
 
                     def get_color_cycler(num_colors):
                         # You can change 'tab10' to any colormap you prefer
@@ -286,7 +303,7 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
             elif self.window_type == "CD":
                 stats.append([
                     "Frequency:\nWavelength:",
-                    f"{self.selected_freqs[-1]                        :.2f} 1/m\n{100*wavelength:.3f} m"
+                    f"{self.selected_freqs[-1]:.2f} 1/m\n{100*wavelength:.3f} m"
                 ])
         peaks = get_n_peaks(np.column_stack(
             (self.frequencies, self.amplitudes)), 5)

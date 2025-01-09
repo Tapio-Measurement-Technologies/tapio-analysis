@@ -384,6 +384,28 @@ class ShowWavelengthMixin:
         self.refresh()
 
 
+class AutoDetectPeaksMixin:
+
+    def initAutoDetectPeaksCheckbox(self, block_signals=False):
+        # Prevent recursive refresh calls when updating values elsewhere
+        self.autodetectCheckbox.blockSignals(block_signals)
+        show_autodetect = self.controller.auto_detect_peaks
+        self.autodetectCheckbox.setChecked(show_autodetect)
+        self.autodetectCheckbox.blockSignals(False)
+
+    def addAutoDetectPeaksCheckbox(self, layout):
+        self.autodetectCheckbox = QCheckBox("Detect peaks", self)
+        self.initAutoDetectPeaksCheckbox()
+        self.autodetectCheckbox.stateChanged.connect(
+            self.update_autodetect)
+        layout.addWidget(self.autodetectCheckbox)
+
+    def update_autodetect(self):
+        state = self.autodetectCheckbox.isChecked()
+        self.controller.auto_detect_peaks = state
+        self.refresh()
+
+
 class ShowProfilesMixin:
 
     def initShowProfilesCheckbox(self, block_signals=False):

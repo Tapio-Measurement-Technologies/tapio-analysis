@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QMenuBar, QPushButton
 from PyQt6.QtGui import QAction
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-from gui.components import AnalysisRangeMixin, ChannelMixin, FrequencyRangeMixin, MachineSpeedMixin, SampleSelectMixin, SpectrumLengthMixin, ShowWavelengthMixin, CopyPlotMixin
+from gui.components import AnalysisRangeMixin, ChannelMixin, FrequencyRangeMixin, MachineSpeedMixin, SampleSelectMixin, SpectrumLengthMixin, ShowWavelengthMixin, CopyPlotMixin, AutoDetectPeaksMixin
 from utils.data_loader import DataMixin
 from gui.paper_machine_data import PaperMachineDataWindow
 from gui.sos_analysis import SOSAnalysisWindow
@@ -11,7 +11,7 @@ import settings
 
 
 class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, FrequencyRangeMixin, MachineSpeedMixin,
-                     SampleSelectMixin, SpectrumLengthMixin, ShowWavelengthMixin, CopyPlotMixin):
+                     SampleSelectMixin, SpectrumLengthMixin, ShowWavelengthMixin, CopyPlotMixin, AutoDetectPeaksMixin):
 
     def __init__(self, window_type="MD", controller: SpectrumController | None = None):
         super().__init__()
@@ -120,6 +120,10 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
 
         if self.window_type == "MD":
             self.addShowWavelengthCheckbox(mainLayout)
+
+        if settings.SPECTRUM_AUTO_DETECT_PEAKS:
+            self.addAutoDetectPeaksCheckbox(mainLayout)
+
 
         self.selectedFrequencyLabel = QLabel("Selected frequency: None")
         mainLayout.addWidget(self.selectedFrequencyLabel)
