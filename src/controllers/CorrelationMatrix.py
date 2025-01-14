@@ -77,6 +77,15 @@ class CorrelationMatrixController(QObject, PlotMixin):
 
         correlation_matrix = data_slice.corr()
 
+        channels = data_slice.columns
+        for i in range(len(channels)):
+            for j in range(i + 1, len(channels)):
+                channel_x = channels[i]
+                channel_y = channels[j]
+                correlation_value = correlation_matrix.iloc[i, j]
+                print(f"{channel_x} to {channel_y} correlation: {correlation_value:.2f}")
+
+
         # or use .sample(n=500) for a fixed number of points
         sampled_data_slice = data_slice.sample(n=settings.CORRELATION_MATRIX_SAMPLE_LIMIT, replace=True)
 
