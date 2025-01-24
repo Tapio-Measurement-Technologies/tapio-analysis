@@ -9,8 +9,6 @@ dataMixin = DataMixin.getInstance()
 def export_data(main_window, fileName: str):
     if fileName:
         combined_df = combineData()
-        if not fileName.endswith('*.md.csv'):
-            fileName += '.md.csv'
         combined_df.to_csv(fileName, index=False)
         print(f"Combined data exported successfully to {fileName}.")
 

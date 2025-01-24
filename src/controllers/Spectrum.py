@@ -254,6 +254,11 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
                         # Skip drawing the line if it is out of bounds
                         continue
 
+                    # TODO: DRY, fix this and refactor
+                    selected_freq = self.selected_freqs[-1]
+                    amplitude = self.amplitudes[np.searchsorted(self.frequencies, selected_freq)]
+
+
                     if (i == 1):
                         if self.window_type == "CD":
                             label = f"{selected_freq:.2f} 1/m λ = {100 * 1/selected_freq:.2f} cm A = {
