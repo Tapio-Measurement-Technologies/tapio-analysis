@@ -1,4 +1,4 @@
-name: Build Executable
+name: Build and Release Executable
 
 on:
   push:
@@ -7,23 +7,16 @@ on:
 
 jobs:
   build:
-    strategy:
-      matrix:
-        include:
-          - os: windows-latest
-            platform: windows
-            extension: ".exe"
-
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
 
     steps:
       - name: Check out the code
         uses: actions/checkout@v3
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: '3.12.8'
 
       - name: Install dependencies
         run: |
@@ -46,27 +39,24 @@ jobs:
       - name: Rename executable
         run: >
           mv
-          dist/main${{ matrix.extension }}
-          dist/tapio-analysis-${{ github.ref_name }}-${{ matrix.platform }}${{ matrix.extension }}
+          dist/main.exe
+          dist/tapio-analysis-${{ github.ref_name }}.exe
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
-          name: tapio-analysis-${{ github.ref_name }}-${{ matrix.platform }}${{ matrix.extension }}
-          path: dist/tapio-analysis-${{ github.ref_name }}-${{ matrix.platform }}${{ matrix.extension }}
+          name: tapio-analysis-${{ github.ref_name }}
+          path: dist/tapio-analysis-${{ github.ref_name }}.exe
 
   release:
     runs-on: ubuntu-latest
     needs: build
 
     steps:
-      - name: Check out code
-        uses: actions/checkout@v2
-
-      - name: Download Artifact (windows)
+      - name: Download Artifact
         uses: actions/download-artifact@v3
         with:
-          name: tapio-analysis-${{ github.ref_name }}-windows.exe
+          name: tapio-analysis-${{ github.ref_name }}
           path: dist/
 
       - name: Create Release
@@ -80,12 +70,12 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Upload Release Asset (windows)
+      - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/tapio-analysis-${{ github.ref_name }}-windows.exe
-          asset_name: tapio-analysis-${{ github.ref_name }}-windows.exe
+          asset_path: dist/tapio-analysis-${{ github.ref_name }}.exe
+          asset_name: tapio-analysis-${{ github.ref_name }}.exe
           asset_content_type: application/octet-stream
