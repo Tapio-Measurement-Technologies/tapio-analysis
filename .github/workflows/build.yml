@@ -39,12 +39,15 @@ jobs:
       - name: Build executable
         run: >
           pyinstaller
+          -p src
           --onefile
           --noconsole
-          --add-data src/postprocessors/:postprocessors/
-          --hidden-import pandas
+          --add-data "src/loaders/:loaders/"
+          --add-data "src/exporters/:exporters/"
+          --add-data "src/assets/:assets" 
           --icon src/assets/tapio_favicon.ico
           src/main.py
+
 
       - name: Rename executable
         run: >
