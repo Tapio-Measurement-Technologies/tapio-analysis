@@ -9,12 +9,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
-        python-version: ['3.12']
         include:
-          - os: ubuntu-latest
-            platform: linux
-            extension: ""
           - os: windows-latest
             platform: windows
             extension: ".exe"
@@ -48,7 +43,6 @@ jobs:
           --icon src/assets/tapio_favicon.ico
           src/main.py
 
-
       - name: Rename executable
         run: >
           mv
@@ -69,12 +63,6 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v2
 
-      - name: Download Artifact (linux)
-        uses: actions/download-artifact@v3
-        with:
-          name: tapio-analysis-${{ github.ref_name }}-linux
-          path: dist/
-
       - name: Download Artifact (windows)
         uses: actions/download-artifact@v3
         with:
@@ -91,16 +79,6 @@ jobs:
           release_name: Release ${{ github.ref }}
           draft: false
           prerelease: false
-
-      - name: Upload Release Asset (linux)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/tapio-analysis-${{ github.ref_name }}-linux
-          asset_name: tapio-analysis-${{ github.ref_name }}-linux
-          asset_content_type: application/octet-stream
 
       - name: Upload Release Asset (windows)
         uses: actions/upload-release-asset@v1
