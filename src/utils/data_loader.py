@@ -75,9 +75,6 @@ class DataMixin:
                                                                          self.calibration_file_path,
                                                                          self.data_file_path)
 
-        sensor_df = sensor_df.drop(columns=settings.IGNORE_CHANNELS, errors='ignore')
-
-        # TODO: Implement here the logic in settings.CALCULATED_CHANNELS
 
 
         for channel in settings.CALCULATED_CHANNELS:
@@ -92,6 +89,7 @@ class DataMixin:
                 print(f"Failed to calculate channel {name}: {e}")
                 traceback.print_exc()
 
+        sensor_df = sensor_df.drop(columns=settings.IGNORE_CHANNELS, errors='ignore')
 
 
 
