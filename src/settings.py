@@ -1,4 +1,8 @@
 import os
+
+import importlib.util
+import sys
+
 DEBUG = False
 
 # Meters per minute
@@ -6,7 +10,6 @@ PAPER_MACHINE_SPEED_DEFAULT = 1600
 FILTER_NUMTAPS = 1200
 
 FORCE_PRIMARY_SCALE_SUPPLEMENTARY = False
-
 
 
 ANALYSES = {
@@ -98,8 +101,7 @@ TIME_DOMAIN_ANALYSIS_DISPLAY_UNIT_MULTIPLIER = 1
 TIME_DOMAIN_ANALYSIS_DISPLAY_UNIT = "m"
 
 SPECTRUM_WELCH_WINDOW = "hann"
-SPECTRUM_AMPLITUDE_SCALING = 1 # Set to 2 for peak-to-peak, 1/sqrt(2) for RMS
-
+SPECTRUM_AMPLITUDE_SCALING = 1  # Set to 2 for peak-to-peak, 1/sqrt(2) for RMS
 
 
 # MD (Machine Direction) Spectrum Analysis Settings
@@ -168,7 +170,6 @@ CD_CORRELATION_BAND_PASS_LOW_DEFAULT_1M = 0
 CD_CORRELATION_BAND_PASS_HIGH_DEFAULT_1M = 30
 CD_CORRELATION_ANALYSIS_RANGE_LOW_DEFAULT = 0
 CD_CORRELATION_ANALYSIS_RANGE_HIGH_DEFAULT = 1
-
 
 
 # Channel correlation settings
@@ -243,7 +244,35 @@ PLOT_COPY_DPI = 300
 SPECTRUM_AUTO_DETECT_PEAKS = None
 
 
-try:
-    from local_settings import *
-except:
-    pass
+def load_local_settings(local_settings_path):
+    """
+    Load a local_settings.py file dynamically using importlib.
+    """
+    if os.path.exists(local_settings_path):
+        spec = importlib.util.spec_from_file_location(
+            "local_settings", local_settings_path)
+        local_settings = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(local_settings)
+        return vars(local_settings)
+    return {}
+
+
+# Check if a local_settings.py path is provided as a parameter
+if len(sys.argv) > 1:
+    supplied_local_settings = sys.argv[1]
+    if os.path.exists(supplied_local_settings):
+        print(f"Loading local settings from provided argument {supplied_local_settings}")
+        # Dynamically load settings from the provided path
+        local_settings_vars = load_local_settings(supplied_local_settings)
+        globals().update(local_settings_vars)
+    else:
+        print(f"WARNING: Provided local_settings.py not found at {
+              supplied_local_settings}")
+else:
+    # Fallback to default local_settings import if none is supplied
+    try:
+        from local_settings import *
+        print(f"Loading local settings from internal project folder")
+    except ImportError:
+        print(f"Could not load local settings from internal project folder")
+        pass
