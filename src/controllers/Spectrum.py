@@ -68,8 +68,8 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
         self.selected_elements = []
         self.selected_samples = self.dataMixin.selected_samples.copy()
         self.selected_freqs = []
-        self.show_wavelength = False
-        self.auto_detect_peaks = False
+        self.show_wavelength = settings.SHOW_WAVELENGTH_DEFAULT
+        self.auto_detect_peaks = settings.AUTO_DETECT_PEAKS_DEFAULT
 
         self.current_vlines = []
 
@@ -315,6 +315,7 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
         return freq_1m * self.machine_speed / 60
 
     def getStatsTableData(self):
+        return None
         stats = []
         if len(self.selected_freqs) > 0 and self.selected_freqs[-1]:
             wavelength = 1 / self.selected_freqs[-1]

@@ -1,4 +1,5 @@
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QSizePolicy, QPushButton, QScrollArea, QFrame, QLineEdit, QFileDialog, QMenuBar, QTextEdit, QMessageBox)
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QSizePolicy,
+                             QPushButton, QScrollArea, QFrame, QLineEdit, QFileDialog, QMenuBar, QTextEdit, QMessageBox)
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QStandardItemModel, QStandardItem, QAction
 from utils.data_loader import DataMixin
@@ -16,6 +17,8 @@ import os
 from customizations import apply_plot_customizations
 from utils.report import get_text_width, set_paragraph_spacing
 import traceback
+import importlib.util
+
 
 class Editor(QTextEdit):
     def __init__(self):
@@ -25,17 +28,20 @@ class Editor(QTextEdit):
     def autoResize(self):
         self.document().setTextWidth(self.viewport().width())
         margins = self.contentsMargins()
-        height = int(self.document().size().height() + margins.top() + margins.bottom())
+        height = int(self.document().size().height() +
+                     margins.top() + margins.bottom())
         self.setFixedHeight(height)
 
     def resizeEvent(self, event):
         self.autoResize()
 
+
 class ReportWindow(QWidget, DataMixin):
     def __init__(self, main_window, window_type="MD"):
         super().__init__()
         self.dataMixin = DataMixin.getInstance()
-        self.setWindowTitle(f"Generate {window_type} Report ({self.dataMixin.measurement_label})")
+        self.setWindowTitle(f"Generate {window_type} Report ({
+                            self.dataMixin.measurement_label})")
         self.setGeometry(100, 100, 700, 800)
         self.main_window = main_window
         self.window_type = window_type
@@ -75,8 +81,10 @@ class ReportWindow(QWidget, DataMixin):
         self.additional_info_layout = QVBoxLayout()
         self.additional_info_label = QLabel("Additional Information:")
         self.additional_info_input = Editor()
-        self.additional_info_input.setText(settings.REPORT_ADDITIONAL_INFO_DEFAULT)
-        self.additional_info_input.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
+        self.additional_info_input.setText(
+            settings.REPORT_ADDITIONAL_INFO_DEFAULT)
+        self.additional_info_input.setSizePolicy(
+            QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
         self.additional_info_layout.addWidget(self.additional_info_label)
         self.additional_info_layout.addWidget(self.additional_info_input)
         self.main_layout.addLayout(self.additional_info_layout)
@@ -118,16 +126,18 @@ class ReportWindow(QWidget, DataMixin):
         layout.setMenuBar(menuBar)
 
         fileMenu = menuBar.addMenu('File')
-        loadFileAction = QAction('Load from JSON', self)
+        loadFileAction = QAction('Load report template', self)
         loadFileAction.setShortcut("Ctrl+O")
         loadFileAction.setStatusTip("Open file")
-        loadFileAction.triggered.connect(self.load_from_json)
+        loadFileAction.triggered.connect(self.load_from_python)
         fileMenu.addAction(loadFileAction)
 
-    def add_section(self, section_name = "Section"):
-        section_widget = ReportSectionWidget(self.main_window, section_name, self.window_type)
+    def add_section(self, section_name="Section"):
+        section_widget = ReportSectionWidget(
+            self.main_window, section_name, self.window_type)
         self.section_widgets.append(section_widget)
-        section_widget.destroyed.connect(lambda: self.section_widgets.remove(section_widget))
+        section_widget.destroyed.connect(
+            lambda: self.section_widgets.remove(section_widget))
         self.sections_container.addWidget(section_widget)
         return section_widget
 
@@ -138,7 +148,8 @@ class ReportWindow(QWidget, DataMixin):
     def choose_image(self):
         dialog = QFileDialog(self)
         options = QFileDialog.options(dialog)
-        file_name, _ = QFileDialog.getOpenFileName(self, "Choose Image", "", "Image Files (*.png *.jpg *.bmp *.gif)", options=options)
+        file_name, _ = QFileDialog.getOpenFileName(
+            self, "Choose Image", "", "Image Files (*.png *.jpg *.bmp *.gif)", options=options)
         if file_name:
             self.header_image_path = file_name
             self.header_image_path_input.setText(file_name)
@@ -159,7 +170,8 @@ class ReportWindow(QWidget, DataMixin):
         if self.header_image_path:
             # Add image to the header of the first section
             run = paragraph.add_run()
-            run.add_picture(self.header_image_path, width=Mm(30))  # Adjust width as needed
+            # Adjust width as needed
+            run.add_picture(self.header_image_path, width=Mm(30))
 
         run = paragraph.add_run(f"{self.report_title}")
         paragraph.style = "Title"
@@ -174,7 +186,8 @@ class ReportWindow(QWidget, DataMixin):
         cell1 = table.cell(0, 0)
         cell2 = table.cell(0, 1)
 
-        cell1.paragraphs[0].text = (f"Generated {str(datetime.datetime.now())}")
+        cell1.paragraphs[0].text = (
+            f"Generated {str(datetime.datetime.now())}")
 
         # Add the additional information below the header
         additional_info = self.additional_info_input.toPlainText()
@@ -196,7 +209,8 @@ class ReportWindow(QWidget, DataMixin):
             set_paragraph_spacing(paragraph, 0, 6)
             for analysis in section.analysis_widgets:
                 apply_plot_customizations(analysis)
-                paragraph = doc.add_heading(f"{analysis.analysis_name} {analysis.get_channel_text()}", 2)
+                paragraph = doc.add_heading(f"{analysis.analysis_name} {
+                                            analysis.get_channel_text()}", 2)
                 set_paragraph_spacing(paragraph)
 
                 # Add table with image and stats table
@@ -211,7 +225,8 @@ class ReportWindow(QWidget, DataMixin):
                 cell1.vertical_alignment = WD_ALIGN_VERTICAL.TOP
                 paragraph = cell1.paragraphs[0]
                 run = paragraph.add_run()
-                run.add_picture(analysis.controller.getPlotImage(), width=Cm(col1.width.cm - 0.5))
+                run.add_picture(analysis.controller.getPlotImage(),
+                                width=Cm(col1.width.cm - 0.5))
 
                 cell2 = table.cell(0, 1)
                 col2 = table.columns[1]
@@ -220,6 +235,8 @@ class ReportWindow(QWidget, DataMixin):
                 cell2.vertical_alignment = WD_ALIGN_VERTICAL.TOP
 
                 data = analysis.controller.getStatsTableData()
+                if not data:
+                    continue
                 shape = np.shape(data)
                 if len(shape) == 2:
                     rows, cols = shape
@@ -237,7 +254,7 @@ class ReportWindow(QWidget, DataMixin):
                         cell = row.cells[col_idx]
                         cell.paragraphs[0].text = cell_data
                         cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
-                        cell.paragraphs[0].style.font.size = Pt(10)
+                        cell.paragraphs[0].style.font.size = Pt(8)
                         cell.paragraphs[0].style.font.name = "Nimbus Mono PS"
 
             # Add a page break after each section
@@ -254,6 +271,88 @@ class ReportWindow(QWidget, DataMixin):
                 fileName += '.docx'
             doc.save(fileName)
             self.close()
+
+    def load_from_python(self):
+        for section_widget in self.section_widgets:
+            section_widget.remove_self()
+
+        dialog = QFileDialog(self)
+        options = QFileDialog.options(dialog)
+        errors = []
+        fileName, _ = QFileDialog.getOpenFileName(
+            self,
+            "Open Python File",
+            "",
+            "Python files (*.py);;All Files (*);;",
+            options=options
+        )
+
+        if fileName:
+            try:
+                # Load the Python file as a module dynamically
+                module_name = os.path.splitext(os.path.basename(fileName))[0]
+                spec = importlib.util.spec_from_file_location(
+                    module_name, fileName)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+
+                # Extract expected variables
+                if not hasattr(module, "report_title") or not hasattr(module, "sections"):
+                    raise ValueError(
+                        "Python file must define 'report_title' and 'sections'")
+
+                self.update_report_title(module.report_title)
+                sections = module.sections.get(self.window_type, [])
+
+                for section in sections:
+                    section_name = section.get("section_name")
+                    section_widget = self.add_section(section_name)
+                    analyses = section.get("analyses", [])
+
+                    for analysis in analyses:
+                        analysis_name = settings.ANALYSES[self.window_type].get(
+                            analysis.get("analysis"), {}).get("label", "Unknown")
+                        channel = analysis.get("channel", "")
+                        channel1 = analysis.get("channel1", "")
+                        channel2 = analysis.get("channel2", "")
+
+                        invalid_channel = any(
+                            c and c not in self.dataMixin.channels for c in [channel, channel1, channel2]
+                        )
+
+                        if invalid_channel:
+                            errors.append(
+                                f"{section_name}/{analysis_name}: Invalid channel name {c}")
+                            continue
+
+                        widget = AnalysisWidget(
+                            self.main_window, analysis_name, self.window_type)
+
+                        # Assign attributes if they exist
+                        for attr in [
+                            "channel", "channel1", "channel2",
+                            "analysis_range_low", "analysis_range_high",
+                            "band_pass_low", "band_pass_high",
+                            "show_individual_profiles", "show_min_max", "show_legend",
+                            "show_wavelength_labels", "show_unfiltered_data",
+                            "machine_speed", "frequency_range_low", "frequency_range_high",
+                            "selected_frequencies", "nperseg"
+                        ]:
+                            if attr in analysis:
+                                print("Setting attribute {} to {}".format(
+                                    attr, analysis[attr]))
+                                setattr(widget.controller,
+                                        attr, analysis[attr])
+
+                        widget.preview_window.refresh()
+                        section_widget.add_analysis(widget)
+
+            except Exception as e:
+                traceback.print_exc()
+                errors.append(str(e))
+
+            if errors:
+                show_json_load_error_msgbox(errors)
 
     def load_from_json(self):
         for section_widget in self.section_widgets:
@@ -279,18 +378,20 @@ class ReportWindow(QWidget, DataMixin):
                         analyses = section["analyses"]
                         for analysis in analyses:
                             analysis_name = settings.ANALYSES[self.window_type][analysis["analysis"]]["label"]
-                            channel  = analysis.get("channel",  "")
+                            channel = analysis.get("channel",  "")
                             channel1 = analysis.get("channel1", "")
                             channel2 = analysis.get("channel2", "")
                             invalid_channel = False
                             for c in [channel, channel1, channel2]:
                                 if c and c not in self.dataMixin.channels:
-                                    errors.append(f"{section_name}/{analysis_name}: Invalid channel name {c}")
+                                    errors.append(
+                                        f"{section_name}/{analysis_name}: Invalid channel name {c}")
                                     invalid_channel = True
                                     break  # Break out of the inner channel validation loop
                             if invalid_channel:
                                 continue  # Continue to the next analysis in the analyses loop
-                            widget = AnalysisWidget(self.main_window, analysis_name, self.window_type)
+                            widget = AnalysisWidget(
+                                self.main_window, analysis_name, self.window_type)
                             if hasattr(widget.controller, "max_dist"):
                                 max_dist = widget.controller.max_dist
                             if hasattr(widget.controller, "max_freq"):
@@ -302,9 +403,11 @@ class ReportWindow(QWidget, DataMixin):
                             if "channel2" in analysis:
                                 widget.controller.channel2 = analysis["channel2"]
                             if "analysis_range_low" in analysis:
-                                widget.controller.analysis_range_low = analysis["analysis_range_low"] * max_dist
+                                widget.controller.analysis_range_low = analysis[
+                                    "analysis_range_low"] * max_dist
                             if "analysis_range_high" in analysis:
-                                widget.controller.analysis_range_high = analysis["analysis_range_high"] * max_dist
+                                widget.controller.analysis_range_high = analysis[
+                                    "analysis_range_high"] * max_dist
                             if "band_pass_low" in analysis:
                                 widget.controller.band_pass_low = analysis["band_pass_low"]
                             if "band_pass_high" in analysis:
@@ -322,9 +425,11 @@ class ReportWindow(QWidget, DataMixin):
                             if "machine_speed" in analysis:
                                 widget.controller.machine_speed = analysis["machine_speed"]
                             if "frequency_range_low" in analysis:
-                                widget.controller.frequency_range_low = analysis["frequency_range_low"] * max_freq
+                                widget.controller.frequency_range_low = analysis[
+                                    "frequency_range_low"] * max_freq
                             if "frequency_range_high" in analysis:
-                                widget.controller.frequency_range_high = analysis["frequency_range_high"] * max_freq
+                                widget.controller.frequency_range_high = analysis[
+                                    "frequency_range_high"] * max_freq
                             if "selected_frequencies" in analysis:
                                 widget.controller.selected_freqs = analysis["selected_frequencies"]
                             if "nperseg" in analysis:
@@ -342,6 +447,7 @@ class ReportWindow(QWidget, DataMixin):
         for widget in self.section_widgets:
             widget.remove_self()
         event.accept()
+
 
 class ReportSectionWidget(QFrame):
     def __init__(self, main_window, section_name="Section", window_type="MD"):
@@ -390,7 +496,8 @@ class ReportSectionWidget(QFrame):
         self.analyses = settings.ANALYSES[self.window_type]
         labels = [analysis["label"] for analysis in self.analyses.values()]
         self.setup_combobox(self.analysis_combobox, labels)
-        self.analysis_combobox.currentIndexChanged.connect(self.add_new_analysis)
+        self.analysis_combobox.currentIndexChanged.connect(
+            self.add_new_analysis)
         self.layout.addWidget(self.analysis_combobox)
 
     def update_section_name(self, name):
@@ -414,16 +521,19 @@ class ReportSectionWidget(QFrame):
 
         analysis_name = self.analysis_combobox.currentText()
         if analysis_name:  # Ensure a valid analysis is selected
-            analysis_widget = AnalysisWidget(self.main_window, analysis_name, self.window_type)
+            analysis_widget = AnalysisWidget(
+                self.main_window, analysis_name, self.window_type)
             self.analysis_widgets.append(analysis_widget)
-            analysis_widget.destroyed.connect(lambda: self.analysis_widgets.remove(analysis_widget))
+            analysis_widget.destroyed.connect(
+                lambda: self.analysis_widgets.remove(analysis_widget))
             self.analyses_container.addWidget(analysis_widget)
             # Optionally clear the combo box to prevent adding the same analysis again
             self.analysis_combobox.setCurrentIndex(0)
 
     def add_analysis(self, analysis_widget):
         self.analysis_widgets.append(analysis_widget)
-        analysis_widget.destroyed.connect(lambda: self.analysis_widgets.remove(analysis_widget))
+        analysis_widget.destroyed.connect(
+            lambda: self.analysis_widgets.remove(analysis_widget))
         self.analyses_container.addWidget(analysis_widget)
 
     def remove_self(self):
@@ -431,6 +541,7 @@ class ReportSectionWidget(QFrame):
             widget.remove_self()
         self.setParent(None)
         self.deleteLater()
+
 
 class AnalysisWidget(QWidget):
     def __init__(self, main_window, analysis_name, window_type="MD"):
@@ -444,12 +555,14 @@ class AnalysisWidget(QWidget):
             if analysis_name == self.analyses[self.window_type]["profile"]["label"]:
                 window_type = "2d"
                 self.controller = CDProfileController(window_type)
-                self.preview_window = CDProfileWindow(window_type, self.controller)
+                self.preview_window = CDProfileWindow(
+                    window_type, self.controller)
 
             elif analysis_name == self.analyses[self.window_type]["profile_waterfall"]["label"]:
                 window_type = "waterfall"
                 self.controller = CDProfileController(window_type)
-                self.preview_window = CDProfileWindow(window_type, self.controller)
+                self.preview_window = CDProfileWindow(
+                    window_type, self.controller)
 
             elif analysis_name == self.analyses[self.window_type]["vca"]["label"]:
                 self.controller = VCAController()
@@ -462,27 +575,33 @@ class AnalysisWidget(QWidget):
 
         if analysis_name == self.analyses[self.window_type]["spectrum"]["label"]:
             self.controller = SpectrumController(self.window_type)
-            self.preview_window = SpectrumWindow(self.window_type, self.controller)
+            self.preview_window = SpectrumWindow(
+                self.window_type, self.controller)
 
         elif analysis_name == self.analyses[self.window_type]["spectrogram"]["label"]:
             self.controller = SpectrogramController(self.window_type)
-            self.preview_window = SpectrogramWindow(self.window_type, self.controller)
+            self.preview_window = SpectrogramWindow(
+                self.window_type, self.controller)
 
         elif analysis_name == self.analyses[self.window_type]["channel_correlation"]["label"]:
             self.controller = ChannelCorrelationController(self.window_type)
-            self.preview_window = ChannelCorrelationWindow(self.window_type, self.controller)
+            self.preview_window = ChannelCorrelationWindow(
+                self.window_type, self.controller)
 
         elif analysis_name == self.analyses[self.window_type]["correlation_matrix"]["label"]:
             self.controller = CorrelationMatrixController(self.window_type)
-            self.preview_window = CorrelationMatrixWindow(self.window_type, self.controller)
+            self.preview_window = CorrelationMatrixWindow(
+                self.window_type, self.controller)
 
         elif analysis_name == self.analyses[self.window_type]["formation"]["label"]:
             self.controller = FormationController(self.window_type)
-            self.preview_window = FormationWindow(self.window_type, self.controller)
+            self.preview_window = FormationWindow(
+                self.window_type, self.controller)
 
         if self.controller:
             self.controller.updated.connect(self.update_analysis_label)
-            self.controller.updated.connect(lambda: apply_plot_customizations(self))
+            self.controller.updated.connect(
+                lambda: apply_plot_customizations(self))
             apply_plot_customizations(self)
 
         self.layout = QHBoxLayout()
@@ -490,7 +609,8 @@ class AnalysisWidget(QWidget):
         self.setLayout(self.layout)
 
         # Analysis label
-        self.analysis_label = QLabel(f"{self.analysis_name} {self.get_channel_text()}")
+        self.analysis_label = QLabel(f"{self.analysis_name} {
+                                     self.get_channel_text()}")
         self.analysis_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self.layout.addWidget(self.analysis_label)
 
@@ -500,14 +620,16 @@ class AnalysisWidget(QWidget):
 
         # Preview button
         self.preview_button = QPushButton("Preview")
-        self.preview_button.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
+        self.preview_button.setSizePolicy(
+            QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
         if self.preview:
             self.preview_button.clicked.connect(self.preview)
         button_layout.addWidget(self.preview_button)
 
         # Remove button for analysis
         self.remove_button = QPushButton("Remove")
-        self.remove_button.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
+        self.remove_button.setSizePolicy(
+            QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
         self.remove_button.clicked.connect(self.remove_self)
         button_layout.addWidget(self.remove_button)
 
@@ -522,7 +644,8 @@ class AnalysisWidget(QWidget):
             return ""
 
     def update_analysis_label(self):
-        self.analysis_label.setText(f"{self.analysis_name} {self.get_channel_text()}")
+        self.analysis_label.setText(f"{self.analysis_name} {
+                                    self.get_channel_text()}")
 
     def preview(self):
         if not self.preview_window:
@@ -540,13 +663,15 @@ class AnalysisWidget(QWidget):
         self.setParent(None)
         self.deleteLater()
 
+
 def delete_paragraph(paragraph):
     p = paragraph._element
     p.getparent().remove(p)
     paragraph._p = paragraph._element = None
 
+
 def show_json_load_error_msgbox(errors):
     msgbox = QMessageBox()
-    msgbox.setText("Errors occurred while loading report template from JSON:")
+    msgbox.setText("Errors occurred while loading report template:")
     msgbox.setInformativeText("\n".join(errors))
     msgbox.exec()

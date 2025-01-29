@@ -6,6 +6,7 @@ from utils.data_loader import DataMixin
 from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, StatsMixin, ShowUnfilteredMixin, ShowTimeLabelsMixin, MachineSpeedMixin, CopyPlotMixin
 from controllers import TimeDomainController
 from io import BytesIO
+import settings
 
 class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, StatsMixin,
                        ShowUnfilteredMixin, ShowTimeLabelsMixin, MachineSpeedMixin, CopyPlotMixin):
@@ -27,7 +28,11 @@ class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilter
 
     def initUI(self):
         self.setWindowTitle(f"Time domain analysis ({self.controller.dataMixin.measurement_label})")
-        self.setGeometry(100, 100, 700, 800)
+        self.setGeometry(*settings.TIME_DOMAIN_WINDOW_GEOMETRY)
+
+
+
+
 
         mainLayout = QVBoxLayout()
         self.setLayout(mainLayout)

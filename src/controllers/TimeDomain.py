@@ -85,13 +85,19 @@ class TimeDomainController(QObject, PlotMixin, ExportMixin):
             std = np.std(self.data)
             min_val = np.min(self.data)
             max_val = np.max(self.data)
+            range_val = max_val - min_val
+            std_percent = (std / mean) * 100 if mean != 0 else 0
+            range_percent = (range_val / mean) * 100 if mean != 0 else 0
             units = self.dataMixin.units[self.channel]
 
-            stats.append(["", f"{self.channel} [{units}]"])
-            stats.append(["Mean:\nStdev:\nMin:\nMax:", f"{mean:.2f}\n{
-                         std:.2f}\n{min_val:.2f}\n{max_val:.2f}"])
+            stats.append([
+                "Mean:\nStdev:\nStd%:\nMin:\nMax:\nRange:\nRange%", 
+                f"{mean:.2f} {units}\n{std:.2f} {units}\n{std_percent:.2f} %\n{min_val:.2f} {units}\n{max_val:.2f} {units}\n{range_val:.2f} {units}\n{range_percent:.2f} %"
+            ])
 
         return stats
+
+
 
     def getExportData(self):
         data = {"Distance [m]": self.distances, f"{
