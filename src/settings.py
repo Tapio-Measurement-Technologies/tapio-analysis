@@ -234,7 +234,10 @@ FIND_SAMPLES_BAND_PASS_HIGH_DEFAULT_1M = 30
 WATERFALL_OFFSET_LOW_DEFAULT = 0
 WATERFALL_OFFSET_HIGH_DEFAULT = 100
 
-REPORT_ADDITIONAL_INFO_DEFAULT = "Speed at reel: \nGrammage: \nAperture: "
+REPORT_ADDITIONAL_INFO_DEFAULT = "Speed at reel: \nGrammage:"
+MD_REPORT_HEADER_IMAGE_PATH = None
+CD_REPORT_HEADER_IMAGE_PATH = None
+REPORT_HEADER_IMAGE_PATH = None
 
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -287,3 +290,6 @@ else:
     except ImportError:
         print(f"Could not load local settings from internal project folder")
         pass
+
+
+

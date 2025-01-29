@@ -157,7 +157,7 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
 
         if settings.SPECTRUM_TITLE_SHOW:
             ax.set_title(f"{self.dataMixin.measurement_label} ({
-                        self.channel}) - Spectrum")
+                self.channel}) - Spectrum")
         ax.set_xlabel("Frequency [1/m]")
         ax.set_ylabel(f"Amplitude [{self.dataMixin.units[self.channel]}]")
         if ylim:
@@ -258,8 +258,8 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
 
                     # TODO: DRY, fix this and refactor
                     selected_freq = self.selected_freqs[-1]
-                    amplitude = self.amplitudes[np.searchsorted(self.frequencies, selected_freq)]
-
+                    amplitude = self.amplitudes[np.searchsorted(
+                        self.frequencies, selected_freq)]
 
                     if (i == 1):
                         if self.window_type == "CD":
@@ -315,32 +315,38 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
         return freq_1m * self.machine_speed / 60
 
     def getStatsTableData(self):
-        return None
         stats = []
-        if len(self.selected_freqs) > 0 and self.selected_freqs[-1]:
-            wavelength = 1 / self.selected_freqs[-1]
-            stats.append(["Selected frequency:", ""])
-            if self.window_type == "MD":
-                frequency_in_hz = self.get_freq_in_hz(self.selected_freqs[-1])
-                stats.append([
-                    "Frequency:\nWavelength:",
-                    f"{self.selected_freqs[-1]:.2f} 1/m ({frequency_in_hz:.2f} Hz)\n{100*wavelength:.2f} m"])
-            elif self.window_type == "CD":
-                stats.append([
-                    "Frequency:\nWavelength:",
-                    f"{self.selected_freqs[-1]:.2f} 1/m\n{100*wavelength:.3f} m"
-                ])
-        peaks = get_n_peaks(np.column_stack(
-            (self.frequencies, self.amplitudes)), 5)
-        frequencies = [f"{freq:.2f}" for freq in peaks[:, 0]]
-        amplitudes = [f"{amp:.2f}" for amp in peaks[:, 1]]
-        stats.append(["Main periodic components:", ""])
-        stats.append(
-            ["Frequency [Hz]", f"RMS [{self.dataMixin.units[self.channel]}]"])
-        stats.append([
-            "\n".join(frequencies),
-            "\n".join(amplitudes)
-        ])
+
+        # Add headers based on window type
+        if self.window_type == "MD":
+            stats.append(
+                [f"Amplitude {self.dataMixin.units[self.channel]}", "Wavelength [cm]", "Frequency [Hz]", ])
+        elif self.window_type == "CD":
+            stats.append(["Amplitude", "Wavelength [m]"])
+
+        # Loop over selected frequencies
+        for freq in self.selected_freqs:
+            if freq:  # Check if the frequency is valid
+                wavelength = 1 / freq  # Calculate wavelength from frequency
+
+                # Find the corresponding amplitude
+                amplitude_index = np.argmax(self.frequencies == freq)
+                amplitude = self.amplitudes[amplitude_index]
+
+                # Add row based on window type
+                if self.window_type == "MD":
+                    frequency_in_hz = self.get_freq_in_hz(freq)
+                    stats.append([
+                        f"{amplitude:.2f}",          # Amplitude
+                        f"{100 * wavelength:.2f}",  # Wavelength in meters
+                        f"{frequency_in_hz:.2f}"   # Frequency in Hz
+                    ])
+                elif self.window_type == "CD":
+                    stats.append([
+                        f"{amplitude:.2f}",          # Amplitude
+                        f"{100 * wavelength:.2f}"  # Wavelength in meters
+                    ])
+
         return stats
 
     def getExportData(self):

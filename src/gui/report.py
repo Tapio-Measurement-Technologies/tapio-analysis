@@ -11,6 +11,9 @@ from docx import Document
 from docx.shared import Mm, Cm, Pt
 from docx.enum.table import WD_ALIGN_VERTICAL
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+
 import numpy as np
 import json
 import os
@@ -18,7 +21,7 @@ from customizations import apply_plot_customizations
 from utils.report import get_text_width, set_paragraph_spacing
 import traceback
 import importlib.util
-
+import matplotlib.pyplot as plt
 
 class Editor(QTextEdit):
     def __init__(self):
@@ -46,8 +49,9 @@ class ReportWindow(QWidget, DataMixin):
         self.main_window = main_window
         self.window_type = window_type
         self.report_title = f"{window_type} Report"
+        self.report_subtitle = f"Mill PM 1"
         self.section_widgets = []
-        self.header_image_path = ""
+        self.header_image_path = settings.REPORT_HEADER_IMAGE_PATH
 
         # Main layout
         self.main_layout = QVBoxLayout()
@@ -66,10 +70,19 @@ class ReportWindow(QWidget, DataMixin):
         self.title_layout.addWidget(self.title_input)
         self.main_layout.addLayout(self.title_layout)
 
+        # Title input
+        self.subtitle_layout = QVBoxLayout()
+        self.subtitle_label = QLabel("Report subtitle:")
+        self.subtitle_input = QLineEdit(self.report_subtitle)
+        self.subtitle_input.textEdited.connect(self.update_report_subtitle)
+        self.subtitle_layout.addWidget(self.subtitle_label)
+        self.subtitle_layout.addWidget(self.subtitle_input)
+        self.main_layout.addLayout(self.subtitle_layout)
+
         # Image input
         self.header_image_layout = QHBoxLayout()
         self.header_image_label = QLabel("Header Image:")
-        self.header_image_path_input = QLineEdit()
+        self.header_image_path_input = QLineEdit(self.header_image_path)
         self.header_image_path_button = QPushButton("Choose Image")
         self.header_image_path_button.clicked.connect(self.choose_image)
         self.header_image_layout.addWidget(self.header_image_label)
@@ -145,6 +158,10 @@ class ReportWindow(QWidget, DataMixin):
         self.report_title = title
         self.title_input.setText(self.report_title)
 
+    def update_report_subtitle(self, subtitle):
+        self.report_subtitle = subtitle
+        self.subtitle_input.setText(self.report_subtitle)
+
     def choose_image(self):
         dialog = QFileDialog(self)
         options = QFileDialog.options(dialog)
@@ -163,6 +180,22 @@ class ReportWindow(QWidget, DataMixin):
             section.left_margin = margin
             section.right_margin = margin
 
+        style = doc.styles['Normal']
+        style.font.name = "DejaVu Sans"
+        style.font.size = Pt(10)
+
+        # Explicitly define font in Word (Word may ignore style settings)
+        r = style._element
+        r_rPr = r.get_or_add_rPr()
+        rFonts = OxmlElement("w:rFonts")
+        rFonts.set(qn("w:ascii"), "DejaVu Sans")
+        rFonts.set(qn("w:hAnsi"), "DejaVu Sans")
+        rFonts.set(qn("w:eastAsia"), "DejaVu Sans")
+        rFonts.set(qn("w:cs"), "DejaVu Sans")
+        r_rPr.append(rFonts)
+
+
+
         header = doc.sections[0].header
         paragraph = header.paragraphs[0]
         set_paragraph_spacing(paragraph, 0, 6)
@@ -171,11 +204,14 @@ class ReportWindow(QWidget, DataMixin):
             # Add image to the header of the first section
             run = paragraph.add_run()
             # Adjust width as needed
-            run.add_picture(self.header_image_path, width=Mm(30))
+            run.add_picture(self.header_image_path, width=Mm(40))
 
-        run = paragraph.add_run(f"{self.report_title}")
+        run = paragraph.add_run(f"{self.report_title}\n")
         paragraph.style = "Title"
         paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
+
+        subtitle_run = paragraph.add_run(f"{self.report_subtitle}")
+        subtitle_run.font.size = Pt(10)  # Set a smaller font size
 
         # Add table for additional information and roll picture
         table = doc.add_table(rows=1, cols=2)
@@ -196,12 +232,14 @@ class ReportWindow(QWidget, DataMixin):
 
         # Add MD/CD roll image
         if self.window_type == "MD":
-            roll_image_path = os.path.join(settings.ASSETS_DIR, "md_roll.png")
+            roll_image_path = settings.MD_REPORT_HEADER_IMAGE_PATH or os.path.join(
+                settings.ASSETS_DIR, "md_roll.png")
         elif self.window_type == "CD":
-            roll_image_path = os.path.join(settings.ASSETS_DIR, "cd_roll.png")
+            roll_image_path = settings.CD_REPORT_HEADER_IMAGE_PATH or os.path.join(
+                settings.ASSETS_DIR, "cd_roll.png")
 
         run = cell2.paragraphs[0].add_run()
-        run.add_picture(roll_image_path, width=Mm(50))
+        run.add_picture(roll_image_path, width=Mm(25))
         cell2.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
 
         for section in self.section_widgets:
@@ -259,7 +297,10 @@ class ReportWindow(QWidget, DataMixin):
 
             # Add a page break after each section
             # TODO: this causes a problem where empty pages may appear
-            # doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
+
+            if doc.paragraphs[-1].text.strip():  # Only add a break if the last paragraph is not empty
+                doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
+
 
         # Open save file dialog
         dialog = QFileDialog()
@@ -302,6 +343,7 @@ class ReportWindow(QWidget, DataMixin):
                         "Python file must define 'report_title' and 'sections'")
 
                 self.update_report_title(module.report_title)
+                self.update_report_subtitle(module.report_subtitle)
                 sections = module.sections.get(self.window_type, [])
 
                 for section in sections:
@@ -634,6 +676,16 @@ class AnalysisWidget(QWidget):
         button_layout.addWidget(self.remove_button)
 
         self.layout.addLayout(button_layout)
+
+        # TODO: Fix this, causing flashing windows. But if the window is not viewed, the aspect ratio of the images is also not updated!
+        self.preview_window.show()
+        self.preview_window.hide()
+
+        self.preview_window.refresh()
+
+
+
+
 
     def get_channel_text(self):
         if hasattr(self.controller, "channel"):
