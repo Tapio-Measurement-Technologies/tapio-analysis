@@ -126,8 +126,9 @@ class CDProfileController(QObject, PlotMixin, ExportMixin):
                     color="black"
                 )
 
-            ax.set_title(
-                f"{self.dataMixin.measurement_label} ({self.channel})")
+            if settings.CD_PROFILE_TITLE_SHOW:
+                ax.set_title(
+                    f"{self.dataMixin.measurement_label} ({self.channel})")
             ax.set_xlabel("Distance [m]")
             # ax.set_ylabel("Sample Index")
             # ax.set_zlabel(

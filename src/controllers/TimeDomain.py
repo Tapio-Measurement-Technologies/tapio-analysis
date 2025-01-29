@@ -51,7 +51,8 @@ class TimeDomainController(QObject, PlotMixin, ExportMixin):
                     color="gray")
         ax.plot(self.distances *
                 settings.TIME_DOMAIN_ANALYSIS_DISPLAY_UNIT_MULTIPLIER, self.data)
-        ax.set_title(f"{self.dataMixin.measurement_label} ({self.channel})")
+        if settings.TIME_DOMAIN_TITLE_SHOW:
+            ax.set_title(f"{self.dataMixin.measurement_label} ({self.channel})")
         ax.grid()
 
         ax.set_xlabel(

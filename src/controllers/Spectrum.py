@@ -154,8 +154,10 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
         self.amplitudes = amplitude_spectrum[f_low_index:f_high_index]
 
         ax.plot(self.frequencies, self.amplitudes)
-        ax.set_title(f"{self.dataMixin.measurement_label} ({
-                     self.channel}) - Spectrum")
+
+        if settings.SPECTRUM_TITLE_SHOW:
+            ax.set_title(f"{self.dataMixin.measurement_label} ({
+                        self.channel}) - Spectrum")
         ax.set_xlabel("Frequency [1/m]")
         ax.set_ylabel(f"Amplitude [{self.dataMixin.units[self.channel]}]")
         if ylim:

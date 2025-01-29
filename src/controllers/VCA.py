@@ -71,8 +71,8 @@ class VCAController(QObject, PlotMixin):
 
         md_mean_ax.set(
             xlabel=f"MD mean [{self.dataMixin.units[self.channel]}]", ylabel="Sample index")
-        md_mean_ax.yaxis.set_major_locator(MaxNLocator(integer=True))
-        md_mean_ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+        md_mean_ax.yaxis.set_major_locator(MaxNLocator(nbins=3, integer=True))
+        md_mean_ax.xaxis.set_major_locator(MaxNLocator(nbins=3, integer=True))
         md_mean_ax.grid()
 
         md_mean_ax.margins(y=0)
