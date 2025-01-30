@@ -2,11 +2,11 @@ from utils.data_loader import DataMixin
 from gui.components import ExportMixin, PlotMixin
 from PyQt6.QtCore import QObject, pyqtSignal
 import matplotlib.pyplot as plt
-from scipy.signal import welch, get_window
+from scipy.signal import welch
 import settings
 import numpy as np
 import pandas as pd
-from utils.signal_processing import get_n_peaks
+from matplotlib.ticker import AutoMinorLocator
 
 from scipy.signal import find_peaks
 
@@ -158,6 +158,8 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
         if settings.SPECTRUM_TITLE_SHOW:
             ax.set_title(f"{self.dataMixin.measurement_label} ({
                 self.channel}) - Spectrum")
+
+
         ax.set_xlabel("Frequency [1/m]")
         ax.set_ylabel(f"Amplitude [{self.dataMixin.units[self.channel]}]")
         if ylim:
@@ -300,11 +302,23 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
                                 color=current_color)
                 self.current_vlines.append(vl)
         handles, labels = ax.get_legend_handles_labels()
-        if labels:  # This list will be non-empty if there are items to include in the legend
-            ax.legend(handles, labels, loc="upper right")
+
+        if settings.SPECTRUM_SHOW_LEGEND:
+            if labels:  # This list will be non-empty if there are items to include in the legend
+                ax.legend(handles, labels, loc="upper right")
 
         ax.figure.set_constrained_layout(True)
-        ax.grid()
+
+        if settings.SPECTRUM_MINOR_GRID:
+            ax.grid(True, which='both')
+            ax.minorticks_on()
+            ax.xaxis.set_minor_locator(AutoMinorLocator(5))
+            ax.yaxis.set_minor_locator(AutoMinorLocator(4))
+            ax.grid(True, which='minor', linestyle=':', linewidth=0.5)
+        else:
+            ax.grid()
+
+
 
         self.canvas.draw()
         self.updated.emit()

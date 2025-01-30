@@ -181,8 +181,10 @@ class ReportWindow(QWidget, DataMixin):
             section.right_margin = margin
 
         style = doc.styles['Normal']
-        style.font.name = "DejaVu Sans"
+        style.font.name = "Calibri"
         style.font.size = Pt(10)
+
+
 
         # Explicitly define font in Word (Word may ignore style settings)
         r = style._element
@@ -206,12 +208,23 @@ class ReportWindow(QWidget, DataMixin):
             # Adjust width as needed
             run.add_picture(self.header_image_path, width=Mm(40))
 
-        run = paragraph.add_run(f"{self.report_title}\n")
-        paragraph.style = "Title"
-        paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        # run = paragraph.add_run(f"{self.report_title}\n")
+        # paragraph.style = "Title"
+        # paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        # subtitle_run = paragraph.add_run(f"{self.report_subtitle}")
+        # subtitle_run.font.size = Pt(10)  # Set a smaller font size
 
-        subtitle_run = paragraph.add_run(f"{self.report_subtitle}")
-        subtitle_run.font.size = Pt(10)  # Set a smaller font size
+        # title_paragraph = doc.add_paragraph(self.report_title)
+        # title_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        # title_run = title_paragraph.runs[0]
+        # title_run.bold = True
+        # title_run.font.size = Pt(14)
+
+        # subtitle_paragraph = doc.add_paragraph(self.report_subtitle)
+        # subtitle_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        # subtitle_paragraph.runs[0].font.size = Pt(12)
+
+
 
         # Add table for additional information and roll picture
         table = doc.add_table(rows=1, cols=2)
@@ -381,8 +394,6 @@ class ReportWindow(QWidget, DataMixin):
                             "selected_frequencies", "nperseg"
                         ]:
                             if attr in analysis:
-                                print("Setting attribute {} to {}".format(
-                                    attr, analysis[attr]))
                                 setattr(widget.controller,
                                         attr, analysis[attr])
 
