@@ -100,7 +100,7 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
 
         self.setWindowTitle(f"{self.window_type} Spectral analysis ({
                             self.dataMixin.measurement_label})")
-        self.setGeometry(200, 200, 750, 750)
+        self.setGeometry(*settings.SPECTRUM_WINDOW_GEOMETRY)
 
         mainLayout = QVBoxLayout()
         self.setLayout(mainLayout)
@@ -123,7 +123,6 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
 
         if settings.SPECTRUM_AUTO_DETECT_PEAKS:
             self.addAutoDetectPeaksCheckbox(mainLayout)
-
 
         self.selectedFrequencyLabel = QLabel("Selected frequency: None")
         mainLayout.addWidget(self.selectedFrequencyLabel)

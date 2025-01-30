@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (QApplication, QWidget, QPushButton, QVBoxLayout, QL
                              QMainWindow, QFileDialog, QFrame, QStyleFactory)
 from PyQt6.QtGui import QPixmap, QIcon, QAction
 from PyQt6.QtCore import Qt
+import importlib
 
 from gui.find_samples import FindSamplesWindow
 from gui.report import ReportWindow
@@ -110,6 +111,18 @@ class MainWindow(QMainWindow, DataMixin):
         self.closeAction.setStatusTip("Close all open files")
         fileMenu.addAction(self.closeAction)
 
+        # SETTINGS MENU
+        settings_menu = mainMenu.addMenu('Settings')
+
+        reload_settings_action = QAction("Reload Settings", self)
+        reload_settings_action.triggered.connect(self.reload_settings)
+        set_settings_action = QAction("Set Settings", self)
+        set_settings_action.triggered.connect(self.set_settings)
+        settings_menu.addAction(reload_settings_action)
+        settings_menu.addAction(set_settings_action)
+
+
+
         centralWidget = QWidget()
         self.setCentralWidget(centralWidget)
         layout = QVBoxLayout(centralWidget)
@@ -140,6 +153,20 @@ class MainWindow(QMainWindow, DataMixin):
         # Analysis Buttons
         self.setupAnalysisButtons(layout)
         self.refresh()
+
+    def set_settings(self):
+        pass
+
+    def reload_settings(self):
+        if "settings" in sys.modules:
+            del sys.modules["settings"]
+        import settings
+        importlib.reload(settings)  # Reload the settings module
+        print("Settings reloaded:", settings.__dict__)  # Debugging output
+        print("Reloaded settings")
+
+
+
 
     def loadFiles(self, loader_module):
         file_types = getattr(loader_module, 'file_types', "All Files (*)")

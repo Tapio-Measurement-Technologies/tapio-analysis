@@ -14,6 +14,8 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
+
+
 import numpy as np
 import json
 import os
@@ -22,6 +24,7 @@ from utils.report import get_text_width, set_paragraph_spacing
 import traceback
 import importlib.util
 import matplotlib.pyplot as plt
+
 
 class Editor(QTextEdit):
     def __init__(self):
@@ -184,9 +187,7 @@ class ReportWindow(QWidget, DataMixin):
         style.font.name = "Calibri"
         style.font.size = Pt(10)
 
-
-
-        # Explicitly define font in Word (Word may ignore style settings)
+        # Explicitly define font in Word
         r = style._element
         r_rPr = r.get_or_add_rPr()
         rFonts = OxmlElement("w:rFonts")
@@ -196,124 +197,161 @@ class ReportWindow(QWidget, DataMixin):
         rFonts.set(qn("w:cs"), "DejaVu Sans")
         r_rPr.append(rFonts)
 
-
-
+        # Header section
         header = doc.sections[0].header
-        paragraph = header.paragraphs[0]
-        set_paragraph_spacing(paragraph, 0, 6)
+        header_table = header.add_table(
+            rows=1, cols=3, width=Mm(get_text_width(doc) - 60))
+        header_table.autofit = False
 
+        col1_width = Mm(65)
+        # Dynamic width for center text
+        col2_width = Mm(60)
+        col3_width = Mm(60)
+
+        header_table.columns[0].width = col1_width
+        header_table.columns[1].width = col2_width
+        header_table.columns[2].width = col3_width
+
+        # Access cells
+        cell1 = header_table.cell(0, 0)
+        cell2 = header_table.cell(0, 1)
+        cell3 = header_table.cell(0, 2)
+
+        # Add left image
         if self.header_image_path:
-            # Add image to the header of the first section
-            run = paragraph.add_run()
-            # Adjust width as needed
-            run.add_picture(self.header_image_path, width=Mm(40))
-
-        # run = paragraph.add_run(f"{self.report_title}\n")
-        # paragraph.style = "Title"
-        # paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
-        # subtitle_run = paragraph.add_run(f"{self.report_subtitle}")
-        # subtitle_run.font.size = Pt(10)  # Set a smaller font size
-
-        # title_paragraph = doc.add_paragraph(self.report_title)
-        # title_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        # title_run = title_paragraph.runs[0]
-        # title_run.bold = True
-        # title_run.font.size = Pt(14)
-
-        # subtitle_paragraph = doc.add_paragraph(self.report_subtitle)
-        # subtitle_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        # subtitle_paragraph.runs[0].font.size = Pt(12)
+            run = cell1.paragraphs[0].add_run()
+            run.add_picture(self.header_image_path, width=Mm(50))
 
 
+        p = cell2.paragraphs[0]
+        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
 
-        # Add table for additional information and roll picture
-        table = doc.add_table(rows=1, cols=2)
-        col1 = table.columns[0]
-        col1.width = Mm(get_text_width(doc) / 2)
-        col2 = table.columns[1]
-        col2.width = Mm(get_text_width(doc) / 2)
-        cell1 = table.cell(0, 0)
-        cell2 = table.cell(0, 1)
+        # Clear existing text
+        p.clear()
 
-        cell1.paragraphs[0].text = (
-            f"Generated {str(datetime.datetime.now())}")
+        # Add bold title
+        run_title = p.add_run(self.report_title)
+        run_title.bold = True  # Make only the title bold
 
-        # Add the additional information below the header
-        additional_info = self.additional_info_input.toPlainText()
-        if additional_info:
-            cell1.add_paragraph(additional_info)
+        # Add subtitle and timestamp (not bold)
+        run_subtitle = p.add_run(f"\n{self.report_subtitle}\n\nGenerated {str(datetime.datetime.now())}")
+        run_subtitle.bold = False  # Ensure this part is not bold
 
-        # Add MD/CD roll image
-        if self.window_type == "MD":
-            roll_image_path = settings.MD_REPORT_HEADER_IMAGE_PATH or os.path.join(
-                settings.ASSETS_DIR, "md_roll.png")
-        elif self.window_type == "CD":
-            roll_image_path = settings.CD_REPORT_HEADER_IMAGE_PATH or os.path.join(
-                settings.ASSETS_DIR, "cd_roll.png")
 
-        run = cell2.paragraphs[0].add_run()
-        run.add_picture(roll_image_path, width=Mm(25))
-        cell2.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        # cell1.paragraphs[0].text = (
+        #     f"Generated {str(datetime.datetime.now())}")
+
+
+        # Add right image (if applicable)
+        roll_image_path = settings.MD_REPORT_HEADER_IMAGE_PATH if self.window_type == "MD" else settings.CD_REPORT_HEADER_IMAGE_PATH
+        if roll_image_path:
+            run = cell3.paragraphs[0].add_run()
+            run.add_picture(roll_image_path, width=Mm(50))
+            cell3.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
+
 
         for section in self.section_widgets:
             paragraph = doc.add_heading(section.section_name)
+
+            run = paragraph.runs[0]
+            run.font.color.rgb = None  # Removes the blue color (defaults to black)
+            run.font.size = Pt(12)  # Adjust size (default heading sizes are often too big)
+            run.font.name = "Calibri"  # Ensure a consistent font
+
+
             set_paragraph_spacing(paragraph, 0, 6)
             for analysis in section.analysis_widgets:
                 apply_plot_customizations(analysis)
-                paragraph = doc.add_heading(f"{analysis.analysis_name} {
-                                            analysis.get_channel_text()}", 2)
+
+                analysis_title = analysis.analysis_title or f"{analysis.analysis_name} {
+                    analysis.get_channel_text()}"
+                paragraph = doc.add_heading(analysis_title, 2)
+                run = paragraph.runs[0]
+                run.font.color.rgb = None  # Set to black
+                run.font.size = Pt(11)  # Slightly smaller for subsection headings
+                run.font.name = "Calibri"
+
+                # paragraph = doc.add_heading(f"{analysis.analysis_name} {
+                #                             analysis.get_channel_text()}", 2)
                 set_paragraph_spacing(paragraph)
 
-                # Add table with image and stats table
+                # layout_mode = ["stats-right", "stats-below", "stats-above"]
+                # Default to stats-right
+                layout_mode = analysis.report_layout or "stats-right"
+
+                # Define column widths for side-by-side layout
                 img_col_width = Mm(get_text_width(doc) * (3/5))
                 stats_col_width = Mm(get_text_width(doc) * (2/5))
-                table = doc.add_table(rows=1, cols=2)
-                table.autofit = True
 
-                col1 = table.columns[0]
-                col1.width = img_col_width
-                cell1 = table.cell(0, 0)
-                cell1.vertical_alignment = WD_ALIGN_VERTICAL.TOP
-                paragraph = cell1.paragraphs[0]
-                run = paragraph.add_run()
-                run.add_picture(analysis.controller.getPlotImage(),
-                                width=Cm(col1.width.cm - 0.5))
+                if layout_mode == "stats-right":
+                    # Side-by-side layout (image left, stats right)
+                    table = doc.add_table(rows=1, cols=2)
+                    table.autofit = True
 
-                cell2 = table.cell(0, 1)
-                col2 = table.columns[1]
-                col2.width = stats_col_width
-                cell2.width = stats_col_width
-                cell2.vertical_alignment = WD_ALIGN_VERTICAL.TOP
+                    col1 = table.columns[0]
+                    col1.width = img_col_width
+                    cell1 = table.cell(0, 0)
+                    cell1.vertical_alignment = WD_ALIGN_VERTICAL.TOP
+                    paragraph = cell1.paragraphs[0]
+                    run = paragraph.add_run()
+                    run.add_picture(
+                        analysis.controller.getPlotImage(), width=Cm(col1.width.cm - 0.5))
 
+                    col2 = table.columns[1]
+                    col2.width = stats_col_width
+                    cell2 = table.cell(0, 1)
+                    cell2.width = stats_col_width
+                    cell2.vertical_alignment = WD_ALIGN_VERTICAL.TOP
+                    img_cell = table.cell(0, 0)
+                    stats_cell = table.cell(0, 1)
+
+                elif layout_mode in ["stats-below", "stats-above"]:
+                    # Image and stats stacked vertically
+                    table = doc.add_table(rows=2, cols=1)
+                    table.autofit = True
+
+                    if layout_mode == "stats-above":
+                        stats_cell = table.cell(0, 0)
+                        img_cell = table.cell(1, 0)
+                    else:  # stats-below
+                        img_cell = table.cell(0, 0)
+                        stats_cell = table.cell(1, 0)
+
+                    # Add image to the image cell
+                    run = img_cell.paragraphs[0].add_run()
+                    run.add_picture(analysis.controller.getPlotImage(
+                    ), width=Mm(get_text_width(doc) - 5))
+
+                    stats_cell.vertical_alignment = WD_ALIGN_VERTICAL.TOP
+
+                # Retrieve statistics data
                 data = analysis.controller.getStatsTableData()
                 if not data:
-                    continue
-                shape = np.shape(data)
-                if len(shape) == 2:
-                    rows, cols = shape
-                elif len(shape) == 1:
-                    rows = shape[0]
-                    cols = 1
+                    pass  # No data, skip stats table
                 else:
-                    rows = 1
-                    cols = 1
-                stats_table = cell2.add_table(rows, cols)
-                delete_paragraph(cell2.paragraphs[0])
-                for row_idx, row_data in enumerate(data):
-                    row = stats_table.rows[row_idx]
-                    for col_idx, cell_data in enumerate(row_data):
-                        cell = row.cells[col_idx]
-                        cell.paragraphs[0].text = cell_data
-                        cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
-                        cell.paragraphs[0].style.font.size = Pt(8)
-                        cell.paragraphs[0].style.font.name = "Nimbus Mono PS"
+                    shape = np.shape(data)
+                    rows, cols = shape if len(shape) == 2 else (
+                        shape[0], 1) if len(shape) == 1 else (1, 1)
+
+                    # Insert stats table
+                    stats_table = stats_cell.add_table(rows, cols)
+                    delete_paragraph(stats_cell.paragraphs[0])
+
+                    for row_idx, row_data in enumerate(data):
+                        row = stats_table.rows[row_idx]
+                        for col_idx, cell_data in enumerate(row_data):
+                            cell = row.cells[col_idx]
+                            cell.paragraphs[0].text = cell_data
+                            cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                            cell.paragraphs[0].style.font.size = Pt(8)
+                            cell.paragraphs[0].style.font.name = "Nimbus Mono PS"
 
             # Add a page break after each section
             # TODO: this causes a problem where empty pages may appear
 
-            if doc.paragraphs[-1].text.strip():  # Only add a break if the last paragraph is not empty
+            # Only add a break if the last paragraph is not empty
+            if doc.paragraphs[-1].text.strip():
                 doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
-
 
         # Open save file dialog
         dialog = QFileDialog()
@@ -381,7 +419,7 @@ class ReportWindow(QWidget, DataMixin):
                             continue
 
                         widget = AnalysisWidget(
-                            self.main_window, analysis_name, self.window_type)
+                            self.main_window, analysis_name, self.window_type, analysis_title=analysis.get("analysis_title"), info_string=analysis.get("info_string"), report_layout=analysis.get("report_layout"))
 
                         # Assign attributes if they exist
                         for attr in [
@@ -597,12 +635,15 @@ class ReportSectionWidget(QFrame):
 
 
 class AnalysisWidget(QWidget):
-    def __init__(self, main_window, analysis_name, window_type="MD"):
+    def __init__(self, main_window, analysis_name, window_type="MD", analysis_title=None, info_string=None, report_layout=None):
         super().__init__()
         self.analysis_name = analysis_name
         self.window_type = window_type
         self.main_window = main_window
         self.analyses = settings.ANALYSES
+        self.analysis_title = analysis_title
+        self.info_string = info_string
+        self.report_layout = report_layout
 
         if self.window_type == "CD":
             if analysis_name == self.analyses[self.window_type]["profile"]["label"]:
@@ -662,8 +703,10 @@ class AnalysisWidget(QWidget):
         self.setLayout(self.layout)
 
         # Analysis label
-        self.analysis_label = QLabel(f"{self.analysis_name} {
-                                     self.get_channel_text()}")
+        analysis_label_text = self.analysis_title or f"{
+            self.analysis_name} {self.get_channel_text()}"
+
+        self.analysis_label = QLabel(analysis_label_text)
         self.analysis_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self.layout.addWidget(self.analysis_label)
 
@@ -693,10 +736,6 @@ class AnalysisWidget(QWidget):
         self.preview_window.hide()
 
         self.preview_window.refresh()
-
-
-
-
 
     def get_channel_text(self):
         if hasattr(self.controller, "channel"):

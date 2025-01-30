@@ -122,6 +122,7 @@ class TimeDomainController(QObject, PlotMixin, ExportMixin):
             std_percent = (std / mean) * 100 if mean != 0 else 0
             range_percent = (range_val / mean) * 100 if mean != 0 else 0
             units = self.dataMixin.units[self.channel]
+            stats.append(["", ""])
 
             stats.append([
                 "Mean:\nStdev:\nStd%:\nMin:\nMax:\nRange:\nRange%",

@@ -159,7 +159,6 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
             ax.set_title(f"{self.dataMixin.measurement_label} ({
                 self.channel}) - Spectrum")
 
-
         ax.set_xlabel("Frequency [1/m]")
         ax.set_ylabel(f"Amplitude [{self.dataMixin.units[self.channel]}]")
         if ylim:
@@ -305,7 +304,11 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
 
         if settings.SPECTRUM_SHOW_LEGEND:
             if labels:  # This list will be non-empty if there are items to include in the legend
-                ax.legend(handles, labels, loc="upper right")
+                if settings.SPECTRUM_LEGEND_OUTSIDE_PLOT:
+                    ax.legend(handles, labels, loc="upper left",
+                              bbox_to_anchor=(1.05, 1), borderaxespad=0.)
+                else:
+                    ax.legend(handles, labels, loc="upper right")
 
         ax.figure.set_constrained_layout(True)
 
@@ -318,8 +321,6 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
         else:
             ax.grid()
 
-
-
         self.canvas.draw()
         self.updated.emit()
 
@@ -329,6 +330,7 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
         return freq_1m * self.machine_speed / 60
 
     def getStatsTableData(self):
+        return None
         stats = []
 
         # Add headers based on window type
