@@ -15,7 +15,6 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
 
-
 import numpy as np
 import json
 import os
@@ -105,8 +104,6 @@ class ReportWindow(QWidget, DataMixin):
         self.header_image_layout.addWidget(self.header_image_path_button)
         self.main_layout.addLayout(self.header_image_layout)
 
-
-
         # Scroll area
         self.scroll_area = QScrollArea(self)
         self.scroll_area.setWidgetResizable(True)
@@ -138,6 +135,12 @@ class ReportWindow(QWidget, DataMixin):
         self.generate_report_button = QPushButton("Generate Report")
         self.generate_report_button.clicked.connect(self.generate_report)
         self.main_layout.addWidget(self.generate_report_button)
+
+        if self.window_type == "MD":
+            self.load_from_python(settings.MD_REPORT_TEMPLATE_DEFAULT)
+
+        if self.window_type == "CD":
+            self.load_from_python(settings.CD_REPORT_TEMPLATE_DEFAULT)
 
     def initMenuBar(self, layout):
         menuBar = QMenuBar()
@@ -224,7 +227,6 @@ class ReportWindow(QWidget, DataMixin):
             run = cell1.paragraphs[0].add_run()
             run.add_picture(self.header_image_path, width=Mm(50))
 
-
         p = cell2.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.LEFT
 
@@ -235,71 +237,49 @@ class ReportWindow(QWidget, DataMixin):
         run_title = p.add_run(self.report_title)
         run_title.bold = True  # Make only the title bold
 
-        # Add additional info
-
-
         # Add subtitle and timestamp (not bold)
         run_subtitle = p.add_run(f"\n{self.report_subtitle}\n")
-        run_subtitle.bold = False  # Ensure this part is not bold
+        run_subtitle.bold = False  # Ens ure this part is not bold
 
-        run_additional_info = p.add_run(f"\n{self.additional_info_input.toPlainText()}")
+        run_additional_info = p.add_run(
+            f"\n{self.additional_info_input.toPlainText()}")
         run_additional_info.bold = False  # Ensure this part is not bold
 
         run_subtitle = p.add_run(f"\nGenerated {str(datetime.datetime.now())}")
-        run_subtitle.bold = False  # Ensure this part is not bold
-
-
-
 
         # cell1.paragraphs[0].text = (
-        #     f"Generated {str(datetime.datetime.now())}")
-
 
         # Add right image (if applicable)
         roll_image_path = settings.MD_REPORT_HEADER_IMAGE_PATH if self.window_type == "MD" else settings.CD_REPORT_HEADER_IMAGE_PATH
         if roll_image_path:
             run = cell3.paragraphs[0].add_run()
             run.add_picture(roll_image_path, width=Mm(50))
-            cell3.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
-
 
         for section in self.section_widgets:
             paragraph = doc.add_heading(section.section_name)
 
-            run = paragraph.runs[0]
-            run.font.color.rgb = None  # Removes the blue color (defaults to black)
-            run.font.size = Pt(12)  # Adjust size (default heading sizes are often too big)
-            run.font.name = "Calibri"  # Ensure a consistent font
-
+            run.font.color.rgb = None
+            run.font.size = Pt(12)
 
             set_paragraph_spacing(paragraph, 0, 6)
             for analysis in section.analysis_widgets:
                 apply_plot_customizations(analysis)
 
-                # analysis_title = analysis.analysis_title or f"{analysis.analysis_name} {
-                #     analysis.get_channel_text()}"
-                # paragraph = doc.add_heading(analysis_title, 2)
-                # # TODO: This is not turning the analysis title black and smaller as expected
-                # paragraph = doc.add_heading(analysis_title, level=2)
-                # run = paragraph.runs[0]
-                # run.font.size = Pt(10)
-                # run.font.bold = False
-                # run.font.name = "Calibri"
+                if settings.REPORT_ENABLE_ANALYSIS_TITLE:
+                    analysis_title = analysis.analysis_title or f"{
+                        analysis.analysis_name} {analysis.get_channel_text()}"
+                    paragraph = doc.add_heading(analysis_title, 2)
+                    # TODO: Turn analysis title into black color and make smaller
 
-                #TODO: Here below the analysis title I want to add in cursive a small info string coming from analysis, normal text with font size 8 otherwise
                 if analysis.info_string:
                     paragraph = doc.add_paragraph()
                     run_info = paragraph.add_run(analysis.info_string)
                     run_info.italic = True  # Make text italic
                     run_info.font.size = Pt(8)  # Set font size to 8
-                    run_info.font.name = "Calibri"
-
-
-
 
                 set_paragraph_spacing(paragraph)
 
-                # layout_modes: ["stats-right", "stats-below", "stats-above"]
+                # layout modes are: ["stats-right", "stats-below", "stats-above"]
                 # Default to stats-right
                 layout_mode = analysis.report_layout or "stats-right"
 
@@ -344,7 +324,11 @@ class ReportWindow(QWidget, DataMixin):
                     # Add image to the image cell
                     run = img_cell.paragraphs[0].add_run()
                     run.add_picture(analysis.controller.getPlotImage(
-                    ), width=Mm(get_text_width(doc) - 5))
+                    ), width=Mm(analysis.image_width_mm or (get_text_width(doc) - 5)))
+
+                    # run.add_picture(analysis.controller.getPlotImage())
+
+                    img_cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
                     stats_cell.vertical_alignment = WD_ALIGN_VERTICAL.TOP
 
@@ -388,20 +372,23 @@ class ReportWindow(QWidget, DataMixin):
             doc.save(fileName)
             self.close()
 
-    def load_from_python(self):
+    def load_from_python(self, fileName=None):
+
+        errors = []
+
         for section_widget in self.section_widgets:
             section_widget.remove_self()
 
-        dialog = QFileDialog(self)
-        options = QFileDialog.options(dialog)
-        errors = []
-        fileName, _ = QFileDialog.getOpenFileName(
-            self,
-            "Open Python File",
-            "",
-            "Python files (*.py);;All Files (*);;",
-            options=options
-        )
+        if not fileName:
+            dialog = QFileDialog(self)
+            options = QFileDialog.options(dialog)
+            fileName, _ = QFileDialog.getOpenFileName(
+                self,
+                "Open Python File",
+                "",
+                "Python files (*.py);;All Files (*);;",
+                options=options
+            )
 
         if fileName:
             try:
@@ -419,7 +406,7 @@ class ReportWindow(QWidget, DataMixin):
 
                 self.update_report_title(module.report_title)
                 self.update_report_subtitle(module.report_subtitle)
-                sections = module.sections.get(self.window_type, [])
+                sections = module.sections
 
                 for section in sections:
                     section_name = section.get("section_name")
@@ -443,7 +430,7 @@ class ReportWindow(QWidget, DataMixin):
                             continue
 
                         widget = AnalysisWidget(
-                            self.main_window, analysis_name, self.window_type, analysis_title=analysis.get("analysis_title"), info_string=analysis.get("info_string"), report_layout=analysis.get("report_layout"))
+                            self.main_window, analysis_name, self.window_type, analysis_title=analysis.get("analysis_title"), info_string=analysis.get("info_string"), report_layout=analysis.get("report_layout"), image_width_mm=analysis.get("image_width_mm"))
 
                         # Assign attributes if they exist
                         for attr in [
@@ -465,98 +452,8 @@ class ReportWindow(QWidget, DataMixin):
             except Exception as e:
                 traceback.print_exc()
                 errors.append(str(e))
-
             if errors:
-                show_json_load_error_msgbox(errors)
-
-    def load_from_json(self):
-        for section_widget in self.section_widgets:
-            section_widget.remove_self()
-        dialog = QFileDialog(self)
-        options = QFileDialog.options(dialog)
-        errors = []
-        fileName, _ = QFileDialog.getOpenFileName(
-            self,
-            "Open File",
-            "",
-            "All Files (*);;JSON files (*.json)",
-            options=options)
-        if fileName:
-            with open(fileName, 'r') as file:
-                try:
-                    data = json.load(file)
-                    self.update_report_title(data["report_title"])
-                    sections = data["sections"][self.window_type]
-                    for section in sections:
-                        section_name = section["section_name"]
-                        section_widget = self.add_section(section_name)
-                        analyses = section["analyses"]
-                        for analysis in analyses:
-                            analysis_name = settings.ANALYSES[self.window_type][analysis["analysis"]]["label"]
-                            channel = analysis.get("channel",  "")
-                            channel1 = analysis.get("channel1", "")
-                            channel2 = analysis.get("channel2", "")
-                            invalid_channel = False
-                            for c in [channel, channel1, channel2]:
-                                if c and c not in self.dataMixin.channels:
-                                    errors.append(
-                                        f"{section_name}/{analysis_name}: Invalid channel name {c}")
-                                    invalid_channel = True
-                                    break  # Break out of the inner channel validation loop
-                            if invalid_channel:
-                                continue  # Continue to the next analysis in the analyses loop
-                            widget = AnalysisWidget(
-                                self.main_window, analysis_name, self.window_type)
-                            if hasattr(widget.controller, "max_dist"):
-                                max_dist = widget.controller.max_dist
-                            if hasattr(widget.controller, "max_freq"):
-                                max_freq = widget.controller.max_freq
-                            if "channel" in analysis:
-                                widget.controller.channel = analysis["channel"]
-                            if "channel1" in analysis:
-                                widget.controller.channel1 = analysis["channel1"]
-                            if "channel2" in analysis:
-                                widget.controller.channel2 = analysis["channel2"]
-                            if "analysis_range_low" in analysis:
-                                widget.controller.analysis_range_low = analysis[
-                                    "analysis_range_low"] * max_dist
-                            if "analysis_range_high" in analysis:
-                                widget.controller.analysis_range_high = analysis[
-                                    "analysis_range_high"] * max_dist
-                            if "band_pass_low" in analysis:
-                                widget.controller.band_pass_low = analysis["band_pass_low"]
-                            if "band_pass_high" in analysis:
-                                widget.controller.band_pass_high = analysis["band_pass_high"]
-                            if "show_individual_profiles" in analysis:
-                                widget.controller.show_profiles = analysis["show_individual_profiles"]
-                            if "show_min_max" in analysis:
-                                widget.controller.show_min_max = analysis["show_min_max"]
-                            if "show_legend" in analysis:
-                                widget.controller.show_legend = analysis["show_legend"]
-                            if "show_wavelength_labels" in analysis:
-                                widget.controller.show_wavelength = analysis["show_wavelength_labels"]
-                            if "show_unfiltered_data" in analysis:
-                                widget.controller.show_unfiltered_data = analysis["show_unfiltered_data"]
-                            if "machine_speed" in analysis:
-                                widget.controller.machine_speed = analysis["machine_speed"]
-                            if "frequency_range_low" in analysis:
-                                widget.controller.frequency_range_low = analysis[
-                                    "frequency_range_low"] * max_freq
-                            if "frequency_range_high" in analysis:
-                                widget.controller.frequency_range_high = analysis[
-                                    "frequency_range_high"] * max_freq
-                            if "selected_frequencies" in analysis:
-                                widget.controller.selected_freqs = analysis["selected_frequencies"]
-                            if "nperseg" in analysis:
-                                widget.controller.nperseg = analysis["nperseg"]
-                            widget.preview_window.refresh()
-                            section_widget.add_analysis(widget)
-                except Exception as e:
-                    traceback.print_exc()
-                    errors.append(str(e))
-
-            if len(errors) > 0:
-                show_json_load_error_msgbox(errors)
+                show_load_error_msgbox(errors)
 
     def closeEvent(self, event):
         for widget in self.section_widgets:
@@ -659,7 +556,7 @@ class ReportSectionWidget(QFrame):
 
 
 class AnalysisWidget(QWidget):
-    def __init__(self, main_window, analysis_name, window_type="MD", analysis_title=None, info_string=None, report_layout=None):
+    def __init__(self, main_window, analysis_name, window_type="MD", analysis_title=None, info_string=None, report_layout=None, image_width_mm=None):
         super().__init__()
         self.analysis_name = analysis_name
         self.window_type = window_type
@@ -668,6 +565,7 @@ class AnalysisWidget(QWidget):
         self.analysis_title = analysis_title
         self.info_string = info_string
         self.report_layout = report_layout
+        self.image_width_mm = image_width_mm
 
         if self.window_type == "CD":
             if analysis_name == self.analyses[self.window_type]["profile"]["label"]:
@@ -796,7 +694,7 @@ def delete_paragraph(paragraph):
     paragraph._p = paragraph._element = None
 
 
-def show_json_load_error_msgbox(errors):
+def show_load_error_msgbox(errors):
     msgbox = QMessageBox()
     msgbox.setText("Errors occurred while loading report template:")
     msgbox.setInformativeText("\n".join(errors))

@@ -228,7 +228,7 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
 
                     if self.window_type == "CD":
                         label = f"{selected_freq:.2f} 1/m λ = {100 *
-                                                               1/selected_freq:.2f} cm\tA = {amplitude:.2f} {self.dataMixin.units[self.channel]}"
+                                                               1/selected_freq:.2f} cm A = {amplitude:.2f} {self.dataMixin.units[self.channel]}"
                         print(f"Spectral peak in {self.channel}: {label}")
                     elif self.window_type == "MD":
                         label = f"{selected_freq:.2f} 1/m ({self.get_freq_in_hz(selected_freq):.2f} Hz) λ = {
@@ -269,7 +269,7 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
                             print(f"Spectral peak in {self.channel}: {label}")
                         elif self.window_type == "MD":
                             label = f"{selected_freq:.2f} 1/m ({self.get_freq_in_hz(selected_freq):.2f} Hz) λ = {
-                                100 * 1/selected_freq:.2f} cm\tA = {amplitude:.2f} {self.dataMixin.units[self.channel]}"
+                                100 * 1/selected_freq:.2f} cm A = {amplitude:.2f} {self.dataMixin.units[self.channel]}"
                             print(f"Spectral peak in {self.channel}: {label}")
                     else:
                         label = None

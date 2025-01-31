@@ -5,7 +5,8 @@ from qtpy.QtCore import Qt
 from utils.data_loader import DataMixin
 from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowLegendMixin, ShowConfidenceIntervalMixin, ShowMinMaxMixin, WaterfallOffsetMixin, ExtraDataMixin, CopyPlotMixin
 from controllers import CDProfileController
-from settings import CD_PROFILE_CONFIDENCE_INTERVAL
+from matplotlib.ticker import AutoMinorLocator
+import settings
 
 
 class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowLegendMixin, ShowConfidenceIntervalMixin, ShowMinMaxMixin, WaterfallOffsetMixin, ExtraDataMixin, CopyPlotMixin):
@@ -42,7 +43,7 @@ class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Band
     def initUI(self):
         self.setWindowTitle(
             f"CD Profile ({self.dataMixin.measurement_label})")
-        self.setGeometry(100, 100, 700, 800)
+        self.setGeometry(*settings.CD_PROFILE_WINDOW_GEOMETRY)
 
         mainLayout = QVBoxLayout()
         self.setLayout(mainLayout)
@@ -62,7 +63,7 @@ class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Band
         if not self.window_type == "waterfall":
             self.addShowProfilesCheckbox(mainLayout)
             self.addShowConfidenceIntervalCheckbox(
-                mainLayout, CD_PROFILE_CONFIDENCE_INTERVAL)
+                mainLayout, settings.CD_PROFILE_CONFIDENCE_INTERVAL)
             self.addShowMinMaxCheckbox(mainLayout)
             self.addShowLegendCheckbox(mainLayout)
         else:

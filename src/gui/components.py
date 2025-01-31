@@ -729,7 +729,7 @@ class PlotMixin:
 
     def getPlotImage(self):
         buf = io.BytesIO()
-        self.figure.savefig(buf, format="png")
+        self.figure.savefig(buf, format="png", dpi=300)
         return buf
 
     def plot(self):

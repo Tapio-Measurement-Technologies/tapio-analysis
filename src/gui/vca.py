@@ -7,6 +7,7 @@ from utils.data_loader import DataMixin
 
 from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, CopyPlotMixin
 from controllers import VCAController
+import settings
 
 
 class VCAWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, CopyPlotMixin):
@@ -40,7 +41,7 @@ class VCAWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, BandPassFi
     def initUI(self):
         self.setWindowTitle(
             f"Variance component analysis ({self.dataMixin.measurement_label})")
-        self.setGeometry(100, 100, 800, 850)
+        self.setGeometry(*settings.VCA_WINDOW_GEOMETRY)
 
         mainLayout = QVBoxLayout()
         self.setLayout(mainLayout)

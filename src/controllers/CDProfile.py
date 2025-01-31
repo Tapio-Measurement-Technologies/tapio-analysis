@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import settings
 import numpy as np
 import pandas as pd
+from matplotlib.ticker import AutoMinorLocator
 
 
 class CDProfileController(QObject, PlotMixin, ExportMixin):
@@ -164,8 +165,9 @@ class CDProfileController(QObject, PlotMixin, ExportMixin):
                                 self.mean_profile + confidence_interval,
                                 color='tab:blue', alpha=0.3, label=f"{self.confidence_interval * 100}% CI")
 
-            ax.set_title(
-                f"{self.dataMixin.measurement_label} ({self.channel})")
+            if settings.CD_PROFILE_TITLE_SHOW:
+                ax.set_title(
+                    f"{self.dataMixin.measurement_label} ({self.channel})")
 
             if self.show_legend:
 
@@ -173,7 +175,15 @@ class CDProfileController(QObject, PlotMixin, ExportMixin):
                 if labels:  # This list will be non-empty if there are items to include in the legend
                     ax.legend(handles, labels, loc="upper right")
 
-            ax.grid()
+            if settings.CD_PROFILE_MINOR_GRID:
+
+                ax.grid(True, which='both')
+                ax.minorticks_on()
+                ax.xaxis.set_minor_locator(AutoMinorLocator(5))
+                ax.yaxis.set_minor_locator(AutoMinorLocator(4))
+                ax.grid(True, which='minor', linestyle=':', linewidth=0.5)
+            else:
+                ax.grid()
 
             ax.set_xlabel(f"Distance [{settings.CD_PROFILE_DISPLAY_UNIT}]")
             ax.set_ylabel(
@@ -240,15 +250,28 @@ class CDProfileController(QObject, PlotMixin, ExportMixin):
 
     def getStatsTableData(self):
         stats = []
-        mean = np.mean(self.mean_profile)
-        std = np.std(self.mean_profile)
-        min_val = np.min(self.mean_profile)
-        max_val = np.max(self.mean_profile)
-        units = self.dataMixin.units[self.channel]
+        if len(self.mean_profile) > 0:
+            mean = np.mean(self.mean_profile)
+            std = np.std(self.mean_profile)
+            min_val = np.min(self.mean_profile)
+            max_val = np.max(self.mean_profile)
+            range_val = max_val - min_val
+            std_percent = (std / mean) * 100 if mean != 0 else 0
+            range_percent = (range_val / mean) * 100 if mean != 0 else 0
+            units = self.dataMixin.units[self.channel]
 
-        stats.append(["", f"{self.channel} [{units}]"])
-        stats.append(["Mean:\nStdev:\nMin:\nMax:", f"{mean:.2f}\n{
-                     std:.2f}\n{min_val:.2f}\n{max_val:.2f}"])
+            stats.append(["", f"{self.channel} [{units}]"])
+
+            stats.append([
+                "Mean:\nStdev:\nStd%:\nMin:\nMax:\nRange:\nRange%",
+                f"{mean:.2f} {units}\n"
+                f"{std:.2f} {units}\n"
+                f"{std_percent:.2f} %\n"
+                f"{min_val:.2f} {units}\n"
+                f"{max_val:.2f} {units}\n"
+                f"{range_val:.2f} {units}\n"
+                f"{range_percent:.2f} %"
+            ])
 
         return stats
 
