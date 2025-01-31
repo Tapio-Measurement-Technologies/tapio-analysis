@@ -82,17 +82,6 @@ class ReportWindow(QWidget, DataMixin):
         self.subtitle_layout.addWidget(self.subtitle_input)
         self.main_layout.addLayout(self.subtitle_layout)
 
-        # Image input
-        self.header_image_layout = QHBoxLayout()
-        self.header_image_label = QLabel("Header Image:")
-        self.header_image_path_input = QLineEdit(self.header_image_path)
-        self.header_image_path_button = QPushButton("Choose Image")
-        self.header_image_path_button.clicked.connect(self.choose_image)
-        self.header_image_layout.addWidget(self.header_image_label)
-        self.header_image_layout.addWidget(self.header_image_path_input)
-        self.header_image_layout.addWidget(self.header_image_path_button)
-        self.main_layout.addLayout(self.header_image_layout)
-
         # Additional information input
         self.additional_info_layout = QVBoxLayout()
         self.additional_info_label = QLabel("Additional Information:")
@@ -104,6 +93,19 @@ class ReportWindow(QWidget, DataMixin):
         self.additional_info_layout.addWidget(self.additional_info_label)
         self.additional_info_layout.addWidget(self.additional_info_input)
         self.main_layout.addLayout(self.additional_info_layout)
+
+        # Image input
+        self.header_image_layout = QHBoxLayout()
+        self.header_image_label = QLabel("Header Image:")
+        self.header_image_path_input = QLineEdit(self.header_image_path)
+        self.header_image_path_button = QPushButton("Choose Image")
+        self.header_image_path_button.clicked.connect(self.choose_image)
+        self.header_image_layout.addWidget(self.header_image_label)
+        self.header_image_layout.addWidget(self.header_image_path_input)
+        self.header_image_layout.addWidget(self.header_image_path_button)
+        self.main_layout.addLayout(self.header_image_layout)
+
+
 
         # Scroll area
         self.scroll_area = QScrollArea(self)
@@ -205,7 +207,7 @@ class ReportWindow(QWidget, DataMixin):
 
         col1_width = Mm(65)
         # Dynamic width for center text
-        col2_width = Mm(60)
+        col2_width = Mm(66)
         col3_width = Mm(60)
 
         header_table.columns[0].width = col1_width
@@ -233,9 +235,20 @@ class ReportWindow(QWidget, DataMixin):
         run_title = p.add_run(self.report_title)
         run_title.bold = True  # Make only the title bold
 
+        # Add additional info
+
+
         # Add subtitle and timestamp (not bold)
-        run_subtitle = p.add_run(f"\n{self.report_subtitle}\n\nGenerated {str(datetime.datetime.now())}")
+        run_subtitle = p.add_run(f"\n{self.report_subtitle}\n")
         run_subtitle.bold = False  # Ensure this part is not bold
+
+        run_additional_info = p.add_run(f"\n{self.additional_info_input.toPlainText()}")
+        run_additional_info.bold = False  # Ensure this part is not bold
+
+        run_subtitle = p.add_run(f"\nGenerated {str(datetime.datetime.now())}")
+        run_subtitle.bold = False  # Ensure this part is not bold
+
+
 
 
         # cell1.paragraphs[0].text = (
@@ -263,19 +276,30 @@ class ReportWindow(QWidget, DataMixin):
             for analysis in section.analysis_widgets:
                 apply_plot_customizations(analysis)
 
-                analysis_title = analysis.analysis_title or f"{analysis.analysis_name} {
-                    analysis.get_channel_text()}"
-                paragraph = doc.add_heading(analysis_title, 2)
-                run = paragraph.runs[0]
-                run.font.color.rgb = None  # Set to black
-                run.font.size = Pt(11)  # Slightly smaller for subsection headings
-                run.font.name = "Calibri"
+                # analysis_title = analysis.analysis_title or f"{analysis.analysis_name} {
+                #     analysis.get_channel_text()}"
+                # paragraph = doc.add_heading(analysis_title, 2)
+                # # TODO: This is not turning the analysis title black and smaller as expected
+                # paragraph = doc.add_heading(analysis_title, level=2)
+                # run = paragraph.runs[0]
+                # run.font.size = Pt(10)
+                # run.font.bold = False
+                # run.font.name = "Calibri"
 
-                # paragraph = doc.add_heading(f"{analysis.analysis_name} {
-                #                             analysis.get_channel_text()}", 2)
+                #TODO: Here below the analysis title I want to add in cursive a small info string coming from analysis, normal text with font size 8 otherwise
+                if analysis.info_string:
+                    paragraph = doc.add_paragraph()
+                    run_info = paragraph.add_run(analysis.info_string)
+                    run_info.italic = True  # Make text italic
+                    run_info.font.size = Pt(8)  # Set font size to 8
+                    run_info.font.name = "Calibri"
+
+
+
+
                 set_paragraph_spacing(paragraph)
 
-                # layout_mode = ["stats-right", "stats-below", "stats-above"]
+                # layout_modes: ["stats-right", "stats-below", "stats-above"]
                 # Default to stats-right
                 layout_mode = analysis.report_layout or "stats-right"
 

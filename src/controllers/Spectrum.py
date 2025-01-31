@@ -228,7 +228,7 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
 
                     if self.window_type == "CD":
                         label = f"{selected_freq:.2f} 1/m λ = {100 *
-                                                               1/selected_freq:.2f} cm A = {amplitude:.2f} {self.dataMixin.units[self.channel]}"
+                                                               1/selected_freq:.2f} cm\tA = {amplitude:.2f} {self.dataMixin.units[self.channel]}"
                         print(f"Spectral peak in {self.channel}: {label}")
                     elif self.window_type == "MD":
                         label = f"{selected_freq:.2f} 1/m ({self.get_freq_in_hz(selected_freq):.2f} Hz) λ = {
@@ -269,7 +269,7 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
                             print(f"Spectral peak in {self.channel}: {label}")
                         elif self.window_type == "MD":
                             label = f"{selected_freq:.2f} 1/m ({self.get_freq_in_hz(selected_freq):.2f} Hz) λ = {
-                                100 * 1/selected_freq:.2f} cm A = {amplitude:.2f} {self.dataMixin.units[self.channel]}"
+                                100 * 1/selected_freq:.2f} cm\tA = {amplitude:.2f} {self.dataMixin.units[self.channel]}"
                             print(f"Spectral peak in {self.channel}: {label}")
                     else:
                         label = None
@@ -305,8 +305,11 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
         if settings.SPECTRUM_SHOW_LEGEND:
             if labels:  # This list will be non-empty if there are items to include in the legend
                 if settings.SPECTRUM_LEGEND_OUTSIDE_PLOT:
-                    ax.legend(handles, labels, loc="upper left",
+                    leg = ax.legend(handles, labels, loc="upper left",
                               bbox_to_anchor=(1.05, 1), borderaxespad=0.)
+                    leg.get_frame().set_alpha(0)
+
+
                 else:
                     ax.legend(handles, labels, loc="upper right")
 

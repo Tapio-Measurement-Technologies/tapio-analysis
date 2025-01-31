@@ -155,7 +155,8 @@ class MainWindow(QMainWindow, DataMixin):
         self.refresh()
 
     def set_settings(self):
-        pass
+        settings.PAPER_MACHINE_SPEED_DEFAULT = 1500
+
 
     def reload_settings(self):
         if "settings" in sys.modules:
