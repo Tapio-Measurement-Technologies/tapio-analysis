@@ -9,6 +9,59 @@ import pandas as pd
 from matplotlib.ticker import AutoMinorLocator
 
 from scipy.signal import find_peaks
+from matplotlib.patches import Rectangle
+import matplotlib.legend as mlegend
+
+import matplotlib.patches as mpatches
+
+
+def tabular_legend(ax, col_labels, data, *args, **kwargs):
+    """
+    Custom legend function
+    Parameters:
+    - ax : matplotlib.axes.Axes
+    - col_labels : list of column labels
+    - data : list of lists containing the values for each legend entry
+    """
+    # Get current legend handles
+    handles, _ = ax.get_legend_handles_labels()
+
+    # Create a blank patch for column labels (no handle)
+    blank_patch = mpatches.Rectangle(
+        (0, 0), 1, 1, fc="w", edgecolor="none", linewidth=0
+    )
+
+    all_rows = [col_labels] + data  # Ensure headers are considered
+
+    # Determine column widths based on the widest element per column
+    col_widths = [max(len(str(item)) for item in col)
+                  for col in zip(*all_rows)]
+    print(col_widths)
+
+    # Format each row with proper spacing
+    formatted_rows = [
+        "  ".join(str(item).rjust(width)
+                  for item, width in zip(row, col_widths))
+        for row in all_rows  # Include column labels here
+    ]
+    for i in formatted_rows:
+        print(i)
+
+    # Construct table headers
+    # Add blank patch for header alignment
+    table_handles = [blank_patch] + handles
+
+    # Create the legend
+    legend = ax.legend(
+        table_handles,
+        formatted_rows,
+        prop={'family': 'monospace'},
+        loc=kwargs.pop("loc", "upper right"),
+        handletextpad=kwargs.pop("handletextpad", 0),
+        **kwargs
+    )
+
+    return legend
 
 
 class SpectrumController(QObject, PlotMixin, ExportMixin):
@@ -215,6 +268,13 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
         # Draw new lines and update frequency label
         if len(self.selected_freqs) > 0:
 
+            # legend_columns = [f"Amplitude [{self.dataMixin.units[self.channel]}]",
+            #                   "Frequency [1/m]", "Wavelength [cm]", "Frequency [Hz]"]
+            legend_columns = [f"A [{self.dataMixin.units[self.channel]}]",
+                              "F [1/m]", "λ [cm]", "F [Hz]"]
+
+            legend_data = []
+
             xlim = ax.get_xlim()
             if settings.MULTIPLE_SELECT_MODE:
 
@@ -233,6 +293,10 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
                     elif self.window_type == "MD":
                         label = f"{selected_freq:.2f} 1/m ({self.get_freq_in_hz(selected_freq):.2f} Hz) λ = {
                             100 * 1/selected_freq:.2f} cm A = {amplitude:.2f} {self.dataMixin.units[self.channel]}"
+                        print(f"Spectral peak in {self.channel}: {label}")
+
+                        legend_data.append([f"{amplitude:.2f}", f"{selected_freq:.2f}", f"{
+                                           100*(1/selected_freq):.2f}", f"{self.get_freq_in_hz(selected_freq):.2f}"])
                         print(f"Spectral peak in {self.channel}: {label}")
 
                     def get_color_cycler(num_colors):
@@ -305,11 +369,10 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
         if settings.SPECTRUM_SHOW_LEGEND:
             if labels:  # This list will be non-empty if there are items to include in the legend
                 if settings.SPECTRUM_LEGEND_OUTSIDE_PLOT:
-                    leg = ax.legend(handles, labels, loc="upper left",
-                              bbox_to_anchor=(1.05, 1), borderaxespad=0.)
+                    leg = tabular_legend(ax, legend_columns, legend_data, loc="upper left", bbox_to_anchor=(
+                        1.05, 1), borderaxespad=0.)
+
                     leg.get_frame().set_alpha(0)
-
-
                 else:
                     ax.legend(handles, labels, loc="upper right")
 
