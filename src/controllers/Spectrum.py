@@ -262,7 +262,12 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
         ax.figure.canvas.mpl_connect('resize_event', update_secax)
 
         if self.auto_detect_peaks:
+
+            pf_low_index = np.searchsorted(f, self.peak_detection_range_low)
+            pf_high_index = np.searchsorted(f, self.peak_detection_range_high, side='right')
+
             peaks, properties = find_peaks(self.amplitudes)
+            # TODO: Remove peaks which have indexed outside of between pf_low_index and pf_high_index
 
 
             sorted_peak_indices = peaks[np.argsort(
