@@ -80,6 +80,8 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
                 "nperseg": settings.MD_SPECTRUM_DEFAULT_LENGTH,
                 "range_min": settings.MD_SPECTRUM_FREQUENCY_RANGE_MIN_DEFAULT,
                 "range_max": settings.MD_SPECTRUM_FREQUENCY_RANGE_MAX_DEFAULT,
+                "peak_detection_range_min": settings.MD_SPECTRUM_PEAK_RANGE_MIN_DEFAULT,
+                "peak_detection_range_max": settings.MD_SPECTRUM_PEAK_RANGE_MAX_DEFAULT,
                 "analysis_range_low": settings.MD_SPECTRUM_ANALYSIS_RANGE_LOW_DEFAULT,
                 "analysis_range_high": settings.MD_SPECTRUM_ANALYSIS_RANGE_HIGH_DEFAULT,
                 "overlap": settings.MD_SPECTRUM_OVERLAP,
@@ -90,6 +92,8 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
                 "nperseg": settings.CD_SPECTRUM_DEFAULT_LENGTH,
                 "range_min": settings.CD_SPECTRUM_FREQUENCY_RANGE_MIN_DEFAULT,
                 "range_max": settings.CD_SPECTRUM_FREQUENCY_RANGE_MAX_DEFAULT,
+                "peak_detection_range_min": settings.CD_SPECTRUM_PEAK_RANGE_MIN_DEFAULT,
+                "peak_detection_range_max": settings.CD_SPECTRUM_PEAK_RANGE_MAX_DEFAULT,
                 "analysis_range_low": settings.CD_SPECTRUM_ANALYSIS_RANGE_LOW_DEFAULT,
                 "analysis_range_high": settings.CD_SPECTRUM_ANALYSIS_RANGE_HIGH_DEFAULT,
                 "overlap": settings.CD_SPECTRUM_OVERLAP,
@@ -105,8 +109,14 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
         self.max_freq = self.fs / 2
         self.frequency_range_low = self.max_freq * config["range_min"]
         self.frequency_range_high = self.max_freq * config["range_max"]
+
+        self.peak_detection_range_low = self.max_freq * config["peak_detection_range_min"]
+        self.peak_detection_range_high = self.max_freq * config["peak_detection_range_max"]
+
         self.spectrum_length_slider_min = config["spectrum_length_slider_min"]
         self.spectrum_length_slider_max = config["spectrum_length_slider_max"]
+
+
 
         self.max_dist = np.max(
             self.dataMixin.cd_distances if self.window_type == "CD" else self.dataMixin.distances)
@@ -253,6 +263,8 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
 
         if self.auto_detect_peaks:
             peaks, properties = find_peaks(self.amplitudes)
+
+
             sorted_peak_indices = peaks[np.argsort(
                 self.amplitudes[peaks])][::-1]
 
