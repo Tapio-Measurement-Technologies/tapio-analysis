@@ -27,6 +27,9 @@ from utils.dynamic_loader import load_modules_from_folder
 import logging
 import os
 
+from PyQt6.QtWidgets import QInputDialog
+
+
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
@@ -61,8 +64,6 @@ class MainWindow(QMainWindow, DataMixin):
         frame_geometry = self.frameGeometry()
         frame_geometry.moveCenter(screen_center)
         self.move(frame_geometry.topLeft())
-
-
 
         # Menu
         mainMenu = self.menuBar()
@@ -121,8 +122,6 @@ class MainWindow(QMainWindow, DataMixin):
         settings_menu.addAction(reload_settings_action)
         settings_menu.addAction(set_settings_action)
 
-
-
         centralWidget = QWidget()
         self.setCentralWidget(centralWidget)
         layout = QVBoxLayout(centralWidget)
@@ -155,8 +154,52 @@ class MainWindow(QMainWindow, DataMixin):
         self.refresh()
 
     def set_settings(self):
-        settings.PAPER_MACHINE_SPEED_DEFAULT = 1500
+        # Step 1: Ask user for the setting key
+        setting_key, ok = QInputDialog.getText(
+            self, "Enter Setting Name", "Setting Key:")
 
+        if not ok or not setting_key:
+            return  # User canceled the input
+
+        # Step 2: Check if the key exists in settings
+        if not hasattr(settings, setting_key):
+            QMessageBox.warning(self, "Error", f"Setting '{
+                                setting_key}' does not exist.")
+            return
+
+        # Step 3: Get the current value and determine its type
+        current_value = getattr(settings, setting_key)
+        value_type = type(current_value)
+
+        # Step 4: Ask for a new value
+        new_value, ok = QInputDialog.getText(self, "Enter New Value", f"Current ({
+                                             value_type.__name__}): {current_value}\nNew Value:")
+
+        if not ok or not new_value:
+            return  # User canceled input
+
+        # Step 5: Convert the input to the correct type
+        try:
+            if value_type == int:
+                new_value = int(new_value)
+            elif value_type == float:
+                new_value = float(new_value)
+            elif value_type == bool:
+                new_value = new_value.lower() in ['true', '1', 'yes']
+            elif value_type == list:
+                # Assuming comma-separated values
+                new_value = new_value.split(",")
+            else:
+                new_value = str(new_value)  # Default to string
+
+            # Step 6: Update settings
+            setattr(settings, setting_key, new_value)
+            QMessageBox.information(self, "Success", f"Setting '{
+                                    setting_key}' updated to {new_value}.")
+
+        except ValueError:
+            QMessageBox.warning(
+                self, "Error", "Invalid input type. Please enter a valid value.")
 
     def reload_settings(self):
         if "settings" in sys.modules:
@@ -165,9 +208,6 @@ class MainWindow(QMainWindow, DataMixin):
         importlib.reload(settings)  # Reload the settings module
         print("Settings reloaded:", settings.__dict__)  # Debugging output
         print("Reloaded settings")
-
-
-
 
     def loadFiles(self, loader_module):
         file_types = getattr(loader_module, 'file_types', "All Files (*)")
