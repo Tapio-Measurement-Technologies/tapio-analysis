@@ -110,13 +110,11 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
         self.frequency_range_low = self.max_freq * config["range_min"]
         self.frequency_range_high = self.max_freq * config["range_max"]
 
-        self.peak_detection_range_low = self.max_freq * config["peak_detection_range_min"]
-        self.peak_detection_range_high = self.max_freq * config["peak_detection_range_max"]
+        self.peak_detection_range_min = config["peak_detection_range_min"]
+        self.peak_detection_range_max = config["peak_detection_range_max"]
 
         self.spectrum_length_slider_min = config["spectrum_length_slider_min"]
         self.spectrum_length_slider_max = config["spectrum_length_slider_max"]
-
-
 
         self.max_dist = np.max(
             self.dataMixin.cd_distances if self.window_type == "CD" else self.dataMixin.distances)
@@ -262,16 +260,28 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
         ax.figure.canvas.mpl_connect('resize_event', update_secax)
 
         if self.auto_detect_peaks:
+            print("Peak detection range low:", self.peak_detection_range_min)
 
-            pf_low_index = np.searchsorted(f, self.peak_detection_range_low)
-            pf_high_index = np.searchsorted(f, self.peak_detection_range_high, side='right')
+            pf_low_index = np.searchsorted(f, self.peak_detection_range_min)
+            pf_high_index = np.searchsorted(
+                f, self.peak_detection_range_max, side='right')
 
-            peaks, properties = find_peaks(self.amplitudes)
-            # TODO: Remove peaks which have indexed outside of between pf_low_index and pf_high_index
+            # Determine the correct slicing range
+            final_low_index = max(pf_low_index, f_low_index)
+            final_high_index = min(pf_high_index, f_high_index)
 
+            # Slice the amplitude spectrum within the correct range
+            amplitude_spectrum_sliced = amplitude_spectrum[final_low_index:final_high_index]
 
-            sorted_peak_indices = peaks[np.argsort(
-                self.amplitudes[peaks])][::-1]
+            # Detect peaks in the sliced amplitude spectrum
+            peaks, properties = find_peaks(amplitude_spectrum_sliced)
+
+            # Adjust peak indices to match the original spectrum
+            global_peak_indices = peaks + final_low_index
+
+            # Sort peaks based on their amplitude values
+            sorted_peak_indices = global_peak_indices[np.argsort(
+                self.amplitudes[global_peak_indices])][::-1]
 
             if settings.MULTIPLE_SELECT_MODE:
                 top_peaks = sorted_peak_indices[:
@@ -287,8 +297,12 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
 
             # legend_columns = [f"Amplitude [{self.dataMixin.units[self.channel]}]",
             #                   "Frequency [1/m]", "Wavelength [cm]", "Frequency [Hz]"]
-            legend_columns = [f"A [{self.dataMixin.units[self.channel]}]",
-                              "F [1/m]", "λ [cm]", "F [Hz]"]
+            if self.window_type == "MD":
+                legend_columns = [f"A [{self.dataMixin.units[self.channel]}]",
+                                  "F [1/m]", "λ [cm]", "F [Hz]"]
+            if self.window_type == "CD":
+                legend_columns = [f"A [{self.dataMixin.units[self.channel]}]",
+                                  "F [1/m]", "λ [cm]"]
 
             legend_data = []
 
@@ -307,6 +321,8 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
                         label = f"{selected_freq:.2f} 1/m λ = {100 *
                                                                1/selected_freq:.2f} cm A = {amplitude:.2f} {self.dataMixin.units[self.channel]}"
                         print(f"Spectral peak in {self.channel}: {label}")
+                        legend_data.append([f"{amplitude:.2f}", f"{selected_freq:.2f}", f"{
+                                           100*(1/selected_freq):.2f}"])
                     elif self.window_type == "MD":
                         label = f"{selected_freq:.2f} 1/m ({self.get_freq_in_hz(selected_freq):.2f} Hz) λ = {
                             100 * 1/selected_freq:.2f} cm A = {amplitude:.2f} {self.dataMixin.units[self.channel]}"

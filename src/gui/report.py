@@ -332,6 +332,8 @@ class ReportWindow(QWidget, DataMixin):
 
                     stats_cell.vertical_alignment = WD_ALIGN_VERTICAL.TOP
 
+
+
                 # Retrieve statistics data
                 data = analysis.controller.getStatsTableData()
                 if not data:
@@ -344,6 +346,9 @@ class ReportWindow(QWidget, DataMixin):
                     # Insert stats table
                     stats_table = stats_cell.add_table(rows, cols)
                     delete_paragraph(stats_cell.paragraphs[0])
+                    stats_table.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+
 
                     for row_idx, row_data in enumerate(data):
                         row = stats_table.rows[row_idx]
@@ -353,6 +358,7 @@ class ReportWindow(QWidget, DataMixin):
                             cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
                             cell.paragraphs[0].style.font.size = Pt(8)
                             cell.paragraphs[0].style.font.name = "Nimbus Mono PS"
+                            cell.width = Mm(30)
 
             # Add a page break after each section
             # TODO: this causes a problem where empty pages may appear
@@ -432,7 +438,7 @@ class ReportWindow(QWidget, DataMixin):
                         widget = AnalysisWidget(
                             self.main_window, analysis_name, self.window_type, analysis_title=analysis.get("analysis_title"), info_string=analysis.get("info_string"), report_layout=analysis.get("report_layout"), image_width_mm=analysis.get("image_width_mm"))
 
-                        # Assign attributes if they exist
+                        # Assign attributes if they exist, note the naming must be same as class attribute
                         for attr in [
                             "channel", "channel1", "channel2",
                             "analysis_range_low", "analysis_range_high",
@@ -440,7 +446,7 @@ class ReportWindow(QWidget, DataMixin):
                             "show_individual_profiles", "show_min_max", "show_legend",
                             "show_wavelength_labels", "show_unfiltered_data",
                             "machine_speed", "frequency_range_low", "frequency_range_high",
-                            "selected_frequencies", "nperseg"
+                            "selected_frequencies", "nperseg", "peak_detection_range_min", "peak_detection_range_max"
                         ]:
                             if attr in analysis:
                                 setattr(widget.controller,
