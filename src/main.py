@@ -115,11 +115,11 @@ class MainWindow(QMainWindow, DataMixin):
         # SETTINGS MENU
         settings_menu = mainMenu.addMenu('Settings')
 
-        reload_settings_action = QAction("Reload Settings", self)
-        reload_settings_action.triggered.connect(self.reload_settings)
+        # reload_settings_action = QAction("Reload Settings", self)
+        # reload_settings_action.triggered.connect(self.reload_settings)
+        # settings_menu.addAction(reload_settings_action)
         set_settings_action = QAction("Set Settings", self)
         set_settings_action.triggered.connect(self.set_settings)
-        settings_menu.addAction(reload_settings_action)
         settings_menu.addAction(set_settings_action)
 
         centralWidget = QWidget()
