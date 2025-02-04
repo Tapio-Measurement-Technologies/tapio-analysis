@@ -93,7 +93,7 @@ class CorrelationMatrixController(QObject, PlotMixin):
                                           alpha=0.2,
                                           figsize=(8, 8),
                                           ax=self.figure,
-                                          diagonal="hist")
+                                          diagonal="hist", bins=12)
 
         for i in range(np.shape(axes)[0]):
             for j in range(np.shape(axes)[1]):
