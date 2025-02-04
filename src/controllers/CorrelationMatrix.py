@@ -7,6 +7,7 @@ import logging
 import numpy as np
 import pandas as pd
 
+
 class CorrelationMatrixController(QObject, PlotMixin):
     updated = pyqtSignal()
 
@@ -52,19 +53,25 @@ class CorrelationMatrixController(QObject, PlotMixin):
         def apply_bandpass_to_dataframe(df, lowcut, highcut, fs):
             filtered_df = pd.DataFrame()
             for column in df.columns:
-                filtered_df[column] = bandpass_filter(df[column], lowcut, highcut, fs)
+                filtered_df[column] = bandpass_filter(
+                    df[column], lowcut, highcut, fs)
             return filtered_df
 
         if self.window_type == "MD":
-            low_index = np.searchsorted(self.dataMixin.distances, self.analysis_range_low)
-            high_index = np.searchsorted(self.dataMixin.distances, self.analysis_range_high, side='right')
+            low_index = np.searchsorted(
+                self.dataMixin.distances, self.analysis_range_low)
+            high_index = np.searchsorted(
+                self.dataMixin.distances, self.analysis_range_high, side='right')
             data_slice = self.dataMixin.channel_df.iloc[low_index:high_index]
 
-            data_slice = apply_bandpass_to_dataframe(data_slice, self.band_pass_low, self.band_pass_high, self.fs)
+            data_slice = apply_bandpass_to_dataframe(
+                data_slice, self.band_pass_low, self.band_pass_high, self.fs)
 
         elif self.window_type == "CD":
-            low_index = np.searchsorted(self.dataMixin.cd_distances, self.analysis_range_low)
-            high_index = np.searchsorted(self.dataMixin.cd_distances, self.analysis_range_high, side='right')
+            low_index = np.searchsorted(
+                self.dataMixin.cd_distances, self.analysis_range_low)
+            high_index = np.searchsorted(
+                self.dataMixin.cd_distances, self.analysis_range_high, side='right')
 
             cd_data_frame = pd.DataFrame(index=range(low_index, high_index))
 
@@ -73,7 +80,8 @@ class CorrelationMatrixController(QObject, PlotMixin):
                 print(channel)
                 cd_data_frame[channel] = channel_data
 
-            data_slice = apply_bandpass_to_dataframe(cd_data_frame, self.band_pass_low, self.band_pass_high, self.fs)
+            data_slice = apply_bandpass_to_dataframe(
+                cd_data_frame, self.band_pass_low, self.band_pass_high, self.fs)
 
         correlation_matrix = data_slice.corr()
 
@@ -83,17 +91,18 @@ class CorrelationMatrixController(QObject, PlotMixin):
                 channel_x = channels[i]
                 channel_y = channels[j]
                 correlation_value = correlation_matrix.iloc[i, j]
-                print(f"{channel_x} to {channel_y} correlation: {correlation_value:.2f}")
-
+                print(f"{channel_x} to {channel_y} correlation: {
+                      correlation_value:.2f}")
 
         # or use .sample(n=500) for a fixed number of points
-        sampled_data_slice = data_slice.sample(n=settings.CORRELATION_MATRIX_SAMPLE_LIMIT, replace=True)
+        sampled_data_slice = data_slice.sample(
+            n=settings.CORRELATION_MATRIX_SAMPLE_LIMIT, replace=True)
 
         axes = pd.plotting.scatter_matrix(sampled_data_slice,
                                           alpha=0.2,
                                           figsize=(8, 8),
                                           ax=self.figure,
-                                          diagonal="hist", bins=12)
+                                          diagonal="hist", hist_kwds={"bins": settings.CORRELATION_MATRIX_HISTOGRAM_BINS})
 
         for i in range(np.shape(axes)[0]):
             for j in range(np.shape(axes)[1]):

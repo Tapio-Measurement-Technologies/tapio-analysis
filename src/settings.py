@@ -67,7 +67,8 @@ ANALYSES = {
 
 UPDATE_ON_SLIDE = False
 IGNORE_CHANNELS = ["Density"]
-CORRELATION_MATRIX_SAMPLE_LIMIT = 1000
+CORRELATION_MATRIX_SAMPLE_LIMIT = 2000
+CORRELATION_MATRIX_HISTOGRAM_BINS = 20
 
 # Formation analysis settings
 FORMATION_TRANSMISSION_CHANNEL = "Transmission"
@@ -320,6 +321,5 @@ else:
     except ImportError:
         print(f"Could not load local settings from internal project folder")
         pass
-
 
 
