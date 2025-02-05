@@ -11,7 +11,7 @@ jobs:
 
     steps:
       - name: Check out the code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -43,7 +43,7 @@ jobs:
           dist/tapio-analysis-${{ github.ref_name }}.exe
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: tapio-analysis-${{ github.ref_name }}
           path: dist/tapio-analysis-${{ github.ref_name }}.exe
@@ -54,7 +54,7 @@ jobs:
 
     steps:
       - name: Download Artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: tapio-analysis-${{ github.ref_name }}
           path: dist/
