@@ -6,7 +6,9 @@ from scipy.signal import welch
 import settings
 import numpy as np
 import pandas as pd
-from matplotlib.ticker import AutoMinorLocator
+from matplotlib.ticker import AutoMinorLocator, LogLocator, AutoLocator
+
+
 
 from scipy.signal import find_peaks
 from matplotlib.patches import Rectangle
@@ -215,6 +217,13 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
         self.amplitudes = amplitude_spectrum[f_low_index:f_high_index]
 
         ax.plot(self.frequencies, self.amplitudes)
+        if settings.SPECTRUM_LOGARITHMIC_SCALE:
+            ax.set_yscale("log")
+            ax.yaxis.set_major_locator(LogLocator(base=10.0, subs=np.arange(1.0, 10.0) * 0.1, numticks=10))
+
+
+
+
 
         if settings.SPECTRUM_TITLE_SHOW:
             ax.set_title(f"{self.dataMixin.measurement_label} ({
