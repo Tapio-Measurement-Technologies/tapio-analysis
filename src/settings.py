@@ -83,6 +83,7 @@ MAX_HARMONICS = 10
 TAPE_WIDTH_MM = 50
 # Minimum length of CD Sample the software will detect
 CD_SAMPLE_MIN_LENGTH_M = 4
+CD_SAMPLE_MAX_LENGTH_M = 12
 
 
 # Number of decimals in the analysis range slider

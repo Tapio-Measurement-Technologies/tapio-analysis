@@ -98,7 +98,6 @@ class FindSamplesController(QObject, PlotMixin):
             self.peak_lines.append(vl)
 
     def detect_peaks(self, channel):
-
         x = self.dataMixin.distances
         y = self.dataMixin.channel_df[channel]
 
@@ -107,6 +106,7 @@ class FindSamplesController(QObject, PlotMixin):
 
         tape_width_meters = settings.TAPE_WIDTH_MM / 1000.0
         min_length_meters = settings.CD_SAMPLE_MIN_LENGTH_M
+        max_length_meters = settings.CD_SAMPLE_MAX_LENGTH_M
 
         last_peak_end = None
 
@@ -117,12 +117,16 @@ class FindSamplesController(QObject, PlotMixin):
                 end = i
                 if start is not None and (x[end] - x[start]) >= tape_width_meters:
                     center = x[start] + (x[end] - x[start]) / 2
-                    if last_peak_end is None or (x[start] - x[last_peak_end]) >= min_length_meters:
+                    
+                    # Check if this is the first peak or if the distance from last peak is within bounds
+                    if last_peak_end is None or (
+                        min_length_meters <= (x[start] - x[last_peak_end]) <= max_length_meters
+                    ):
                         peaks.append(center)
                         last_peak_end = end
                     start = None
-        self.peaks = peaks
 
+        self.peaks = peaks
         self.dataMixin.peak_locations = self.peaks
         self.dataMixin.threshold = self.threshold
         self.dataMixin.peak_channel = channel
