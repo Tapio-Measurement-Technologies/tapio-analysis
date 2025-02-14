@@ -337,7 +337,7 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
                             100 * 1/selected_freq:.2f} cm A = {amplitude:.2f} {self.dataMixin.units[self.channel]}"
                         print(f"Spectral peak in {self.channel}: {label}")
 
-                        legend_data.append([f"{amplitude:.2f}", f"{selected_freq:.2f}", f"{
+                        legend_data.append([f"{amplitude:.3f}", f"{selected_freq:.2f}", f"{
                                            100*(1/selected_freq):.2f}", f"{self.get_freq_in_hz(selected_freq):.2f}"])
                         print(f"Spectral peak in {self.channel}: {label}")
 
