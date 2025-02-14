@@ -9,7 +9,6 @@ import pandas as pd
 from matplotlib.ticker import AutoMinorLocator, LogLocator, AutoLocator
 
 
-
 from scipy.signal import find_peaks
 from matplotlib.patches import Rectangle
 import matplotlib.legend as mlegend
@@ -219,11 +218,8 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
         ax.plot(self.frequencies, self.amplitudes)
         if settings.SPECTRUM_LOGARITHMIC_SCALE:
             ax.set_yscale("log")
-            ax.yaxis.set_major_locator(LogLocator(base=10.0, subs=np.arange(1.0, 10.0) * 0.1, numticks=10))
-
-
-
-
+            ax.yaxis.set_major_locator(LogLocator(
+                base=10.0, subs=np.arange(1.0, 10.0) * 0.1, numticks=10))
 
         if settings.SPECTRUM_TITLE_SHOW:
             ax.set_title(f"{self.dataMixin.measurement_label} ({
@@ -269,37 +265,38 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
         ax.figure.canvas.mpl_connect('resize_event', update_secax)
 
         if self.auto_detect_peaks:
-            print("Peak detection range low:", self.peak_detection_range_min)
 
+            # First detect peaks in the full spectrum within peak detection range
             pf_low_index = np.searchsorted(f, self.peak_detection_range_min)
-            pf_high_index = np.searchsorted(
-                f, self.peak_detection_range_max, side='right')
-
-            # Determine the correct slicing range
-            final_low_index = max(pf_low_index, f_low_index)
-            final_high_index = min(pf_high_index, f_high_index)
-
-            # Slice the amplitude spectrum within the correct range
-            amplitude_spectrum_sliced = amplitude_spectrum[final_low_index:final_high_index]
-
-            # Detect peaks in the sliced amplitude spectrum
-            peaks, properties = find_peaks(amplitude_spectrum_sliced)
-
-            # Adjust peak indices to match the original spectrum
-            global_peak_indices = peaks + final_low_index
-
-            # Sort peaks based on their amplitude values
-            sorted_peak_indices = global_peak_indices[np.argsort(
-                self.amplitudes[global_peak_indices])][::-1]
-
-            if settings.MULTIPLE_SELECT_MODE:
-                top_peaks = sorted_peak_indices[:
-                                                settings.SPECTRUM_AUTO_DETECT_PEAKS]
+            pf_high_index = np.searchsorted(f, self.peak_detection_range_max, side='right')
+            
+            # Only proceed with peak detection if we have a valid range
+            if pf_high_index > pf_low_index:
+                # Slice the full amplitude spectrum for peak detection
+                amplitude_spectrum_for_peaks = amplitude_spectrum[pf_low_index:pf_high_index]
+                
+                # Detect peaks in the peak detection range
+                peaks, properties = find_peaks(amplitude_spectrum_for_peaks)
+                
+                # Map peaks back to global frequency indices
+                peaks_global = peaks + pf_low_index
+                
+                # Sort peaks based on their amplitudes
+                sorted_peak_indices = peaks_global[np.argsort(amplitude_spectrum[peaks_global])][::-1]
+                
+                # Filter peaks to only include those within the visible range
+                visible_peaks = [idx for idx in sorted_peak_indices 
+                               if f_low_index <= idx < f_high_index]
+                
+                if settings.MULTIPLE_SELECT_MODE:
+                    top_peaks = visible_peaks[:settings.SPECTRUM_AUTO_DETECT_PEAKS]
+                else:
+                    top_peaks = visible_peaks[:1]
+                
+                # Convert peak indices to frequencies
+                self.selected_freqs = [f[peak] for peak in top_peaks]
             else:
-                top_peaks = sorted_peak_indices[:1]
-
-            self.selected_freqs = [self.frequencies[peak]
-                                   for peak in top_peaks]
+                self.selected_freqs = []
 
         # Draw new lines and update frequency label
         if len(self.selected_freqs) > 0:
