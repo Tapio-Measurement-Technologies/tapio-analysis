@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import json
 from scipy.interpolate import interp1d
+from scipy.optimize import curve_fit
 
 import zipfile
 from io import BytesIO
@@ -18,6 +19,9 @@ file_types = "All Files (*);;Parquet files (*.parquet);;Calibration files (*.tca
 RESAMPLE_STEP_DEFAULT_MM = 1
 GENERATE_DISTANCES = False
 SAMPLE_STEP_DEFAULT = 0.001
+
+ASH_MAC = -100
+LOG_VALS_MAX = 1000  # Maximum allowed value for logarithmic calibration output
 
 
 def get_sample_step():
@@ -127,7 +131,7 @@ def load_data(main_window, fileNames: list[str]):
                         for channel_name in dataMixin.channel_df.columns:
                             cal_data = tcal_json.get(channel_name)
                             if cal_data:
-                                apply_calibration(channel_name, cal_data)
+                                calibration_data[channel_name] = cal_data
                                 units_dict[channel_name] = cal_data.get(
                                     "unit", "Unknown")
                             else:
@@ -144,6 +148,20 @@ def load_data(main_window, fileNames: list[str]):
             dataMixin.load_pm_file()
 
 
+def logarithmic_fit(V, k, a, b):
+    """Helper function for logarithmic calibration."""
+    # Create a mask for valid values (where V-a > 0)
+    valid_mask = (V - a) > 0
+    values = np.full_like(V, LOG_VALS_MAX)  # Initialize with LOG_VALS_MAX
+
+    # Calculate logarithm only for valid values
+    values[valid_mask] = k * np.log(V[valid_mask] - a) + b
+
+    # Cap the output values
+    values[values > LOG_VALS_MAX] = LOG_VALS_MAX
+    return values
+
+
 def apply_calibration_with_uniform_trimming(calibration_data):
     """Apply calibration and uniform trimming across all channels based on offset values, aligning distances."""
     # Dictionary to hold calibrated data temporarily and offset alignment values
@@ -152,6 +170,7 @@ def apply_calibration_with_uniform_trimming(calibration_data):
 
     # Calculate the zero offset to handle negative minimum distances
     sample_step = dataMixin.sample_step
+    print(calibration_data.values())
     min_distance_offset = min(cal_data.get('offset', 0)
                               for cal_data in calibration_data.values())
     distance_zero_offset = abs(
@@ -160,26 +179,130 @@ def apply_calibration_with_uniform_trimming(calibration_data):
     # Calibrate and align data for each channel
     for channel_name, cal_data in calibration_data.items():
         print(f"Calibrating channel: {channel_name}")
+        if channel_name not in dataMixin.channel_df.columns:
+            print(f"Warning: Channel {channel_name} not found in data")
+            continue
+
         voltage_values = dataMixin.channel_df[channel_name].values
 
         # Apply calibration based on the type
         if cal_data['type'] == 'linregr':
-            # Linear interpolation based on provided points
-            points = cal_data['points']
-            x_vals, y_vals = zip(*points)
-            interpolator = interp1d(x_vals, y_vals, fill_value="extrapolate")
-            calibrated_values = interpolator(voltage_values)
-        # elif cal_data['type'] == 'multi-point-log':
-        #     # Logarithmic interpolation for multi-point calibration
-        #     points = cal_data['points']
-        #     x_vals, y_vals = zip(*points)
-        #     interpolator = interp1d(
-        #         np.log(x_vals), y_vals, fill_value="extrapolate")
-        #     calibrated_values = interpolator(np.log(voltage_values))
-        else:
-            print(f"Warning: Unsupported calibration type '{
-                  cal_data['type']}' for channel '{channel_name}'")
-            calibrated_values = voltage_values  # Fallback to original values if unsupported
+            # Linear regression - using best-fit line
+            try:
+                points = cal_data.get('points', [])
+                if not points:
+                    raise ValueError("No calibration points provided")
+
+                x_vals, y_vals = zip(*points)
+                x_vals = np.array(x_vals)
+                y_vals = np.array(y_vals)
+
+                # Calculate slope and intercept using linear regression
+                slope, intercept = np.polyfit(x_vals, y_vals, 1)
+
+                # Apply linear equation y = mx + b
+                calibrated_values = slope * voltage_values + intercept
+
+            except (ValueError, TypeError) as e:
+                print(
+                    f"Warning: Invalid linear regression calibration for {channel_name}: {e}")
+                calibrated_values = voltage_values
+
+        elif cal_data['type'] == 'linint':
+            # Linear interpolation
+            try:
+                points = cal_data.get('points', [])
+                if not points:
+                    raise ValueError("No calibration points provided")
+
+                x_vals, y_vals = zip(*points)
+                x_vals = np.array(x_vals)
+                y_vals = np.array(y_vals)
+
+                # Sort points by x values for proper interpolation
+                sort_idx = np.argsort(x_vals)
+                x_vals = x_vals[sort_idx]
+                y_vals = y_vals[sort_idx]
+
+                # Create interpolation function
+                interpolator = interp1d(
+                    x_vals, y_vals, kind='linear', bounds_error=False, fill_value="extrapolate")
+                calibrated_values = interpolator(voltage_values)
+
+            except (ValueError, TypeError) as e:
+                print(
+                    f"Warning: Invalid linear interpolation calibration for {channel_name}: {e}")
+                calibrated_values = voltage_values
+
+        elif cal_data['type'] == 'splog':
+            # Single-point logarithmic calibration
+            try:
+                points = cal_data.get('points', [])
+                if not points:
+                    raise ValueError("No calibration points provided")
+
+                x_vals, y_vals = zip(*points)
+                x_vals = np.array(x_vals)
+                y_vals = np.array(y_vals)
+
+                # Remove minimum point to avoid asymptote issues
+                min_index = np.argmin(x_vals)
+                x_filtered = np.delete(x_vals, min_index)
+                y_filtered = np.delete(y_vals, min_index)
+
+                # Fixed k parameter for single-point log
+                k = ASH_MAC
+                # Fixed a parameter (typically close to minimum voltage)
+                a = min(x_vals)
+
+                # Fit only the b parameter
+                popt, _ = curve_fit(
+                    lambda V, b: logarithmic_fit(V, k, a, b),
+                    x_filtered, y_filtered, p0=[1], absolute_sigma=True
+                )
+                b = popt[0]
+
+                # Apply calibration
+                calibrated_values = logarithmic_fit(voltage_values, k, a, b)
+
+            except (ValueError, TypeError) as e:
+                print(
+                    f"Warning: Invalid splog calibration for {channel_name}: {e}")
+                calibrated_values = voltage_values
+
+        elif cal_data['type'] == 'mplog':
+            # Multi-point logarithmic calibration
+            try:
+                points = cal_data.get('points', [])
+                if not points:
+                    raise ValueError("No calibration points provided")
+
+                x_vals, y_vals = zip(*points)
+                x_vals = np.array(x_vals)
+                y_vals = np.array(y_vals)
+
+                # Remove minimum point to avoid asymptote issues
+                min_index = np.argmin(x_vals)
+                x_filtered = np.delete(x_vals, min_index)
+                y_filtered = np.delete(y_vals, min_index)
+
+                # Fixed a parameter (typically close to minimum voltage)
+                a = min(x_vals)
+
+                # Fit both k and b parameters
+                popt, _ = curve_fit(
+                    lambda V, k, b: logarithmic_fit(V, k, a, b),
+                    x_filtered, y_filtered, p0=[-1, 1], absolute_sigma=True
+                )
+                k, b = popt  # Unpack the fitted parameters
+
+                # Apply calibration
+                calibrated_values = logarithmic_fit(voltage_values, k, a, b)
+
+            except (ValueError, TypeError) as e:
+                print(
+                    f"Warning: Invalid mplog calibration for {channel_name}: {e}")
+                calibrated_values = voltage_values
 
         # Calculate the starting trim index for alignment
         offset = cal_data.get('offset', 0)

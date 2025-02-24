@@ -137,10 +137,12 @@ class ReportWindow(QWidget, DataMixin):
         self.main_layout.addWidget(self.generate_report_button)
 
         if self.window_type == "MD":
-            self.load_from_python(settings.MD_REPORT_TEMPLATE_DEFAULT)
+            if settings.MD_REPORT_TEMPLATE_DEFAULT:
+                self.load_from_python(settings.MD_REPORT_TEMPLATE_DEFAULT)
 
         if self.window_type == "CD":
-            self.load_from_python(settings.CD_REPORT_TEMPLATE_DEFAULT)
+            if settings.CD_REPORT_TEMPLATE_DEFAULT:
+                self.load_from_python(settings.CD_REPORT_TEMPLATE_DEFAULT)
 
     def initMenuBar(self, layout):
         menuBar = QMenuBar()
@@ -332,8 +334,6 @@ class ReportWindow(QWidget, DataMixin):
 
                     stats_cell.vertical_alignment = WD_ALIGN_VERTICAL.TOP
 
-
-
                 # Retrieve statistics data
                 data = analysis.controller.getStatsTableData()
                 if not data:
@@ -347,8 +347,6 @@ class ReportWindow(QWidget, DataMixin):
                     stats_table = stats_cell.add_table(rows, cols)
                     delete_paragraph(stats_cell.paragraphs[0])
                     stats_table.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-
 
                     for row_idx, row_data in enumerate(data):
                         row = stats_table.rows[row_idx]
