@@ -64,6 +64,7 @@ def load_data(main_window, fileNames: list[str]):
                             data_df = data_df.iloc[1000:]
 
                         distances = data_df.iloc[:, 0].values
+                        distances = distances - distances[0]
 
                         if GENERATE_DISTANCES:
                             sample_step = get_sample_step()
