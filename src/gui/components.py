@@ -773,3 +773,21 @@ class CopyPlotMixin:
             print("Plot copied to clipboard.")
         except Exception as e:
             print(f"Error copying plot to clipboard: {e}")
+
+
+class ChildWindowCloseMixin:
+    def closeEvent(self, event):
+        # Close the paper machine data window if it exists
+        if hasattr(self, 'paperMachineDataWindow') and self.paperMachineDataWindow:
+            self.paperMachineDataWindow.close()
+            self.paperMachineDataWindow = None
+
+        # Close the SOS analysis window if it exists
+        if hasattr(self, 'sosAnalysisWindow') and self.sosAnalysisWindow:
+            self.sosAnalysisWindow.close()
+            self.sosAnalysisWindow = None
+
+        # Close the sample selector window if it exists
+        if hasattr(self, 'sampleSelectorWindow') and self.sampleSelectorWindow:
+            self.sampleSelectorWindow.close()
+            self.sampleSelectorWindow = None

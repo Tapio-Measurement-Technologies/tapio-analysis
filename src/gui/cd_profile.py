@@ -3,13 +3,13 @@ from PyQt6.QtGui import QAction
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from qtpy.QtCore import Qt
 from utils.data_loader import DataMixin
-from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowLegendMixin, ShowConfidenceIntervalMixin, ShowMinMaxMixin, WaterfallOffsetMixin, ExtraDataMixin, CopyPlotMixin
+from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowLegendMixin, ShowConfidenceIntervalMixin, ShowMinMaxMixin, WaterfallOffsetMixin, ExtraDataMixin, CopyPlotMixin, ChildWindowCloseMixin
 from controllers import CDProfileController
 from matplotlib.ticker import AutoMinorLocator
 import settings
 
 
-class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowLegendMixin, ShowConfidenceIntervalMixin, ShowMinMaxMixin, WaterfallOffsetMixin, ExtraDataMixin, CopyPlotMixin):
+class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowLegendMixin, ShowConfidenceIntervalMixin, ShowMinMaxMixin, WaterfallOffsetMixin, ExtraDataMixin, CopyPlotMixin, ChildWindowCloseMixin):
     def __init__(self, window_type="waterfall", controller: CDProfileController | None = None):
         super().__init__()
         self.dataMixin = DataMixin.getInstance()

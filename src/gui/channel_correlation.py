@@ -2,11 +2,11 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QMenuBar
 from PyQt6.QtGui import QAction
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from utils.data_loader import DataMixin
-from gui.components import AnalysisRangeMixin, BandPassFilterMixin, SampleSelectMixin, ShowUnfilteredMixin, DoubleChannelMixin, CopyPlotMixin
+from gui.components import AnalysisRangeMixin, BandPassFilterMixin, SampleSelectMixin, ShowUnfilteredMixin, DoubleChannelMixin, CopyPlotMixin, ChildWindowCloseMixin
 from controllers import ChannelCorrelationController
 
 
-class ChannelCorrelationWindow(QWidget, DataMixin, AnalysisRangeMixin, BandPassFilterMixin, SampleSelectMixin, ShowUnfilteredMixin, DoubleChannelMixin, CopyPlotMixin):
+class ChannelCorrelationWindow(QWidget, DataMixin, AnalysisRangeMixin, BandPassFilterMixin, SampleSelectMixin, ShowUnfilteredMixin, DoubleChannelMixin, CopyPlotMixin, ChildWindowCloseMixin):
     def __init__(self, window_type="MD", controller: ChannelCorrelationController | None = None):
         super().__init__()
         self.window_type = window_type

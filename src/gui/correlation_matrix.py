@@ -1,12 +1,12 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from utils.data_loader import DataMixin
-from gui.components import AnalysisRangeMixin, BandPassFilterMixin, CopyPlotMixin
+from gui.components import AnalysisRangeMixin, BandPassFilterMixin, CopyPlotMixin, ChildWindowCloseMixin
 
 from controllers import CorrelationMatrixController
 
 
-class CorrelationMatrixWindow(QWidget, DataMixin, AnalysisRangeMixin, BandPassFilterMixin, CopyPlotMixin):
+class CorrelationMatrixWindow(QWidget, DataMixin, AnalysisRangeMixin, BandPassFilterMixin, CopyPlotMixin, ChildWindowCloseMixin):
 
     def __init__(self, window_type="MD", controller: CorrelationMatrixController | None = None):
         super().__init__()

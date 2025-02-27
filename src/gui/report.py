@@ -1,5 +1,6 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QSizePolicy,
-                             QPushButton, QScrollArea, QFrame, QLineEdit, QFileDialog, QMenuBar, QTextEdit, QMessageBox)
+                             QPushButton, QScrollArea, QFrame, QLineEdit, QFileDialog, QMenuBar, QTextEdit, QMessageBox, QInputDialog)
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QStandardItemModel, QStandardItem, QAction
 from utils.data_loader import DataMixin
@@ -54,6 +55,24 @@ class ReportWindow(QWidget, DataMixin):
         self.report_subtitle = f"Mill PM 1"
         self.section_widgets = []
         self.header_image_path = settings.REPORT_HEADER_IMAGE_PATH
+
+        if self.window_type == "MD":
+            speed, ok = QInputDialog.getDouble(
+                main_window,
+                "Paper Machine Speed",
+                "Enter paper machine speed (m/min):",
+                settings.PAPER_MACHINE_SPEED_DEFAULT,
+                0, 
+                10000,
+                2
+            )
+            if not ok:
+                self.close()
+                #TODO: This is not closing the window
+            settings.PAPER_MACHINE_SPEED_DEFAULT = speed
+
+
+
 
         # Main layout
         self.main_layout = QVBoxLayout()

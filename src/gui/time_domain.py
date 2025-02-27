@@ -3,13 +3,13 @@ from PyQt6.QtGui import QImage
 from PyQt6.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from utils.data_loader import DataMixin
-from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, StatsMixin, ShowUnfilteredMixin, ShowTimeLabelsMixin, MachineSpeedMixin, CopyPlotMixin
+from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, StatsMixin, ShowUnfilteredMixin, ShowTimeLabelsMixin, MachineSpeedMixin, CopyPlotMixin, ChildWindowCloseMixin
 from controllers import TimeDomainController
 from io import BytesIO
 import settings
 
 class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, StatsMixin,
-                       ShowUnfilteredMixin, ShowTimeLabelsMixin, MachineSpeedMixin, CopyPlotMixin):
+                       ShowUnfilteredMixin, ShowTimeLabelsMixin, MachineSpeedMixin, CopyPlotMixin, ChildWindowCloseMixin):
 
     def __init__(self, controller: TimeDomainController | None = None):
         super().__init__()
