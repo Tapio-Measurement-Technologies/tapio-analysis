@@ -4,6 +4,7 @@ from PyQt6.QtCore import QObject, pyqtSignal
 import settings
 from utils.filters import bandpass_filter
 
+
 class FindSamplesController(QObject, PlotMixin):
     updated = pyqtSignal()
 
@@ -17,11 +18,13 @@ class FindSamplesController(QObject, PlotMixin):
         self.selected_samples = self.dataMixin.selected_samples
         self.threshold_line = None
         self.peak_lines = []
-        self.band_pass_low  = settings.FIND_SAMPLES_BAND_PASS_LOW_DEFAULT_1M
+        self.band_pass_low = settings.FIND_SAMPLES_BAND_PASS_LOW_DEFAULT_1M
         self.band_pass_high = settings.FIND_SAMPLES_BAND_PASS_HIGH_DEFAULT_1M
         self.fs = 1 / self.dataMixin.sample_step
         self.highlighted_intervals = []
         self.zoomed_in = False
+        self.min_length = settings.CD_SAMPLE_MIN_LENGTH_M
+        self.max_length = settings.CD_SAMPLE_MAX_LENGTH_M
 
     def plot(self):
         self.figure.clear()
@@ -35,7 +38,8 @@ class FindSamplesController(QObject, PlotMixin):
 
         alpha = 0.4 if len(self.dataMixin.selected_samples) else 1
         # Draw the entire data line with lower alpha
-        ax.plot(self.distances, self.filtered_data, color='tab:blue', alpha=alpha)
+        ax.plot(self.distances, self.filtered_data,
+                color='tab:blue', alpha=alpha)
 
         # Highlight the selected samples
         for i in self.dataMixin.selected_samples:
@@ -43,7 +47,8 @@ class FindSamplesController(QObject, PlotMixin):
                 start = self.peaks[i]
                 end = self.peaks[i + 1]
                 mask = (self.distances >= start) & (self.distances <= end)
-                ax.plot(self.distances[mask], self.filtered_data[mask], color='tab:blue', alpha=1.0)
+                ax.plot(
+                    self.distances[mask], self.filtered_data[mask], color='tab:blue', alpha=1.0)
 
         ax.set_title(f"{self.dataMixin.measurement_label} ({self.channel})")
         ax.set_xlabel("Distance [m]")
@@ -101,12 +106,16 @@ class FindSamplesController(QObject, PlotMixin):
         x = self.dataMixin.distances
         y = self.dataMixin.channel_df[channel]
 
+        # TODO: already use the filtered data in the plot method
+        y = bandpass_filter(y, self.band_pass_low,
+                            self.band_pass_high, self.fs)
+
         peaks = []
         start = None
 
         tape_width_meters = settings.TAPE_WIDTH_MM / 1000.0
-        min_length_meters = settings.CD_SAMPLE_MIN_LENGTH_M
-        max_length_meters = settings.CD_SAMPLE_MAX_LENGTH_M
+        min_length_meters = self.min_length
+        max_length_meters = self.max_length
 
         last_peak_end = None
 
@@ -117,10 +126,11 @@ class FindSamplesController(QObject, PlotMixin):
                 end = i
                 if start is not None and (x[end] - x[start]) >= tape_width_meters:
                     center = x[start] + (x[end] - x[start]) / 2
-                    
+
                     # Check if this is the first peak or if the distance from last peak is within bounds
                     if last_peak_end is None or (
-                        min_length_meters <= (x[start] - x[last_peak_end]) <= max_length_meters
+                        min_length_meters <= (
+                            x[start] - x[last_peak_end]) <= max_length_meters
                     ):
                         peaks.append(center)
                         last_peak_end = end

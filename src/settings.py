@@ -78,6 +78,9 @@ SPECTROGRAM_COLORMAP = "viridis"
 
 MAX_HARMONICS = 10
 # CD Find samples settings
+CD_SAMPLE_LENGTH_SLIDER_MIN = 2  # Minimum allowed sample length in meters
+CD_SAMPLE_LENGTH_SLIDER_MAX = 15  # Maximum allowed sample length in meters
+CD_SAMPLE_LENGTH_SLIDER_STEP = 0.01
 
 # Tape width which will be cut off from all CD samples
 TAPE_WIDTH_MM = 50
@@ -249,9 +252,6 @@ CD_PROFILE_TITLE_SHOW = True
 CD_PROFILE_MINOR_GRID = True
 
 
-
-
-
 # VCA settings
 VCA_BAND_PASS_LOW_DEFAULT_1M = 0
 VCA_BAND_PASS_HIGH_DEFAULT_1M = 30
@@ -291,10 +291,8 @@ SPECTRUM_AUTO_DETECT_PEAKS = None
 SPECTRUM_LOGARITHMIC_SCALE = False
 
 
-
 SHOW_WAVELENGTH_DEFAULT = False
 AUTO_DETECT_PEAKS_DEFAULT = False
-
 
 
 def load_local_settings(local_settings_path):
@@ -314,7 +312,8 @@ def load_local_settings(local_settings_path):
 if len(sys.argv) > 1:
     supplied_local_settings = sys.argv[1]
     if os.path.exists(supplied_local_settings):
-        print(f"Loading local settings from provided argument {supplied_local_settings}")
+        print(
+            f"Loading local settings from provided argument {supplied_local_settings}")
         # Dynamically load settings from the provided path
         local_settings_vars = load_local_settings(supplied_local_settings)
         globals().update(local_settings_vars)
@@ -329,5 +328,3 @@ else:
     except ImportError:
         print(f"Could not load local settings from internal project folder")
         pass
-
-

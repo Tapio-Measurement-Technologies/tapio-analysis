@@ -2,11 +2,12 @@ from PyQt6.QtGui import QAction
 from PyQt6.QtCore import pyqtSignal, Qt, QEvent
 import json
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTableWidget,
-                             QTableWidgetItem, QSizePolicy, QMenuBar, QFileDialog, QHeaderView)
+                             QTableWidgetItem, QSizePolicy, QMenuBar, QFileDialog, QHeaderView,
+                             QLabel)
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import settings
 from utils.data_loader import DataMixin
-from gui.components import ChannelMixin, BandPassFilterMixin
+from gui.components import ChannelMixin, BandPassFilterMixin, ExtraQLabeledDoubleRangeSlider
 from controllers import FindSamplesController
 
 class CustomNavigationToolbar(NavigationToolbar):
@@ -60,7 +61,23 @@ class FindSamplesWindow(QWidget, DataMixin, ChannelMixin, BandPassFilterMixin):
         # Ensure this method is correctly defined elsewhere
         self.addChannelSelector(mainLayout)
         self.addBandPassRangeSlider(mainLayout)
+        
+        # Add sample length range slider
+        sampleLengthLabel = QLabel("Sample Length Range [m]")
+        mainLayout.addWidget(sampleLengthLabel)
+        
+        self.sampleLengthSlider = ExtraQLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
+        self.sampleLengthSlider.setDecimals(2)
+        self.sampleLengthSlider.setRange(settings.CD_SAMPLE_LENGTH_SLIDER_MIN, 
+                                       settings.CD_SAMPLE_LENGTH_SLIDER_MAX)
+        self.sampleLengthSlider.setValue((settings.CD_SAMPLE_MIN_LENGTH_M, 
+                                        settings.CD_SAMPLE_MAX_LENGTH_M))
+        self.sampleLengthSlider.sliderReleased.connect(self.onSampleLengthChanged)
+        self.sampleLengthSlider.editingFinished.connect(self.onSampleLengthChanged)
 
+
+        mainLayout.addWidget(self.sampleLengthSlider)
+        
         layout = QHBoxLayout()
         mainLayout.addLayout(layout)
 
@@ -176,3 +193,8 @@ class FindSamplesWindow(QWidget, DataMixin, ChannelMixin, BandPassFilterMixin):
             start = self.controller.peaks[row]
             end = self.controller.peaks[row + 1]
             self.controller.zoom_to_interval(start, end)
+
+    def onSampleLengthChanged(self):
+        low, high = self.sampleLengthSlider.value()
+        self.controller.min_length = low
+        self.controller.max_length = high
