@@ -56,23 +56,6 @@ class ReportWindow(QWidget, DataMixin):
         self.section_widgets = []
         self.header_image_path = settings.REPORT_HEADER_IMAGE_PATH
 
-        if self.window_type == "MD":
-            speed, ok = QInputDialog.getDouble(
-                main_window,
-                "Paper Machine Speed",
-                "Enter paper machine speed (m/min):",
-                settings.PAPER_MACHINE_SPEED_DEFAULT,
-                0, 
-                10000,
-                2
-            )
-            if not ok:
-                self.close()
-                #TODO: This is not closing the window
-            settings.PAPER_MACHINE_SPEED_DEFAULT = speed
-
-
-
 
         # Main layout
         self.main_layout = QVBoxLayout()
@@ -154,6 +137,22 @@ class ReportWindow(QWidget, DataMixin):
         self.generate_report_button = QPushButton("Generate Report")
         self.generate_report_button.clicked.connect(self.generate_report)
         self.main_layout.addWidget(self.generate_report_button)
+
+        if self.window_type == "MD":
+            speed, ok = QInputDialog.getDouble(
+                self,
+                "Paper Machine Speed",
+                "Enter paper machine speed (m/min):",
+                settings.PAPER_MACHINE_SPEED_DEFAULT,
+                0, 
+                10000,
+                2
+            )
+            if not ok:
+                self.close()
+                return
+            settings.PAPER_MACHINE_SPEED_DEFAULT = speed
+
 
         if self.window_type == "MD":
             if settings.MD_REPORT_TEMPLATE_DEFAULT:
