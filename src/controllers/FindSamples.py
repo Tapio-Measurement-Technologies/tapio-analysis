@@ -116,6 +116,7 @@ class FindSamplesController(QObject, PlotMixin):
         tape_width_meters = settings.TAPE_WIDTH_MM / 1000.0
         min_length_meters = self.min_length
         max_length_meters = self.max_length
+        print("min: ", min_length_meters, " max: ", max_length_meters)
 
         last_peak_end = None
 

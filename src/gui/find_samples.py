@@ -63,7 +63,7 @@ class FindSamplesWindow(QWidget, DataMixin, ChannelMixin, BandPassFilterMixin):
         self.addBandPassRangeSlider(mainLayout)
         
         # Add sample length range slider
-        sampleLengthLabel = QLabel("Sample Length Range [m]")
+        sampleLengthLabel = QLabel("Sample length range [m]")
         mainLayout.addWidget(sampleLengthLabel)
         
         self.sampleLengthSlider = ExtraQLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
