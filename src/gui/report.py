@@ -141,7 +141,7 @@ class ReportWindow(QWidget, DataMixin):
         if self.window_type == "MD":
             speed, ok = QInputDialog.getDouble(
                 self,
-                "Paper Machine Speed",
+                "Paper machine speed",
                 "Enter paper machine speed (m/min):",
                 settings.PAPER_MACHINE_SPEED_DEFAULT,
                 0, 
