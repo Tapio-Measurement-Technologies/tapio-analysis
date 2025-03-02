@@ -48,13 +48,17 @@ class ReportWindow(QWidget, DataMixin):
         self.dataMixin = DataMixin.getInstance()
         self.setWindowTitle(f"Generate {window_type} Report ({
                             self.dataMixin.measurement_label})")
-        self.setGeometry(100, 100, 700, 800)
+        self.setGeometry(100, 100, 700, 700)
         self.main_window = main_window
         self.window_type = window_type
         self.report_title = f"{window_type} Report"
         self.report_subtitle = f"Mill PM 1"
         self.section_widgets = []
-        self.header_image_path = settings.REPORT_HEADER_IMAGE_PATH
+        self.header_image_path = settings.REPORT_LOGO_PATH
+        if self.window_type == "CD":
+            self.sample_image_path = settings.CD_REPORT_SAMPLE_IMAGE_PATH
+        elif self.window_type == "MD":
+            self.sample_image_path = settings.MD_REPORT_SAMPLE_IMAGE_PATH
 
 
         # Main layout
@@ -97,7 +101,7 @@ class ReportWindow(QWidget, DataMixin):
 
         # Image input
         self.header_image_layout = QHBoxLayout()
-        self.header_image_label = QLabel("Header Image:")
+        self.header_image_label = QLabel("Logo image:")
         self.header_image_path_input = QLineEdit(self.header_image_path)
         self.header_image_path_button = QPushButton("Choose Image")
         self.header_image_path_button.clicked.connect(self.choose_image)
@@ -105,6 +109,17 @@ class ReportWindow(QWidget, DataMixin):
         self.header_image_layout.addWidget(self.header_image_path_input)
         self.header_image_layout.addWidget(self.header_image_path_button)
         self.main_layout.addLayout(self.header_image_layout)
+
+        # Image input
+        self.sample_image_layout = QHBoxLayout()
+        self.sample_image_label = QLabel("Sample image:")
+        self.sample_image_path_input = QLineEdit(self.sample_image_path)
+        self.sample_image_path_button = QPushButton("Choose Image")
+        self.sample_image_path_button.clicked.connect(self.choose_image)
+        self.sample_image_layout.addWidget(self.sample_image_label)
+        self.sample_image_layout.addWidget(self.sample_image_path_input)
+        self.sample_image_layout.addWidget(self.sample_image_path_button)
+        self.main_layout.addLayout(self.sample_image_layout)
 
         # Scroll area
         self.scroll_area = QScrollArea(self)
@@ -144,7 +159,7 @@ class ReportWindow(QWidget, DataMixin):
                 "Paper machine speed",
                 "Enter paper machine speed (m/min):",
                 settings.PAPER_MACHINE_SPEED_DEFAULT,
-                0, 
+                0,
                 10000,
                 2
             )
@@ -152,7 +167,6 @@ class ReportWindow(QWidget, DataMixin):
                 self.close()
                 return
             settings.PAPER_MACHINE_SPEED_DEFAULT = speed
-
 
         if self.window_type == "MD":
             if settings.MD_REPORT_TEMPLATE_DEFAULT:
@@ -225,7 +239,8 @@ class ReportWindow(QWidget, DataMixin):
         # Header section
         header = doc.sections[0].header
         total_width_mm = get_text_width(doc)
-        header_table = header.add_table(rows=1, cols=3, width=Mm(total_width_mm))
+        header_table = header.add_table(
+            rows=1, cols=3, width=Mm(total_width_mm))
         header_table.autofit = False
 
         # Distribute widths with middle column taking more space
@@ -245,7 +260,8 @@ class ReportWindow(QWidget, DataMixin):
         # Add left image
         if self.header_image_path:
             run = cell1.paragraphs[0].add_run()
-            run.add_picture(self.header_image_path, width=Mm(left_col_width.mm * 0.9))
+            run.add_picture(self.header_image_path,
+                            width=Mm(left_col_width.mm * 0.9))
 
         p = cell2.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.LEFT
@@ -268,11 +284,12 @@ class ReportWindow(QWidget, DataMixin):
         run_subtitle = p.add_run(f"\nGenerated {str(datetime.datetime.now())}")
 
         # Add right image (if applicable)
-        roll_image_path = settings.MD_REPORT_HEADER_IMAGE_PATH if self.window_type == "MD" else settings.CD_REPORT_HEADER_IMAGE_PATH
+        roll_image_path = settings.MD_REPORT_SAMPLE_IMAGE_PATH if self.window_type == "MD" else settings.CD_REPORT_SAMPLE_IMAGE_PATH
         if roll_image_path:
             cell3.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
             run = cell3.paragraphs[0].add_run()
-            run.add_picture(roll_image_path, width=Mm(right_col_width.mm * 0.9))
+            run.add_picture(roll_image_path, width=Mm(
+                right_col_width.mm * 0.9))
 
         for section in self.section_widgets:
             paragraph = doc.add_heading(section.section_name)
@@ -437,7 +454,7 @@ class ReportWindow(QWidget, DataMixin):
                     for analysis in analyses:
                         analysis_name = settings.ANALYSES[self.window_type].get(
                             analysis.get("analysis"), {}).get("label", "Unknown")
-                        
+
                         channel = analysis.get("channel", "")
                         channel1 = analysis.get("channel1", "")
                         channel2 = analysis.get("channel2", "")

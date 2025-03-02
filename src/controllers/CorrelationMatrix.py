@@ -6,6 +6,7 @@ import settings
 import logging
 import numpy as np
 import pandas as pd
+import matplotlib.patheffects as path_effects
 
 
 class CorrelationMatrixController(QObject, PlotMixin):
@@ -104,16 +105,27 @@ class CorrelationMatrixController(QObject, PlotMixin):
                                           ax=self.figure,
                                           diagonal="hist", hist_kwds={"bins": settings.CORRELATION_MATRIX_HISTOGRAM_BINS})
 
+        # Adjust font size for axis labels
         for i in range(np.shape(axes)[0]):
             for j in range(np.shape(axes)[1]):
+                axes[i, j].tick_params(axis='both', labelsize=6)  # Make tick labels smaller
+                if i == len(axes)-1:  # Bottom row
+                    axes[i, j].xaxis.label.set_fontsize(settings.CORRELATION_MATRIX_LABEL_FONT_SIZE)  # Make x-axis labels smaller
+                if j == 0:  # Leftmost column
+                    axes[i, j].yaxis.label.set_fontsize(settings.CORRELATION_MATRIX_LABEL_FONT_SIZE)  # Make y-axis labels smaller
                 if i != j:
-                    # axes[i, j].cla()  # Clear the axis for non-diagonal elements
-                    axes[i, j].annotate(f"{correlation_matrix.iloc[i, j]:.2f}", (0.5, 0.5),
+                    annotation = axes[i, j].annotate(f"{correlation_matrix.iloc[i, j]:.2f}", (0.5, 0.5),
                                         xycoords='axes fraction',
                                         ha='center',
-                                        va='center')
+                                        va='center',
+                                        fontsize=10,
+                                        weight='bold')
+                    # Add white edge around text
+                    annotation.set_path_effects([
+                        path_effects.Stroke(linewidth=2.5, foreground='white'),
+                        path_effects.Normal()
+                    ])
                 if i < j:
-                    # Optionally keep upper triangle invisible or remove this to show annotated plots
                     axes[i, j].set_visible(True)
 
         self.figure.set_constrained_layout(True)

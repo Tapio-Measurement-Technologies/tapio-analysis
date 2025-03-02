@@ -37,7 +37,6 @@ def tabular_legend(ax, col_labels, data, *args, **kwargs):
     # Determine column widths based on the widest element per column
     col_widths = [max(len(str(item)) for item in col)
                   for col in zip(*all_rows)]
-    print(col_widths)
 
     # Format each row with proper spacing
     formatted_rows = [
@@ -45,8 +44,9 @@ def tabular_legend(ax, col_labels, data, *args, **kwargs):
                   for item, width in zip(row, col_widths))
         for row in all_rows  # Include column labels here
     ]
-    for i in formatted_rows:
-        print(i)
+
+    # for i in formatted_rows:
+    #     print(i)
 
     # Construct table headers
     # Add blank patch for header alignment
