@@ -201,7 +201,7 @@ class ReportWindow(QWidget, DataMixin):
 
     def generate_report(self):
         doc = Document()
-        margin = Cm(1)
+        margin = Cm(2)
         for section in doc.sections:
             section.top_margin = margin
             section.bottom_margin = margin
@@ -224,18 +224,18 @@ class ReportWindow(QWidget, DataMixin):
 
         # Header section
         header = doc.sections[0].header
-        header_table = header.add_table(
-            rows=1, cols=3, width=Mm(get_text_width(doc) - 60))
+        total_width_mm = get_text_width(doc)
+        header_table = header.add_table(rows=1, cols=3, width=Mm(total_width_mm))
         header_table.autofit = False
 
-        col1_width = Mm(65)
-        # Dynamic width for center text
-        col2_width = Mm(66)
-        col3_width = Mm(60)
+        # Distribute widths with middle column taking more space
+        left_col_width = Mm(total_width_mm * 0.25)
+        right_col_width = Mm(total_width_mm * 0.25)
+        middle_col_width = Mm(total_width_mm * 0.50)
 
-        header_table.columns[0].width = col1_width
-        header_table.columns[1].width = col2_width
-        header_table.columns[2].width = col3_width
+        header_table.columns[0].width = left_col_width
+        header_table.columns[1].width = middle_col_width
+        header_table.columns[2].width = right_col_width
 
         # Access cells
         cell1 = header_table.cell(0, 0)
@@ -245,7 +245,7 @@ class ReportWindow(QWidget, DataMixin):
         # Add left image
         if self.header_image_path:
             run = cell1.paragraphs[0].add_run()
-            run.add_picture(self.header_image_path, width=Mm(50))
+            run.add_picture(self.header_image_path, width=Mm(left_col_width.mm * 0.9))
 
         p = cell2.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.LEFT
@@ -267,13 +267,12 @@ class ReportWindow(QWidget, DataMixin):
 
         run_subtitle = p.add_run(f"\nGenerated {str(datetime.datetime.now())}")
 
-        # cell1.paragraphs[0].text = (
-
         # Add right image (if applicable)
         roll_image_path = settings.MD_REPORT_HEADER_IMAGE_PATH if self.window_type == "MD" else settings.CD_REPORT_HEADER_IMAGE_PATH
         if roll_image_path:
+            cell3.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
             run = cell3.paragraphs[0].add_run()
-            run.add_picture(roll_image_path, width=Mm(50))
+            run.add_picture(roll_image_path, width=Mm(right_col_width.mm * 0.9))
 
         for section in self.section_widgets:
             paragraph = doc.add_heading(section.section_name)
@@ -438,6 +437,7 @@ class ReportWindow(QWidget, DataMixin):
                     for analysis in analyses:
                         analysis_name = settings.ANALYSES[self.window_type].get(
                             analysis.get("analysis"), {}).get("label", "Unknown")
+                        
                         channel = analysis.get("channel", "")
                         channel1 = analysis.get("channel1", "")
                         channel2 = analysis.get("channel2", "")
@@ -496,7 +496,7 @@ class ReportSectionWidget(QFrame):
 
         self.layout = QVBoxLayout()
         self.layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.layout.setContentsMargins(15, 15, 15, 15)
+        self.layout.setContentsMargins(25, 25, 25, 25)
         self.setLayout(self.layout)
 
         # Horizontal layout for heading and remove button

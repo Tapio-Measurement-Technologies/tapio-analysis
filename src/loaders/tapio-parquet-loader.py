@@ -6,6 +6,8 @@ import numpy as np
 import json
 from scipy.interpolate import interp1d
 from scipy.optimize import curve_fit
+import settings
+import traceback
 
 import zipfile
 from io import BytesIO
@@ -122,7 +124,6 @@ def load_data(main_window, fileNames: list[str]):
 
                 if tcal_file:
                     with zip_ref.open(tcal_file) as tcal_data:
-                        # Load the calibration file and apply it
                         tcal_content = tcal_data.read().decode("utf-8")
                         tcal_json = json.loads(tcal_content)
 
@@ -138,10 +139,37 @@ def load_data(main_window, fileNames: list[str]):
                             else:
                                 units_dict[channel_name] = "V"
 
-                        apply_calibration_with_uniform_trimming(
-                            calibration_data)
                         dataMixin.units = units_dict
 
+                        # First apply calibrations
+                        apply_calibration_with_uniform_trimming(
+                            calibration_data)
+
+
+                        # Then add calculated channels
+                        for channel in settings.CALCULATED_CHANNELS:
+                            name = channel['name']
+                            unit = channel['unit']
+                            function = channel['function']
+                            try:
+                                result = function(dataMixin.channel_df)
+                                if result is not None:
+                                    dataMixin.channel_df[name] = result
+                                    dataMixin.units[name] = unit
+                                    print(
+                                        f"Successfully added calculated channel {name}")
+                                else:
+                                    print(
+                                        f"Calculation returned None for channel {name}")
+                            except Exception as e:
+                                print(
+                                    f"Failed to calculate channel {name}: {e}")
+                                traceback.print_exc()
+
+                        dataMixin.channel_df = dataMixin.channel_df.drop(
+                            columns=settings.IGNORE_CHANNELS, errors='ignore')
+
+                        dataMixin.channels = dataMixin.channel_df.columns
         elif fn.endswith('.pmdata.json'):
             dataMixin.pm_file_path = fn
             basename = os.path.basename(fn)

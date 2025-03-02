@@ -7,6 +7,7 @@ import settings
 
 import traceback
 
+
 class DataMixin:
     _instance = None
 
@@ -75,8 +76,6 @@ class DataMixin:
                                                                          self.calibration_file_path,
                                                                          self.data_file_path)
 
-
-
         for channel in settings.CALCULATED_CHANNELS:
             name = channel['name']
             unit = channel['unit']
@@ -89,9 +88,8 @@ class DataMixin:
                 print(f"Failed to calculate channel {name}: {e}")
                 traceback.print_exc()
 
-        sensor_df = sensor_df.drop(columns=settings.IGNORE_CHANNELS, errors='ignore')
-
-
+        sensor_df = sensor_df.drop(
+            columns=settings.IGNORE_CHANNELS, errors='ignore')
 
         self.measurement_label = info
         self.channels = sensor_df.columns
@@ -104,7 +102,6 @@ class DataMixin:
         indices = np.arange(number_of_measurements)
         self.distances = indices * sample_step
         logging.info("Loaded data")
-
 
     def split_data_to_segments(self):
         self.segments = {}
