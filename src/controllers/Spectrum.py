@@ -355,7 +355,7 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
                     self.current_vlines.append(vl)
 
             else:
-                for i in range(1, settings.MAX_HARMONICS):
+                for i in range(1, settings.MAX_HARMONICS_DISPLAY):
                     if (self.selected_freqs[-1] * i > xlim[1]) or (self.selected_freqs[-1] * i < xlim[0]):
                         # Skip drawing the line if it is out of bounds
                         continue
@@ -380,7 +380,7 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
                     vl = ax.axvline(x=self.selected_freqs[-1] * i,
                                     color='r',
                                     linestyle='--',
-                                    alpha=1 - (1 / settings.MAX_HARMONICS) * i,
+                                    alpha=1 - (1 / settings.MAX_HARMONICS_DISPLAY) * i,
                                     label=label)
                     self.current_vlines.append(vl)
 
@@ -388,7 +388,7 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
 
         for index, element in enumerate(self.selected_elements):
             xlim = ax.get_xlim()
-            for i in range(1, settings.MAX_HARMONICS):
+            for i in range(1, settings.MAX_HARMONICS_DISPLAY):
                 f = element["spatial_frequency"]
                 if (f * i > xlim[1]) or (f * i < xlim[0]):
                     # Skip drawing the line if it is out of bounds
@@ -399,7 +399,7 @@ class SpectrumController(QObject, PlotMixin, ExportMixin):
 
                 vl = ax.axvline(x=f * i,
                                 linestyle='--',
-                                alpha=1 - (1 / settings.MAX_HARMONICS) * i,
+                                alpha=1 - (1 / settings.MAX_HARMONICS_DISPLAY) * i,
                                 label=label,
                                 color=current_color)
                 self.current_vlines.append(vl)

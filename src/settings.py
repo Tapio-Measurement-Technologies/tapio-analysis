@@ -76,7 +76,9 @@ FORMATION_BW_CHANNEL = "BW"
 
 SPECTROGRAM_COLORMAP = "viridis"
 
-MAX_HARMONICS = 10
+MAX_HARMONICS_DISPLAY = 10
+MAX_HARMONICS_FREQUENCY_ESTIMATOR = 1
+
 # CD Find samples settings
 CD_SAMPLE_LENGTH_SLIDER_MIN = 2  # Minimum allowed sample length in meters
 CD_SAMPLE_LENGTH_SLIDER_MAX = 15  # Maximum allowed sample length in meters

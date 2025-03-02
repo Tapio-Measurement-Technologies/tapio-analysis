@@ -170,7 +170,7 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
         wrange = (plot_max - plot_min) * 0.01
 
         refined = hs_units(
-            d, self.controller.fs, selected_freqs[-1], wrange, plot_min, plot_max, settings.MAX_HARMONICS)
+            d, self.controller.fs, selected_freqs[-1], wrange, plot_min, plot_max, settings.MAX_HARMONICS_FREQUENCY_ESTIMATOR)
 
         print(self.controller.fs)
         # Todo: Only search withing the visible window

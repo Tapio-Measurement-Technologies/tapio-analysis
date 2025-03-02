@@ -175,21 +175,21 @@ class SpectrogramController(QObject, PlotMixin):
 
             ylim = ax.get_ylim()
 
-            for i in range(1, settings.MAX_HARMONICS):
+            for i in range(1, settings.MAX_HARMONICS_DISPLAY):
                 if (self.selected_freqs[-1] * i > ylim[1]) or (self.selected_freqs[-1] * i < ylim[0]):
                     # Skip drawing the line if it is out of bounds
                     continue
 
                 label = "Selected frequency" if (i == 1) else None
                 hl = ax.axhline(y=self.selected_freqs[-1] * i,
-                                color='r', linestyle='--', alpha=1 - (1/settings.MAX_HARMONICS) * i, label=label)
+                                color='r', linestyle='--', alpha=1 - (1/settings.MAX_HARMONICS_DISPLAY) * i, label=label)
                 self.current_hlines.append(hl)
 
         colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
         for index, element in enumerate(self.selected_elements):
             ylim = ax.get_ylim()
-            for i in range(1, settings.MAX_HARMONICS):
+            for i in range(1, settings.MAX_HARMONICS_DISPLAY):
                 f = element["spatial_frequency"]
                 if (f * i > ylim[1]) or (f * i < ylim[0]):
                     # Skip drawing the line if it is out of bounds
@@ -199,11 +199,11 @@ class SpectrogramController(QObject, PlotMixin):
                 current_color = colors[color_index]
 
                 hlw = ax.axhline(y=f * i, color='white', linestyle='-',
-                                 alpha=0.8*(1-i*1/settings.MAX_HARMONICS))
+                                 alpha=0.8*(1-i*1/settings.MAX_HARMONICS_DISPLAY))
                 self.current_hlines.append(hlw)
 
                 hl=ax.axhline(y=f * i, linestyle='--', alpha=1 -
-                                (1/settings.MAX_HARMONICS) * i, label=label, color=current_color)
+                                (1/settings.MAX_HARMONICS_DISPLAY) * i, label=label, color=current_color)
                 self.current_hlines.append(hl)
         handles, labels=ax.get_legend_handles_labels()
         if labels:  # This list will be non-empty if there are items to include in the legend

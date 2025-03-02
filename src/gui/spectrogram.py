@@ -166,7 +166,7 @@ class SpectrogramWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Fr
         wrange = (plot_max - plot_min) * 0.01
 
         refined = hs_units(d, self.controller.fs, self.controller.selected_freqs[-1],
-                           wrange, plot_min, plot_max, settings.MAX_HARMONICS)
+                           wrange, plot_min, plot_max, settings.MAX_HARMONICS_DISPLAY)
 
         print(self.controller.fs)
         # Todo: Only search withing the visible window
