@@ -496,7 +496,7 @@ class ReportSectionWidget(QFrame):
 
         self.layout = QVBoxLayout()
         self.layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.layout.setContentsMargins(25, 25, 25, 25)
+        self.layout.setContentsMargins(10, 10, 10, 10)
         self.setLayout(self.layout)
 
         # Horizontal layout for heading and remove button
