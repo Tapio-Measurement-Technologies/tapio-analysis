@@ -24,6 +24,7 @@ from utils.report import get_text_width, set_paragraph_spacing
 import traceback
 import importlib.util
 import matplotlib.pyplot as plt
+from utils.report_generator import create_report_generator
 
 
 class Editor(QTextEdit):
@@ -59,7 +60,6 @@ class ReportWindow(QWidget, DataMixin):
             self.sample_image_path = settings.CD_REPORT_SAMPLE_IMAGE_PATH
         elif self.window_type == "MD":
             self.sample_image_path = settings.MD_REPORT_SAMPLE_IMAGE_PATH
-
 
         # Main layout
         self.main_layout = QVBoxLayout()
@@ -214,201 +214,52 @@ class ReportWindow(QWidget, DataMixin):
             self.header_image_path_input.setText(file_name)
 
     def generate_report(self):
-        doc = Document()
-        margin = Cm(2)
-        for section in doc.sections:
-            section.top_margin = margin
-            section.bottom_margin = margin
-            section.left_margin = margin
-            section.right_margin = margin
+        # Prepare report data
+        report_data = {
+            'title': self.report_title,
+            'subtitle': self.report_subtitle,
+            'additional_info': self.additional_info_input.toPlainText(),
+            'header_image_path': self.header_image_path,
+            'sample_image_path': self.sample_image_path,
+            'sections': self.section_widgets,
+            'window_type': self.window_type
+        }
 
-        style = doc.styles['Normal']
-        style.font.name = "Calibri"
-        style.font.size = Pt(10)
+        # Get selected format
+        report_format = settings.REPORT_FORMAT
+        # Create appropriate generator
+        try:
+            generator = create_report_generator(report_format, report_data)
 
-        # Explicitly define font in Word
-        r = style._element
-        r_rPr = r.get_or_add_rPr()
-        rFonts = OxmlElement("w:rFonts")
-        rFonts.set(qn("w:ascii"), "DejaVu Sans")
-        rFonts.set(qn("w:hAnsi"), "DejaVu Sans")
-        rFonts.set(qn("w:eastAsia"), "DejaVu Sans")
-        rFonts.set(qn("w:cs"), "DejaVu Sans")
-        r_rPr.append(rFonts)
+            # Open save file dialog with appropriate extension
+            dialog = QFileDialog()
+            options = QFileDialog.options(dialog)
 
-        # Header section
-        header = doc.sections[0].header
-        total_width_mm = get_text_width(doc)
-        header_table = header.add_table(
-            rows=1, cols=3, width=Mm(total_width_mm))
-        header_table.autofit = False
+            if report_format == 'word':
+                file_filter = "Word Document (*.docx)"
+                default_ext = '.docx'
+            else:  # latex
+                file_filter = "LaTeX Document (*.tex)"
+                default_ext = '.tex'
 
-        # Distribute widths with middle column taking more space
-        left_col_width = Mm(total_width_mm * 0.25)
-        right_col_width = Mm(total_width_mm * 0.25)
-        middle_col_width = Mm(total_width_mm * 0.50)
+            fileName, _ = QFileDialog.getSaveFileName(
+                self, "Save Report", "", file_filter, options=options)
 
-        header_table.columns[0].width = left_col_width
-        header_table.columns[1].width = middle_col_width
-        header_table.columns[2].width = right_col_width
+            if fileName:
+                if not fileName.endswith(default_ext):
+                    fileName += default_ext
 
-        # Access cells
-        cell1 = header_table.cell(0, 0)
-        cell2 = header_table.cell(0, 1)
-        cell3 = header_table.cell(0, 2)
+                # Generate report
+                generator.generate(fileName)
+                print(
+                    f"Report successfully generated as {os.path.basename(fileName)}")
 
-        # Add left image
-        if self.header_image_path:
-            run = cell1.paragraphs[0].add_run()
-            run.add_picture(self.header_image_path,
-                            width=Mm(left_col_width.mm * 0.9))
+                self.close()
 
-        p = cell2.paragraphs[0]
-        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-
-        # Clear existing text
-        p.clear()
-
-        # Add bold title
-        run_title = p.add_run(self.report_title)
-        run_title.bold = True  # Make only the title bold
-
-        # Add subtitle and timestamp (not bold)
-        run_subtitle = p.add_run(f"\n{self.report_subtitle}\n")
-        run_subtitle.bold = False  # Ens ure this part is not bold
-
-        run_additional_info = p.add_run(
-            f"\n{self.additional_info_input.toPlainText()}")
-        run_additional_info.bold = False  # Ensure this part is not bold
-
-        run_subtitle = p.add_run(f"\nGenerated {str(datetime.datetime.now())}")
-
-        # Add right image (if applicable)
-        roll_image_path = settings.MD_REPORT_SAMPLE_IMAGE_PATH if self.window_type == "MD" else settings.CD_REPORT_SAMPLE_IMAGE_PATH
-        if roll_image_path:
-            cell3.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
-            run = cell3.paragraphs[0].add_run()
-            run.add_picture(roll_image_path, width=Mm(
-                right_col_width.mm * 0.9))
-
-        for section in self.section_widgets:
-            paragraph = doc.add_heading(section.section_name)
-
-            run.font.color.rgb = None
-            run.font.size = Pt(12)
-
-            set_paragraph_spacing(paragraph, 0, 6)
-            for analysis in section.analysis_widgets:
-                apply_plot_customizations(analysis)
-
-                if settings.REPORT_ENABLE_ANALYSIS_TITLE:
-                    analysis_title = analysis.analysis_title or f"{
-                        analysis.analysis_name} {analysis.get_channel_text()}"
-                    paragraph = doc.add_heading(analysis_title, 2)
-                    # TODO: Turn analysis title into black color and make smaller
-
-                if analysis.info_string:
-                    paragraph = doc.add_paragraph()
-                    run_info = paragraph.add_run(analysis.info_string)
-                    run_info.italic = True  # Make text italic
-                    run_info.font.size = Pt(8)  # Set font size to 8
-
-                set_paragraph_spacing(paragraph)
-
-                # layout modes are: ["stats-right", "stats-below", "stats-above"]
-                # Default to stats-right
-                layout_mode = analysis.report_layout or "stats-right"
-
-                # Define column widths for side-by-side layout
-                img_col_width = Mm(get_text_width(doc) * (3/5))
-                stats_col_width = Mm(get_text_width(doc) * (2/5))
-
-                if layout_mode == "stats-right":
-                    # Side-by-side layout (image left, stats right)
-                    table = doc.add_table(rows=1, cols=2)
-                    table.autofit = True
-
-                    col1 = table.columns[0]
-                    col1.width = img_col_width
-                    cell1 = table.cell(0, 0)
-                    cell1.vertical_alignment = WD_ALIGN_VERTICAL.TOP
-                    paragraph = cell1.paragraphs[0]
-                    run = paragraph.add_run()
-                    run.add_picture(
-                        analysis.controller.getPlotImage(), width=Cm(col1.width.cm - 0.5))
-
-                    col2 = table.columns[1]
-                    col2.width = stats_col_width
-                    cell2 = table.cell(0, 1)
-                    cell2.width = stats_col_width
-                    cell2.vertical_alignment = WD_ALIGN_VERTICAL.TOP
-                    img_cell = table.cell(0, 0)
-                    stats_cell = table.cell(0, 1)
-
-                elif layout_mode in ["stats-below", "stats-above"]:
-                    # Image and stats stacked vertically
-                    table = doc.add_table(rows=2, cols=1)
-                    table.autofit = True
-
-                    if layout_mode == "stats-above":
-                        stats_cell = table.cell(0, 0)
-                        img_cell = table.cell(1, 0)
-                    else:  # stats-below
-                        img_cell = table.cell(0, 0)
-                        stats_cell = table.cell(1, 0)
-
-                    # Add image to the image cell
-                    run = img_cell.paragraphs[0].add_run()
-                    run.add_picture(analysis.controller.getPlotImage(
-                    ), width=Mm(analysis.image_width_mm or (get_text_width(doc) - 5)))
-
-                    # run.add_picture(analysis.controller.getPlotImage())
-
-                    img_cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-                    stats_cell.vertical_alignment = WD_ALIGN_VERTICAL.TOP
-
-                # Retrieve statistics data
-                data = analysis.controller.getStatsTableData()
-                if not data:
-                    pass  # No data, skip stats table
-                else:
-                    shape = np.shape(data)
-                    rows, cols = shape if len(shape) == 2 else (
-                        shape[0], 1) if len(shape) == 1 else (1, 1)
-
-                    # Insert stats table
-                    stats_table = stats_cell.add_table(rows, cols)
-                    delete_paragraph(stats_cell.paragraphs[0])
-                    stats_table.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-                    for row_idx, row_data in enumerate(data):
-                        row = stats_table.rows[row_idx]
-                        for col_idx, cell_data in enumerate(row_data):
-                            cell = row.cells[col_idx]
-                            cell.paragraphs[0].text = cell_data
-                            cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
-                            cell.paragraphs[0].style.font.size = Pt(8)
-                            cell.paragraphs[0].style.font.name = "Nimbus Mono PS"
-                            cell.width = Mm(30)
-
-            # Add a page break after each section
-            # TODO: this causes a problem where empty pages may appear
-
-            # Only add a break if the last paragraph is not empty
-            if doc.paragraphs[-1].text.strip():
-                doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
-
-        # Open save file dialog
-        dialog = QFileDialog()
-        options = QFileDialog.options(dialog)
-        fileName, _ = QFileDialog.getSaveFileName(
-            self, "Word Document", "", "DOCX Files (*.docx)", options=options)
-        if fileName:
-            if not fileName.endswith('.docx'):
-                fileName += '.docx'
-            doc.save(fileName)
-            self.close()
+        except Exception as e:
+            QMessageBox.critical(self, "Error",
+                                 f"Failed to generate report:\n{str(e)}\n\nSee console for details.")
+            traceback.print_exc()
 
     def load_from_python(self, fileName=None):
 

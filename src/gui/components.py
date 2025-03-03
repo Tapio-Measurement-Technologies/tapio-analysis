@@ -727,9 +727,9 @@ class PlotMixin:
                              fontsize=14, ha='center', va='center')
             self.canvas.draw()
 
-    def getPlotImage(self):
+    def getPlotImage(self, format="png", dpi=300):
         buf = io.BytesIO()
-        self.figure.savefig(buf, format="png", dpi=300)
+        self.figure.savefig(buf, format=format, dpi=dpi)
         return buf
 
     def plot(self):
