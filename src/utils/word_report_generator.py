@@ -139,6 +139,8 @@ class WordReportGenerator(ReportGenerator):
             cell2 = table.cell(0, 1)
             cell2.width = stats_col_width
             cell2.vertical_alignment = WD_ALIGN_VERTICAL.TOP
+            # Clear the default paragraph to prevent extra spacing
+            cell2.paragraphs[0].clear()
             self._add_stats_table(cell2, analysis)
 
         elif layout_mode in ["stats-below", "stats-above"]:
@@ -168,6 +170,11 @@ class WordReportGenerator(ReportGenerator):
         rows, cols = shape if len(shape) == 2 else (
             shape[0], 1) if len(shape) == 1 else (1, 1)
 
+        for p in cell.paragraphs:
+            p._element.getparent().remove(p._element)
+    
+
+
         stats_table = cell.add_table(rows, cols)
         cell.paragraphs[0].clear()
         stats_table.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -181,8 +188,6 @@ class WordReportGenerator(ReportGenerator):
                 cell.paragraphs[0].style.font.size = Pt(8)
                 cell.paragraphs[0].style.font.name = "Nimbus Mono PS"
                 cell.width = Mm(30)
-
-
 
 
 def set_paragraph_spacing(paragraph, space_before=0, space_after=0, line_spacing=1):
@@ -199,6 +204,7 @@ def set_paragraph_spacing(paragraph, space_before=0, space_after=0, line_spacing
     paragraph_format.space_before = Pt(space_before)
     paragraph_format.space_after = Pt(space_after)
     paragraph_format.line_spacing = line_spacing
+
 
 def get_text_width(document):
     """
