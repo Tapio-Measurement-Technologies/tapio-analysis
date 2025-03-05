@@ -304,6 +304,8 @@ REPORT_GENERATE_PDF = False
 REPORT_FORMAT = "word"
 # REPORT_FORMAT = "latex" # word or latex
 
+FREQUENCY_SELECTOR_MOUSE_BUTTON = 2
+
 
 def load_local_settings(local_settings_path):
     """

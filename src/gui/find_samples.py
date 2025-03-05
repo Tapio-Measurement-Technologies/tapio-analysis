@@ -10,6 +10,7 @@ from utils.data_loader import DataMixin
 from gui.components import ChannelMixin, BandPassFilterMixin, ExtraQLabeledDoubleRangeSlider
 from controllers import FindSamplesController
 
+
 class CustomNavigationToolbar(NavigationToolbar):
     def __init__(self, canvas, parent):
         super().__init__(canvas, parent)
@@ -18,6 +19,7 @@ class CustomNavigationToolbar(NavigationToolbar):
     def home(self):
         # Override home button functionality to reset the view
         self.parent.refresh()
+
 
 class FindSamplesWindow(QWidget, DataMixin, ChannelMixin, BandPassFilterMixin):
     closed = pyqtSignal()
@@ -61,23 +63,25 @@ class FindSamplesWindow(QWidget, DataMixin, ChannelMixin, BandPassFilterMixin):
         # Ensure this method is correctly defined elsewhere
         self.addChannelSelector(mainLayout)
         self.addBandPassRangeSlider(mainLayout)
-        
+
         # Add sample length range slider
         sampleLengthLabel = QLabel("Sample length range [m]")
         mainLayout.addWidget(sampleLengthLabel)
-        
-        self.sampleLengthSlider = ExtraQLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
-        self.sampleLengthSlider.setDecimals(2)
-        self.sampleLengthSlider.setRange(settings.CD_SAMPLE_LENGTH_SLIDER_MIN, 
-                                       settings.CD_SAMPLE_LENGTH_SLIDER_MAX)
-        self.sampleLengthSlider.setValue((settings.CD_SAMPLE_MIN_LENGTH_M, 
-                                        settings.CD_SAMPLE_MAX_LENGTH_M))
-        self.sampleLengthSlider.sliderReleased.connect(self.onSampleLengthChanged)
-        self.sampleLengthSlider.editingFinished.connect(self.onSampleLengthChanged)
 
+        self.sampleLengthSlider = ExtraQLabeledDoubleRangeSlider(
+            Qt.Orientation.Horizontal)
+        self.sampleLengthSlider.setDecimals(2)
+        self.sampleLengthSlider.setRange(settings.CD_SAMPLE_LENGTH_SLIDER_MIN,
+                                         settings.CD_SAMPLE_LENGTH_SLIDER_MAX)
+        self.sampleLengthSlider.setValue((settings.CD_SAMPLE_MIN_LENGTH_M,
+                                          settings.CD_SAMPLE_MAX_LENGTH_M))
+        self.sampleLengthSlider.sliderReleased.connect(
+            self.onSampleLengthChanged)
+        self.sampleLengthSlider.editingFinished.connect(
+            self.onSampleLengthChanged)
 
         mainLayout.addWidget(self.sampleLengthSlider)
-        
+
         layout = QHBoxLayout()
         mainLayout.addLayout(layout)
 
@@ -98,13 +102,15 @@ class FindSamplesWindow(QWidget, DataMixin, ChannelMixin, BandPassFilterMixin):
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.setHorizontalHeaderLabels(["Sample length [m]"])
-        self.table.currentCellChanged.connect(self.onTableRowSelected)  # Connect the selection change signal
+        # Connect the selection change signal
+        self.table.currentCellChanged.connect(self.onTableRowSelected)
         self.table.cellDoubleClicked.connect(self.onTableCellDoubleClicked)
 
         self.table.itemChanged.connect(self.onTableItemChanged)
 
         # Set the size policy to prevent the table from expanding beyond its content
-        sizePolicy = QSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Preferred)
+        sizePolicy = QSizePolicy(
+            QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Preferred)
         self.table.setSizePolicy(sizePolicy)
 
         # To center the table in its layout, you might need to add stretch factors to the layout
@@ -134,7 +140,7 @@ class FindSamplesWindow(QWidget, DataMixin, ChannelMixin, BandPassFilterMixin):
         self.controller.updatePlot()
 
     def on_click(self, event):
-        if event.button == 2:  # Middle mouse button
+        if event.button == settings.FREQUENCY_SELECTOR_MOUSE_BUTTON:  # Middle mouse button
             if event.ydata is not None:
                 self.controller.highlighted_intervals = []
                 self.controller.threshold = event.ydata
@@ -155,7 +161,8 @@ class FindSamplesWindow(QWidget, DataMixin, ChannelMixin, BandPassFilterMixin):
         for i in range(len(self.controller.peaks) - 1):
             # Checkbox for inclusion
             chk_box_item = QTableWidgetItem()
-            chk_box_item.setFlags(Qt.ItemFlag.ItemIsUserCheckable | Qt.ItemFlag.ItemIsEnabled)
+            chk_box_item.setFlags(
+                Qt.ItemFlag.ItemIsUserCheckable | Qt.ItemFlag.ItemIsEnabled)
             if (i in self.controller.selected_samples) or select_all:
                 chk_box_item.setCheckState(Qt.CheckState.Checked)
             else:
@@ -185,7 +192,8 @@ class FindSamplesWindow(QWidget, DataMixin, ChannelMixin, BandPassFilterMixin):
 
     def onTableRowSelected(self, row, column):
         if row < len(self.controller.peaks) - 1:
-            selected_interval = (self.controller.peaks[row], self.controller.peaks[row + 1])
+            selected_interval = (
+                self.controller.peaks[row], self.controller.peaks[row + 1])
             self.controller.highlight_intervals([selected_interval])
 
     def onTableCellDoubleClicked(self, row, column):

@@ -189,7 +189,7 @@ class SpectrumWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
 
     def onclick(self, event):
         # Frequency selector functionality with axis limit check and label update
-        if event.inaxes is not None and event.button == 2:
+        if event.inaxes is not None and event.button == settings.FREQUENCY_SELECTOR_MOUSE_BUTTON:
 
             ax = event.inaxes
 
