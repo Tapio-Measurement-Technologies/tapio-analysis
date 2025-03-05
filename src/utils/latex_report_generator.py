@@ -46,6 +46,9 @@ class LatexReportGenerator(ReportGenerator):
         doc.preamble.append(NoEscape(
             r'\rhead{\Large\textbf{' + self.report_title + r'}\\\normalsize{' + self.report_subtitle + r'}}'))
 
+        # Add page number to lower right corner
+        doc.preamble.append(NoEscape(r'\rfoot{\thepage}'))
+
         # Set geometry package options
         doc.packages.append(Package('geometry', options=[
                             'left=2cm', 'right=2cm', 'top=3cm', 'headheight=2cm']))
@@ -65,8 +68,6 @@ class LatexReportGenerator(ReportGenerator):
                         key, value = line.split(':', 1)
                         table.add_row((key.strip() + ':', value.strip()))
 
-        # Add measurement procedure section
-        doc.append(NoEscape(r'\newpage'))  # Force new page
         doc.append(NoEscape(r'\section*{Measurement procedure}'))
 
         # Create a minipage environment for text and image side by side
@@ -76,7 +77,7 @@ class LatexReportGenerator(ReportGenerator):
                 r"{} cross direction (CD) sample strips were measured with a Tapio Analyzer at the Tapio Measurement Technologies laboratory.\\"
                 .format(5)))
         doc.append(NoEscape(r'\end{minipage}'))
-        
+
         # Add sample image if it exists
         if self.sample_image_path:
             sample_image_name = self._copy_and_convert_image(
@@ -95,7 +96,7 @@ class LatexReportGenerator(ReportGenerator):
         # Add sections
         for section in self.sections:
             self._add_section_to_latex(doc, section, images_dir)
-
+            doc.append(NoEscape(r'\newpage'))
         # Generate PDF
         if settings.REPORT_GENERATE_PDF:
             try:
@@ -174,9 +175,6 @@ class LatexReportGenerator(ReportGenerator):
 
             # Add vertical space after the table
             doc.append(NoEscape(r'\vspace{1em}'))
-
-        # Add new page after each analysis
-        doc.append(NoEscape(r'\newpage'))
 
     def _copy_and_convert_image(self, src_path, dest_dir, name):
         """Copy image to destination directory and return the new filename"""
