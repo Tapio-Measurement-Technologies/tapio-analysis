@@ -14,17 +14,16 @@ from docx.enum.table import WD_ALIGN_VERTICAL
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
+from utils.report_generator import create_report_generator
 
 
 import numpy as np
 import json
 import os
 from customizations import apply_plot_customizations
-from utils.report import get_text_width, set_paragraph_spacing
 import traceback
 import importlib.util
 import matplotlib.pyplot as plt
-from utils.report_generator import create_report_generator
 
 
 class Editor(QTextEdit):
