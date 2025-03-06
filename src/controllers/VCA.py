@@ -133,8 +133,6 @@ class VCAController(QObject, PlotMixin):
 
         # Compute variances and take the square root to get standard deviations
         total, md, cd, res = np.sqrt(self.calculate_variances(data))
-
-        # Compute mean
         mean = np.mean(data)
 
         # Prevent division by zero
@@ -143,80 +141,89 @@ class VCAController(QObject, PlotMixin):
         total_percent = (100 * total / mean) if mean != 0 else 0
         res_percent = (100 * res / mean) if mean != 0 else 0
 
+        # Define the statistics data structure for full data
+        stat_data = [
+            ("MD Stdev", f"{md:.2f}", f"{md_percent:.2f}"),
+            ("CD Stdev", f"{cd:.2f}", f"{cd_percent:.2f}"),
+            ("Total Stdev", f"{total:.2f}", f"{total_percent:.2f}"),
+            ("Residual Stdev", f"{res:.2f}", f"{res_percent:.2f}")
+        ]
+
         if settings.REPORT_FORMAT == "latex":
             stats.append(["", f"{self.channel} [{units}]", "% of mean"])
-            stats.append(["MD Stdev:", f"{md:.2f}", f"{md_percent:.2f}"])
-            stats.append(["CD Stdev:", f"{cd:.2f}", f"{cd_percent:.2f}"])
-            stats.append(
-                ["Total Stdev:", f"{total:.2f}", f"{total_percent:.2f}"])
-            stats.append(
-                ["Residual Stdev:", f"{res:.2f}", f"{res_percent:.2f}"])
-
-        else:
-            stats.append(["", f"{self.channel} [{units}]", "% of mean"])
-            stats.append([
-                "MD Stdev:\nCD Stdev:\nTotal Stdev:\nResidual Stdev:",
-                f"{md:.2f}\n{cd:.2f}\n{total:.2f}\n{res:.2f}",
-                f"{md_percent:.2f} %\n{cd_percent:.2f} %\n{
-                    total_percent:.2f} %\n{res_percent:.2f} %"
-            ])
-
+            for label, value, percent in stat_data:
+                stats.append([f"{label}:", value, percent])
+            
+            # Add trimmed data section
             stats.append(["", "", ""])
             stats.append(["Edges removed", "", ""])
-
+            
             # Remove 10% from start and end of each sample
-            trimmed_data = [s[int(len(s) * 0.1): int(len(s) * 0.9)]
-                            for s in data]
-
+            trimmed_data = [s[int(len(s) * 0.1): int(len(s) * 0.9)] for s in data]
+            
             if trimmed_data:
                 trimmed_data = np.array(trimmed_data)
-
-                # Compute trimmed statistics
                 total_trimmed, md_trimmed, cd_trimmed, res_trimmed = np.sqrt(
                     self.calculate_variances(trimmed_data))
                 mean_trimmed = np.mean(trimmed_data)
 
                 # Prevent division by zero
-                md_trimmed_percent = (
-                    100 * md_trimmed / mean_trimmed) if mean_trimmed != 0 else 0
-                cd_trimmed_percent = (
-                    100 * cd_trimmed / mean_trimmed) if mean_trimmed != 0 else 0
-                total_trimmed_percent = (
-                    100 * total_trimmed / mean_trimmed) if mean_trimmed != 0 else 0
-                res_trimmed_percent = (100 * res_trimmed /
-                                       mean_trimmed) if mean_trimmed != 0 else 0
+                md_trimmed_percent = (100 * md_trimmed / mean_trimmed) if mean_trimmed != 0 else 0
+                cd_trimmed_percent = (100 * cd_trimmed / mean_trimmed) if mean_trimmed != 0 else 0
+                total_trimmed_percent = (100 * total_trimmed / mean_trimmed) if mean_trimmed != 0 else 0
+                res_trimmed_percent = (100 * res_trimmed / mean_trimmed) if mean_trimmed != 0 else 0
+
+                # Define the statistics data structure for trimmed data
+                trimmed_stat_data = [
+                    ("MD Stdev", f"{md_trimmed:.2f}", f"{md_trimmed_percent:.2f}"),
+                    ("CD Stdev", f"{cd_trimmed:.2f}", f"{cd_trimmed_percent:.2f}"),
+                    ("Total Stdev", f"{total_trimmed:.2f}", f"{total_trimmed_percent:.2f}"),
+                    ("Residual Stdev", f"{res_trimmed:.2f}", f"{res_trimmed_percent:.2f}")
+                ]
 
                 stats.append(["", f"{self.channel} [{units}]", "% of mean"])
-                stats.append([
-                    "MD Stdev:\nCD Stdev:\nTotal Stdev:\nResidual Stdev:",
-                    f"{md_trimmed:.2f}\n{cd_trimmed:.2f}\n{
-                        total_trimmed:.2f}\n{res_trimmed:.2f}",
-                    f"{md_trimmed_percent:.2f} %\n{cd_trimmed_percent:.2f} %\n{
-                        total_trimmed_percent:.2f} %\n{res_trimmed_percent:.2f} %"
-                ])
+                for label, value, percent in trimmed_stat_data:
+                    stats.append([f"{label}:", value, percent])
+        else:
+            stats.append(["", f"{self.channel} [{units}]", "% of mean"])
+            labels = "\n".join(label + ":" for label, _, _ in stat_data)
+            values = "\n".join(value for _, value, _ in stat_data)
+            percents = "\n".join(percent + " %" for _, _, percent in stat_data)
+            stats.append([labels, values, percents])
+
+            stats.append(["", "", ""])
+            stats.append(["Edges removed", "", ""])
+
+            # Remove 10% from start and end of each sample
+            trimmed_data = [s[int(len(s) * 0.1): int(len(s) * 0.9)] for s in data]
+            
+            if trimmed_data:
+                trimmed_data = np.array(trimmed_data)
+                total_trimmed, md_trimmed, cd_trimmed, res_trimmed = np.sqrt(
+                    self.calculate_variances(trimmed_data))
+                mean_trimmed = np.mean(trimmed_data)
+
+                # Prevent division by zero
+                md_trimmed_percent = (100 * md_trimmed / mean_trimmed) if mean_trimmed != 0 else 0
+                cd_trimmed_percent = (100 * cd_trimmed / mean_trimmed) if mean_trimmed != 0 else 0
+                total_trimmed_percent = (100 * total_trimmed / mean_trimmed) if mean_trimmed != 0 else 0
+                res_trimmed_percent = (100 * res_trimmed / mean_trimmed) if mean_trimmed != 0 else 0
+
+                # Define the statistics data structure for trimmed data
+                trimmed_stat_data = [
+                    ("MD Stdev", f"{md_trimmed:.2f}", f"{md_trimmed_percent:.2f}"),
+                    ("CD Stdev", f"{cd_trimmed:.2f}", f"{cd_trimmed_percent:.2f}"),
+                    ("Total Stdev", f"{total_trimmed:.2f}", f"{total_trimmed_percent:.2f}"),
+                    ("Residual Stdev", f"{res_trimmed:.2f}", f"{res_trimmed_percent:.2f}")
+                ]
+
+                stats.append(["", f"{self.channel} [{units}]", "% of mean"])
+                labels = "\n".join(label + ":" for label, _, _ in trimmed_stat_data)
+                values = "\n".join(value for _, value, _ in trimmed_stat_data)
+                percents = "\n".join(percent + " %" for _, _, percent in trimmed_stat_data)
+                stats.append([labels, values, percents])
 
         return stats
-
-    # def getStatsTableData(self):
-    #     stats = []
-    #     data = np.array(self.filtered_data)
-    #     units = self.dataMixin.units[self.channel]
-    #     total, md, cd, res = np.sqrt(self.calculate_variances(data))
-    #     stats.append(["", f"{self.channel} [{units}]"])
-    #     stats.append([
-    #         "MD Stdev:\nCD Stdev:\nTotal Stdev:\nResidual Stdev:",
-    #         f"{md:.2f}\n{cd:.2f}\n{total:.2f}\n{res:.2f}"
-    #     ])
-
-    #     mean = np.mean(data)
-    #     stats.append(["", "% of mean"])
-    #     stats.append([
-    #         "MD Stdev:\nCD Stdev:\nTotal Stdev:\nResidual Stdev:",
-    #         f"{(100 * md / mean):.2f}\n{(100 * cd / mean)
-    #             :.2f}\n{(100 * total / mean):.2f}\n{(100 * res / mean):.2f}"
-    #     ])
-
-    #     return stats
 
     def calculate_variances(self, segments):
         k, p = segments.shape  # Number of samples in MD and CD, respectively

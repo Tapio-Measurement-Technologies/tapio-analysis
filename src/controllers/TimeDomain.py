@@ -122,13 +122,27 @@ class TimeDomainController(QObject, PlotMixin, ExportMixin):
             std_percent = (std / mean) * 100 if mean != 0 else 0
             range_percent = (range_val / mean) * 100 if mean != 0 else 0
             units = self.dataMixin.units[self.channel]
-            stats.append(["", ""])
 
-            stats.append([
-                "Mean:\nStdev:\nStd%:\nMin:\nMax:\nRange:\nRange%",
-                f"{mean:.2f} {units}\n{std:.2f} {units}\n{std_percent:.2f} %\n{min_val:.2f} {
-                    units}\n{max_val:.2f} {units}\n{range_val:.2f} {units}\n{range_percent:.2f} %"
-            ])
+            # Define the statistics data structure
+            stat_data = [
+                ("Mean", f"{mean:.2f}", units),
+                ("Stdev", f"{std:.2f}", units),
+                ("Std %", f"{std_percent:.2f}", "%"),
+                ("Min", f"{min_val:.2f}", units),
+                ("Max", f"{max_val:.2f}", units),
+                ("Range", f"{range_val:.2f}", units),
+                ("Range %", f"{range_percent:.2f}", "%")
+            ]
+
+            if settings.REPORT_FORMAT == "latex":
+                stats.append(["", f"{self.channel}", ""])
+                for label, value, unit in stat_data:
+                    stats.append([f"{label}:", value, unit])
+            else:
+                stats.append(["", f"{self.channel} [{units}]"])
+                labels = "\n".join(label + ":" for label, _, _ in stat_data)
+                values = "\n".join(f"{value} {unit}" for _, value, unit in stat_data)
+                stats.append([labels, values])
 
         return stats
 

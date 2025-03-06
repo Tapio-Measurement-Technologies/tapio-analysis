@@ -260,29 +260,26 @@ class CDProfileController(QObject, PlotMixin, ExportMixin):
             range_percent = (range_val / mean) * 100 if mean != 0 else 0
             units = self.dataMixin.units[self.channel]
 
+            # Define the statistics data structure
+            stat_data = [
+                ("Mean", f"{mean:.2f}", units),
+                ("Std", f"{std:.2f}", units),
+                ("Std %", f"{std_percent:.2f}", "%"),
+                ("Min", f"{min_val:.2f}", units),
+                ("Max", f"{max_val:.2f}", units),
+                ("Range", f"{range_val:.2f}", units),
+                ("Range %", f"{range_percent:.2f}", "%")
+            ]
+
             if settings.REPORT_FORMAT == "latex":
                 stats.append(["", f"{self.channel}", ""])
-                stats.append(["Mean:", f"{mean:.2f}", f"{units}"])
-                stats.append(["Std:", f"{std:.2f}", f"{units}"])
-                stats.append(["Std %:", f"{std_percent:.2f}", "%"])
-                stats.append(["Min:", f"{min_val:.2f}", f"{units}"])
-                stats.append(["Max:", f"{max_val:.2f}", f"{units}"])
-                stats.append(["Range:", f"{range_val:.2f}", f"{units}"])
-                stats.append(["Range %:", f"{range_percent:.2f}", "%"])
-
+                for label, value, unit in stat_data:
+                    stats.append([f"{label}:", value, unit])
             else:
                 stats.append(["", f"{self.channel} [{units}]"])
-
-                stats.append([
-                    "Mean:\nStdev:\nStd%:\nMin:\nMax:\nRange:\nRange%",
-                    f"{mean:.2f} {units}\n"
-                    f"{std:.2f} {units}\n"
-                    f"{std_percent:.2f} %\n"
-                    f"{min_val:.2f} {units}\n"
-                    f"{max_val:.2f} {units}\n"
-                    f"{range_val:.2f} {units}\n"
-                    f"{range_percent:.2f} %"
-                ])
+                labels = "\n".join(label + ":" for label, _, _ in stat_data)
+                values = "\n".join(f"{value} {unit}" for _, value, unit in stat_data)
+                stats.append([labels, values])
 
         return stats
 
