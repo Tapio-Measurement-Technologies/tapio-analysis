@@ -61,7 +61,7 @@ class LatexReportGenerator(ReportGenerator):
 
         # Add info table
         with doc.create(Tabular('ll')) as table:
-            table.add_row(('Date:', '\\today'))
+            table.add_row(('Date:', NoEscape(r'\today')))
             if self.additional_info:
                 for line in self.additional_info.split('\n'):
                     if ':' in line:
@@ -73,9 +73,7 @@ class LatexReportGenerator(ReportGenerator):
         # Create a minipage environment for text and image side by side
         doc.append(NoEscape(r'\begin{minipage}[t]{0.6\textwidth}'))
         doc.append(
-            NoEscape(
-                r"{} cross direction (CD) sample strips were measured with a Tapio Analyzer at the Tapio Measurement Technologies laboratory.\\"
-                .format(5)))
+            NoEscape("Test"))
         doc.append(NoEscape(r'\end{minipage}'))
 
         # Add sample image if it exists
@@ -88,8 +86,10 @@ class LatexReportGenerator(ReportGenerator):
                 doc.append(NoEscape(
                     r'\includegraphics[width=\textwidth]{images/' + sample_image_name + r'}'))
                 doc.append(NoEscape(r'\end{minipage}'))
+        doc.append(NoEscape(r'\section*{Key observations}'))
 
         # Add table of contents
+        doc.append(NoEscape(r'\newpage'))
         doc.append(NoEscape(r'\tableofcontents'))
         doc.append(NoEscape(r'\newpage'))
 
@@ -148,30 +148,14 @@ class LatexReportGenerator(ReportGenerator):
             # Create table with booktabs style
             with doc.create(Table(position='htbp')) as table:
                 # Create tabular environment with column specifications
-                col_spec = '|' + \
-                    '|'.join(
-                        ['l' if i == 0 else 'r' for i in range(num_cols)]) + '|'
+                col_spec = "".join(
+                    ['l' if i == 0 else 'r' for i in range(num_cols)])
                 tabular = Tabular(col_spec)
                 table.append(NoEscape(r'\centering'))
                 table.append(tabular)
 
-                # Add the data
-                tabular.add_hline()
                 for row_data in data:
-                    # Convert all data to strings and escape special characters
-                    escaped_row = []
-                    for i, cell in enumerate(row_data):
-                        cell_str = str(cell).strip()
-                        # Try to format numbers with siunitx if it's a number
-                        try:
-                            float(cell_str)  # Check if it's a number
-                            escaped_row.append(
-                                NoEscape(rf'\num{{{cell_str}}}'))
-                        except ValueError:
-                            escaped_row.append(cell_str)
-
-                    tabular.add_row(escaped_row)
-                    tabular.add_hline()
+                    tabular.add_row(row_data)
 
             # Add vertical space after the table
             doc.append(NoEscape(r'\vspace{1em}'))

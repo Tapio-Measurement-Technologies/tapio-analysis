@@ -101,7 +101,7 @@ class MainWindow(QMainWindow, DataMixin):
                 lambda checked, module=module: self.exportData(module))
             fileMenu.addAction(action)
 
-            if len(self.loaders.items()) == 1:
+            if len(self.exporters.items()) == 1:
                 action.setShortcut('Ctrl+E')
 
             if module_name.startswith('md'):
