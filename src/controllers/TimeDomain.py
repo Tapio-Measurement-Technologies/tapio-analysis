@@ -139,7 +139,7 @@ class TimeDomainController(QObject, PlotMixin, ExportMixin):
                 for label, value, unit in stat_data:
                     stats.append([f"{label}:", value, unit])
             else:
-                stats.append(["", f"{self.channel} [{units}]"])
+                # stats.append(["", f"{self.channel} [{units}]"])
                 labels = "\n".join(label + ":" for label, _, _ in stat_data)
                 values = "\n".join(f"{value} {unit}" for _, value, unit in stat_data)
                 stats.append([labels, values])
