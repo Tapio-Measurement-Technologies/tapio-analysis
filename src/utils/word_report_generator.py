@@ -74,7 +74,7 @@ class WordReportGenerator(ReportGenerator):
         run_additional_info = p.add_run(f"\n{self.additional_info}")
         run_additional_info.bold = False
 
-        run_subtitle = p.add_run(f"\nGenerated {str(datetime.datetime.now())}")
+        # run_subtitle = p.add_run(f"\nGenerated {str(datetime.datetime.now())}")
 
         # Add sample image
         if self.sample_image_path:
