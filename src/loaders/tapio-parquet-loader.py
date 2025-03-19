@@ -62,6 +62,10 @@ def load_data(main_window, fileNames: list[str]):
                         # Load Parquet data into a DataFrame
                         data_df = pd.read_parquet(parquet_bytes)
 
+                        # Add file name labels
+                        basename = os.path.basename(parquet_file)
+                        main_window.fileLabels["Data"].setText(f"{basename}")
+
                         if len(data_df) > 1000:
                             data_df = data_df.iloc[1000:]
 
@@ -124,6 +128,9 @@ def load_data(main_window, fileNames: list[str]):
 
                 if tcal_file:
                     with zip_ref.open(tcal_file) as tcal_data:
+                        basename = os.path.basename(tcal_file)
+                        main_window.fileLabels["Calibration"].setText(
+                            f"{basename}")
                         tcal_content = tcal_data.read().decode("utf-8")
                         tcal_json = json.loads(tcal_content)
 
@@ -144,7 +151,6 @@ def load_data(main_window, fileNames: list[str]):
                         # First apply calibrations
                         apply_calibration_with_uniform_trimming(
                             calibration_data)
-
 
                         # Then add calculated channels
                         for channel in settings.CALCULATED_CHANNELS:
@@ -360,3 +366,8 @@ def apply_calibration_with_uniform_trimming(calibration_data):
     # Update distances to match the trimmed data length
     dataMixin.distances = dataMixin.distances[align_data_slices[min(
         align_data_slices, key=align_data_slices.get)]:][:data_len]
+
+    # Flip the data if specified in settings
+    if settings.FLIP_LOADED_DATA:
+        dataMixin.channel_df = dataMixin.channel_df.iloc[::-1]
+        # dataMixin.distances = np.flip(dataMixin.distances)

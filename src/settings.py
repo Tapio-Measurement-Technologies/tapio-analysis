@@ -242,6 +242,7 @@ NLS_STEP = 0.001
 NLS_RANGE = 0.1
 
 # CD Profile settings
+FLIP_LOADED_DATA = False
 
 CD_PROFILE_WINDOW_GEOMETRY = (100, 100, 700, 800)
 
@@ -340,3 +341,5 @@ else:
     except ImportError:
         print(f"Could not load local settings from internal project folder")
         pass
+
+# If True, flips the CD profile data after finding samples
