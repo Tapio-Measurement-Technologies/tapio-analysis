@@ -54,8 +54,9 @@ class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilter
         self.stdLabel = QLabel("σ: ")
         self.minLabel = QLabel("Min: ")
         self.maxLabel = QLabel("Max: ")
+        self.rangeLabel = QLabel("Range: ")
 
-        for label in [self.meanLabel, self.stdLabel, self.minLabel, self.maxLabel]:
+        for label in [self.meanLabel, self.stdLabel, self.minLabel, self.maxLabel, self.rangeLabel]:
             label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
             statsLayout.addWidget(label)
         mainLayout.addLayout(statsLayout)

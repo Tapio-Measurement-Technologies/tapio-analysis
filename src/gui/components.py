@@ -691,17 +691,20 @@ class StatsMixin:
             self.stdLabel.setText(f"σ: -- {units}")
             self.minLabel.setText(f"Min: -- {units}")
             self.maxLabel.setText(f"Max: -- {units}")
+            self.rangeLabel.setText(f"Range: -- {units}")
             return
 
         mean = np.mean(data)
         std = np.std(data)
         min_val = np.min(data)
         max_val = np.max(data)
+        range_val = max_val - min_val
 
         self.meanLabel.setText(f"Mean: {mean:.2f} {units}")
         self.stdLabel.setText(f"σ: {std:.2f} {units}")
         self.minLabel.setText(f"Min: {min_val:.2f} {units}")
         self.maxLabel.setText(f"Max: {max_val:.2f} {units}")
+        self.rangeLabel.setText(f"Range: {range_val:.2f} {units}")
 
 
 class PlotMixin:
