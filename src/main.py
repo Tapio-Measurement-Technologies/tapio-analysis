@@ -7,9 +7,17 @@
 
 # You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+import sys
+import os
+
+# Fix unavailable handles for pyinstaller --noconsole in Windows
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, "w")
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, "w")
+
 
 import settings
-import sys
 from PyQt6.QtWidgets import (QApplication, QWidget, QPushButton, QVBoxLayout, QLabel, QHBoxLayout, QMessageBox,
                              QMainWindow, QFileDialog, QFrame, QStyleFactory)
 from PyQt6.QtGui import QPixmap, QIcon, QAction
@@ -18,7 +26,6 @@ import importlib
 
 from gui.find_samples import FindSamplesWindow
 from gui.report import ReportWindow
-import os
 
 from utils.data_loader import DataMixin
 from utils.windows import *
