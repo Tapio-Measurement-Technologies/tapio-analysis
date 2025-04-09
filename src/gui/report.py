@@ -261,7 +261,6 @@ class ReportWindow(QWidget, DataMixin):
             traceback.print_exc()
 
     def load_from_python(self, fileName=None):
-
         errors = []
 
         for section_widget in self.section_widgets:
@@ -294,6 +293,13 @@ class ReportWindow(QWidget, DataMixin):
 
                 self.update_report_title(module.report_title)
                 self.update_report_subtitle(module.report_subtitle)
+                
+                # Set additional info if it exists in the template
+                if hasattr(module, "additional_info"):
+                    self.additional_info_input.setText(module.additional_info)
+                else:
+                    self.additional_info_input.setText(settings.REPORT_ADDITIONAL_INFO_DEFAULT)
+
                 sections = module.sections
 
                 for section in sections:
