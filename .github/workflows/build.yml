@@ -33,7 +33,7 @@ jobs:
           --add-data "src/loaders/:loaders/"
           --add-data "src/exporters/:exporters/"
           --add-data "src/assets/:assets"
-          --splash src/assets/Tapio_Logo_300dpi.png
+          --splash src/assets/splash.png
           --icon src/assets/tapio_favicon.ico
           src/main.py
 
