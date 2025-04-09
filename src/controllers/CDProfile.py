@@ -189,6 +189,17 @@ class CDProfileController(QObject, PlotMixin, ExportMixin):
             ax.set_ylabel(
                 f"{self.channel} [{self.dataMixin.units[self.channel]}]")
 
+            # Add minimum range check
+            if self.channel in settings.CD_PROFILE_MIN_RANGES:
+                min_required = settings.CD_PROFILE_MIN_RANGES[self.channel]
+                y_min, y_max = ax.get_ylim()
+                current_range = y_max - y_min
+                if current_range < min_required:
+                    mid = (y_max + y_min) / 2
+                    y_min_new = mid - min_required / 2
+                    y_max_new = mid + min_required / 2
+                    ax.set_ylim(y_min_new, y_max_new)
+
             if self.show_extra_data and self.selected_sheet and self.extra_data is not None:
 
                 extra_data = self.extra_data[self.selected_sheet]
