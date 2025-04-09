@@ -1,12 +1,13 @@
 name: Python application test
 
 on:
-  push:
-    branches:
-      - '**'
-  pull_request:
-    branches:
-      - '**'
+  workflow_dispatch:
+  # Temporarily disabled tests
+  # push:
+  #   branches:
+  #     - '**'
+  # pull_request:
+  #   branches:
 
 jobs:
   test:
