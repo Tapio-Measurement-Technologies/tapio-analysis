@@ -420,6 +420,15 @@ def main():
     sys.exit(app.exec())
 
 
+# Show splash screen on standalone pyinstaller executable
+try:
+    import pyi_splash
+    pyi_splash.update_text("Loading Tapio Analysis...")
+    pyi_splash.close()
+except:
+    print('Skipping splash screen...')
+    pass
+
 if __name__ == '__main__':
     # main_debug()
     main()
