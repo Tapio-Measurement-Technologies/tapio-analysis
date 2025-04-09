@@ -78,6 +78,9 @@ CORRELATION_MATRIX_LABEL_FONT_SIZE = 8
 FORMATION_TRANSMISSION_CHANNEL = "Transmission"
 FORMATION_BW_CHANNEL = "BW"
 
+
+FORMATION_WINDOW_SIZE = 400
+
 SPECTROGRAM_COLORMAP = "viridis"
 
 MAX_HARMONICS_DISPLAY = 10
@@ -233,6 +236,9 @@ CD_CHANNEL_CORRELATION_ANALYSIS_RANGE_HIGH_DEFAULT = 1
 MD_FORMATION_RANGE_LOW_DEFAULT = 0
 MD_FORMATION_RANGE_HIGH_DEFAULT = 0.1
 
+FORMATION_TITLE_SHOW = True
+
+
 CD_FORMATION_RANGE_LOW_DEFAULT = 0
 CD_FORMATION_RANGE_HIGH_DEFAULT = 1
 
@@ -242,6 +248,7 @@ NLS_STEP = 0.001
 NLS_RANGE = 0.1
 
 # CD Profile settings
+#THIS will flip loaded data in the parquet loader
 FLIP_LOADED_DATA = False
 
 CD_PROFILE_WINDOW_GEOMETRY = (100, 100, 700, 800)
@@ -307,6 +314,9 @@ REPORT_FORMAT = "word"
 
 FREQUENCY_SELECTOR_MOUSE_BUTTON = 2
 
+BAND_PASS_FILTER_WAVELENGTH_DECIMALS = 2
+STATISTICS_DECIMALS = 2
+
 
 def load_local_settings(local_settings_path):
     """
@@ -342,4 +352,3 @@ else:
         print(f"Could not load local settings from internal project folder")
         pass
 
-# If True, flips the CD profile data after finding samples

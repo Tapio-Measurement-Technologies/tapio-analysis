@@ -4,12 +4,13 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationTool
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QImage
 from PyQt6.QtWidgets import QVBoxLayout, QWidget
-from PyQt6.QtWidgets import QComboBox, QLabel, QDoubleSpinBox, QFileDialog, QCheckBox, QHBoxLayout, QMessageBox
-from PyQt6.QtGui import QAction
+from PyQt6.QtWidgets import QComboBox, QLabel, QDoubleSpinBox, QFileDialog, QCheckBox, QHBoxLayout, QMessageBox, QGridLayout, QPushButton
+from PyQt6.QtGui import QAction, QIcon
 from qtpy.QtCore import Qt, Signal
 from superqt import QLabeledDoubleRangeSlider, QLabeledSlider, QLabeledDoubleSlider
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+
 
 import logging
 import settings
@@ -17,6 +18,7 @@ import numpy as np
 import pandas as pd
 import io
 import traceback
+import os
 
 from gui.sample_selector import SampleSelectorWindow
 
@@ -280,6 +282,23 @@ class BandPassFilterMixin:
     def bandPassFilterRangeChanged(self):
         self.controller.band_pass_low, self.controller.band_pass_high = self.bandPassFilterSlider.value()
         self.refresh()
+        self._update_wavelength_label()
+
+    def _update_wavelength_label(self):
+        # Convert frequencies (1/m) to wavelengths (cm)
+        low, high = self.bandPassFilterSlider.value()
+        if high > 0:
+            wavelength_high = 100 / \
+                low if low > 0 else float('inf')  # Convert to cm
+            wavelength_low = 100/high  # Convert to cm
+            if wavelength_high == float('inf'):
+                wavelength_text = f"∞ - {wavelength_low:.{settings.BAND_PASS_FILTER_WAVELENGTH_DECIMALS}f}"
+            else:
+                wavelength_text = f"{wavelength_high:.{settings.BAND_PASS_FILTER_WAVELENGTH_DECIMALS}f} - {wavelength_low:.{settings.BAND_PASS_FILTER_WAVELENGTH_DECIMALS}f}"
+            self.bandPassFilterLabel.setText(
+                f"Band pass filter [1/m]\t λ = {wavelength_text} cm")
+        else:
+            self.bandPassFilterLabel.setText("Band pass filter [1/m]")
 
     def initBandPassRangeSlider(self, block_signals=False):
         # Prevent recursive refresh calls when updating values elsewhere
@@ -288,8 +307,8 @@ class BandPassFilterMixin:
                                            ((settings.FILTER_NUMTAPS - 1) / settings.FILTER_NUMTAPS))
         self.bandPassFilterSlider.setValue(
             (self.controller.band_pass_low, self.controller.band_pass_high))
-
         self.bandPassFilterSlider.blockSignals(False)
+        self._update_wavelength_label()
 
     def addBandPassRangeSlider(self, layout, live_update=settings.UPDATE_ON_SLIDE):
         # Band pass filter range slider
@@ -301,7 +320,6 @@ class BandPassFilterMixin:
             settings.BAND_PASS_FILTER_DECIMALS)
         self.bandPassFilterSlider.setSingleStep(
             settings.BAND_PASS_FILTER_SINGLESTEP)
-        # self.bandPassFilterSlider.setSizeIncrement(0.001)
         self.initBandPassRangeSlider()
 
         if live_update:
@@ -700,11 +718,16 @@ class StatsMixin:
         max_val = np.max(data)
         range_val = max_val - min_val
 
-        self.meanLabel.setText(f"Mean: {mean:.2f} {units}")
-        self.stdLabel.setText(f"σ: {std:.2f} {units}")
-        self.minLabel.setText(f"Min: {min_val:.2f} {units}")
-        self.maxLabel.setText(f"Max: {max_val:.2f} {units}")
-        self.rangeLabel.setText(f"Range: {range_val:.2f} {units}")
+        self.meanLabel.setText(
+            f"Mean: {mean:.{settings.STATISTICS_DECIMALS}f} {units}")
+        self.stdLabel.setText(
+            f"σ: {std:.{settings.STATISTICS_DECIMALS}f} {units}")
+        self.minLabel.setText(
+            f"Min: {min_val:.{settings.STATISTICS_DECIMALS}f} {units}")
+        self.maxLabel.setText(
+            f"Max: {max_val:.{settings.STATISTICS_DECIMALS}f} {units}")
+        self.rangeLabel.setText(
+            f"Range: {range_val:.{settings.STATISTICS_DECIMALS}f} {units}")
 
 
 class PlotMixin:
@@ -794,3 +817,146 @@ class ChildWindowCloseMixin:
         if hasattr(self, 'sampleSelectorWindow') and self.sampleSelectorWindow:
             self.sampleSelectorWindow.close()
             self.sampleSelectorWindow = None
+
+
+class StatWidget(QWidget):
+    def __init__(self, name, units=""):
+        super().__init__()
+        self.name = name
+        self.units = units
+        self.value = None
+
+        self.setObjectName("statWidget")
+        self.layout = QVBoxLayout()
+        self.layout.setSpacing(0)
+        self.layout.setContentsMargins(5, 5, 5, 5)
+
+        self.label = QLabel(
+            f"{self.name} [{self.units}]" if units else self.name)
+        self.label.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self.label.setStyleSheet(
+            "font-size: 12px; background-color: transparent;")
+        self.layout.addWidget(self.label)
+
+        self.value_label = QLabel("--")
+        self.value_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self.value_label.setStyleSheet(
+            "font-size: 20px; background-color: transparent;")
+        self.layout.addWidget(self.value_label)
+
+        self.setLayout(self.layout)
+
+    def update_value(self, value):
+        if value is not None:
+            self.value = value
+            self.value_label.setText(f"{self.value:.2f}")
+        else:
+            self.value_label.setText("--")
+
+
+class StatsWidget(QWidget):
+    def __init__(self):
+        super().__init__()
+        main_layout = QVBoxLayout()
+        main_layout.setSpacing(2)
+
+        # Header with title and copy button
+        header_layout = QHBoxLayout()
+        header_layout.setSpacing(2)
+
+        title_label = QLabel("Statistics")
+        title_label.setStyleSheet("font-size: 14px;")
+        header_layout.addWidget(title_label)
+
+        # Add stretch to push the button to the right
+        header_layout.addStretch()
+
+        # Create copy button with icon
+        self.copy_button = QPushButton()
+        self.copy_button.setIcon(QIcon.fromTheme("edit-copy"))
+        self.copy_button.setToolTip("Copy statistics to clipboard")
+        self.copy_button.setFixedSize(24, 24)
+        self.copy_button.clicked.connect(self.copy_stats_to_clipboard)
+        header_layout.addWidget(self.copy_button)
+
+        main_layout.addLayout(header_layout)
+
+        # Stats grid
+        grid_layout = QGridLayout()
+        grid_layout.setSpacing(2)
+
+        self.widgets = {
+            'mean': StatWidget("Mean"),
+            'std': StatWidget("σ"),
+            'cv': StatWidget("CV", "%"),  # CV always in percent
+            'min': StatWidget("Min"),
+            'max': StatWidget("Max"),
+            'range': StatWidget("Range"),
+        }
+
+        for index, widget in enumerate(self.widgets.values()):
+            grid_layout.addWidget(widget, 0, index)
+            grid_layout.setColumnMinimumWidth(index, 80)
+
+        main_layout.addLayout(grid_layout)
+        self.setLayout(main_layout)
+
+    def update_units(self, unit):
+        """Update the units for all widgets except CV (which is always in %)"""
+        for name, widget in self.widgets.items():
+            if name != 'cv':  # Skip CV as it's always in percent
+                widget.units = unit
+                widget.label.setText(
+                    f"{widget.name} [{widget.units}]" if widget.units else widget.name)
+
+    def update_statistics(self, profile_data, unit=None):
+        """Update statistics with optional unit update"""
+        if unit is not None:
+            self.update_units(unit)
+
+        if profile_data is not None:
+            self.widgets['mean'].update_value(profile_data.mean())
+            self.widgets['std'].update_value(profile_data.std())
+            self.widgets['cv'].update_value(profile_data.std(
+            ) / profile_data.mean() * 100 if profile_data.mean() != 0 else None)
+            self.widgets['min'].update_value(profile_data.min())
+            self.widgets['max'].update_value(profile_data.max())
+            self.widgets['range'].update_value(
+                profile_data.max() - profile_data.min())
+        else:
+            for widget in self.widgets.values():
+                widget.update_value(None)
+
+    def copy_stats_to_clipboard(self):
+        clipboard = QApplication.clipboard()
+
+        try:
+            # Create formatted text for Word
+            text_format = []
+            for name, widget in self.widgets.items():
+                value = widget.value_label.text()
+                unit = widget.units
+                text_format.append(f"{widget.name}: {value} {unit}")
+
+            # Create TSV format for Excel
+            tsv_format = ["Statistic\tValue\tUnit"]
+            for name, widget in self.widgets.items():
+                value = widget.value_label.text()
+                unit = widget.units
+                tsv_format.append(f"{widget.name}\t{value}\t{unit}")
+
+            # Set text format only (more reliable)
+            clipboard.setText("\n".join(text_format))
+
+            # Optional: Try to set TSV format if needed
+            try:
+                mime_data = clipboard.mimeData()
+                mime_data.setData("text/tab-separated-values",
+                                  "\n".join(tsv_format).encode())
+                clipboard.setMimeData(mime_data)
+            except:
+                # If TSV format fails, we still have the text format
+                pass
+
+        except Exception as e:
+            print(f"Error copying to clipboard: {str(e)}")

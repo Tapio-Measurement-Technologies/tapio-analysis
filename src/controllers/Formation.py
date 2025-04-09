@@ -1,10 +1,12 @@
 from utils.data_loader import DataMixin
 from gui.components import PlotMixin
 from PyQt6.QtCore import QObject, pyqtSignal
+from PyQt6.QtWidgets import QMessageBox
 from matplotlib import pyplot as plt
 from scipy.optimize import curve_fit
 import settings
 import numpy as np
+
 
 class FormationController(QObject, PlotMixin):
     updated = pyqtSignal()
@@ -13,6 +15,8 @@ class FormationController(QObject, PlotMixin):
         super().__init__()
         self.dataMixin = DataMixin.getInstance()
         self.window_type = window_type
+        self.warning_message = None
+        self.can_calculate = self.check_required_channels()
 
         if self.window_type == "MD":
             self.max_dist = np.max(self.dataMixin.distances)
@@ -29,15 +33,45 @@ class FormationController(QObject, PlotMixin):
             self.selected_samples = self.dataMixin.selected_samples.copy()
             self.sampleSelectorWindow = None
 
+        self.show_profiles = False
+
+    def check_required_channels(self):
+        """Check if all required channels exist and show alert if not."""
+        required_channels = {
+            'BW': settings.FORMATION_BW_CHANNEL,
+            'Transmission': settings.FORMATION_TRANSMISSION_CHANNEL
+        }
+        
+        missing_channels = []
+        for channel_type, channel_name in required_channels.items():
+            if channel_name not in self.dataMixin.channels:
+                missing_channels.append(f"{channel_type} ({channel_name})")
+        
+        if missing_channels:
+            self.warning_message = f"Required channels not found: {', '.join(missing_channels)}"
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Icon.Warning)
+            msg.setText("Formation Index Calculation Not Available")
+            msg.setInformativeText(self.warning_message)
+            msg.setWindowTitle("Missing Channels")
+            msg.exec()
+            return False
+            
         self.channel = settings.FORMATION_BW_CHANNEL
         self.transmission_channel = settings.FORMATION_TRANSMISSION_CHANNEL
         self.bw_channel = settings.FORMATION_BW_CHANNEL
-        self.show_profiles = False
+        return True
 
     def plot(self):
-        # logging.info("Refresh")
         self.figure.clear()
         ax = self.figure.add_subplot(111)
+
+        if not self.can_calculate:
+            self.figure.text(0.5, 0.5, "Formation Index calculation not available\nRequired channels missing",
+                           ha='center', va='center', color='red')
+            self.canvas.draw()
+            self.stats = None  # Clear any previous stats
+            return self.canvas
 
         # Todo: These are in meters, li
         # Todo: These are in meters, like distances array. Convert these to indices and have them have an effect on the displayed slice of the datamixin
@@ -110,9 +144,10 @@ class FormationController(QObject, PlotMixin):
 
             if self.show_profiles:
                 for i in formation_profiles:
-                    ax.plot(x[399:], i, color="gray", alpha=0.5, lw=0.5)
+                    ax.plot(x[settings.FORMATION_WINDOW_SIZE-1:],
+                            i, color="gray", alpha=0.5, lw=0.5)
 
-        x = x[399:]
+        x = x[settings.FORMATION_WINDOW_SIZE-1:]
 
         show_unfiltered_data = True
         ax.plot(x, y)
@@ -139,7 +174,8 @@ class FormationController(QObject, PlotMixin):
         max_val = np.max(self.stats)
         units = self.dataMixin.units[self.channel]
 
-        stats.append(["Correlation coefficient:", f"{self.correlation_coefficient:.2f}"])
+        stats.append(["Correlation coefficient:",
+                     f"{self.correlation_coefficient:.2f}"])
         stats.append(["", f"{self.channel} [{units}]"])
         stats.append([
             "Mean:\nStdev:\nMin:\nMax:",
@@ -148,7 +184,7 @@ class FormationController(QObject, PlotMixin):
 
         return stats
 
-    def calculate_formation_index(self, arr, window_size=400):
+    def calculate_formation_index(self, arr, window_size=settings.FORMATION_WINDOW_SIZE):
         arr = np.array(arr)
         num_values = len(arr) - window_size + 1
         result = np.empty(num_values)

@@ -3,7 +3,7 @@ from PyQt6.QtGui import QAction
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from qtpy.QtCore import Qt
 from utils.data_loader import DataMixin
-from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowLegendMixin, ShowConfidenceIntervalMixin, ShowMinMaxMixin, WaterfallOffsetMixin, ExtraDataMixin, CopyPlotMixin, ChildWindowCloseMixin
+from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowLegendMixin, ShowConfidenceIntervalMixin, ShowMinMaxMixin, WaterfallOffsetMixin, ExtraDataMixin, CopyPlotMixin, ChildWindowCloseMixin, StatsWidget
 from controllers import CDProfileController
 from matplotlib.ticker import AutoMinorLocator
 import settings
@@ -69,20 +69,9 @@ class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Band
         else:
             self.addWaterfallOffsetSlider(mainLayout)
 
-        # Add statistics labels
-        statsLayout = QVBoxLayout()  # Separate layout for statistics labels
-        self.meanLabel = QLabel("Mean: ")
-        self.stdLabel = QLabel("σ: ")
-        self.minLabel = QLabel("Min: ")
-        self.maxLabel = QLabel("Max: ")
-        self.rangeLabel = QLabel("Range: ")
-
-        for label in [self.meanLabel, self.stdLabel, self.minLabel, self.maxLabel, self.rangeLabel]:
-            label.setTextInteractionFlags(
-                Qt.TextInteractionFlag.TextSelectableByMouse)
-            statsLayout.addWidget(label)
-
-        mainLayout.addLayout(statsLayout)
+        # Add statistics widget
+        self.stats_widget = StatsWidget()
+        mainLayout.addWidget(self.stats_widget)
 
         # Matplotlib figure and canvas
         self.plot = self.controller.getCanvas()
@@ -109,3 +98,7 @@ class CDProfileWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Band
         self.refresh_widgets()
 
         self.updateStatistics(self.controller.mean_profile)
+
+    def updateStatistics(self, profile_data):
+        unit = self.dataMixin.units[self.controller.channel]
+        self.stats_widget.update_statistics(profile_data, unit)
