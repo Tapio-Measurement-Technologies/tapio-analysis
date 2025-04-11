@@ -3,15 +3,20 @@ from PyQt6.QtGui import QAction
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from qtpy.QtCore import Qt
 from utils.data_loader import DataMixin
-from gui.components import AnalysisRangeMixin, StatsMixin, SampleSelectMixin, ShowProfilesMixin, CopyPlotMixin, ChildWindowCloseMixin
+from gui.components import AnalysisRangeMixin, SampleSelectMixin, ShowProfilesMixin, CopyPlotMixin, ChildWindowCloseMixin, StatsWidget
 from controllers import FormationController
+import settings
 
 
-class FormationWindow(QWidget, DataMixin, AnalysisRangeMixin, StatsMixin, SampleSelectMixin, ShowProfilesMixin, CopyPlotMixin, ChildWindowCloseMixin):
+class FormationWindow(QWidget, DataMixin, AnalysisRangeMixin, SampleSelectMixin, ShowProfilesMixin, CopyPlotMixin, ChildWindowCloseMixin):
     def __init__(self, window_type="MD", controller: FormationController | None = None):
         super().__init__()
         self.dataMixin = DataMixin.getInstance()
-        self.controller = controller if controller else FormationController(window_type)
+        self.controller = controller if controller else FormationController(
+            window_type)
+        if not self.controller.can_calculate:
+            self.close()
+            return
         self.window_type = window_type
         self.initUI()
 
@@ -25,8 +30,9 @@ class FormationWindow(QWidget, DataMixin, AnalysisRangeMixin, StatsMixin, Sample
             self.toggleSelectSamples)
 
     def initUI(self):
-        self.setWindowTitle(
-            f"Formation analysis ({self.dataMixin.measurement_label})")
+        if settings.FORMATION_TITLE_SHOW:
+            self.setWindowTitle(
+                f"Formation analysis ({self.dataMixin.measurement_label})")
         self.setGeometry(100, 100, 700, 800)
 
         mainLayout = QVBoxLayout()
@@ -34,39 +40,31 @@ class FormationWindow(QWidget, DataMixin, AnalysisRangeMixin, StatsMixin, Sample
         if self.window_type == "CD":
             self.initMenuBar(mainLayout)
 
-        # Add the channel selector
-        # self.addChannelSelector(mainLayout)
-
         # Analysis range slider
         self.addAnalysisRangeSlider(mainLayout)
 
-        if self.window_type =="CD":
+        if self.window_type == "CD":
             self.addShowProfilesCheckbox(mainLayout)
 
-
-        statsLayout = QVBoxLayout()  # Separate layout for statistics labels
-
+        # Add description label
         self.textLabel = QLabel(
             "Formation index (calculated from transmission correlated to BW)")
+        self.textLabel.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse)
+        mainLayout.addWidget(self.textLabel)
+
+        # Add correlation coefficient label
         self.correlationLabel = QLabel("Correlation coefficient: ")
-        self.meanLabel = QLabel("Mean: ")
-        self.stdLabel = QLabel("σ: ")
-        self.minLabel = QLabel("Min: ")
-        self.maxLabel = QLabel("Max: ")
+        self.correlationLabel.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse)
+        mainLayout.addWidget(self.correlationLabel)
 
-        for label in [self.textLabel, self.correlationLabel, self.meanLabel, self.stdLabel, self.minLabel, self.maxLabel]:
-            label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-            statsLayout.addWidget(label)
+        # Add statistics widget
+        self.stats_widget = StatsWidget()
+        mainLayout.addWidget(self.stats_widget)
 
-        mainLayout.addLayout(statsLayout)
-
-        # self.addBandPassRangeSlider(mainLayout)
-
-        # Now add a stretch factor before adding the figure canvas to give it priority to expand
-        # mainLayout.addStretch(1)
-
+        # Matplotlib figure and canvas
         self.plot = self.controller.getCanvas()
-        # Add with stretch factor to allow expansion
         mainLayout.addWidget(self.plot, 1)
         self.toolbar = NavigationToolbar(self.plot, self)
         mainLayout.addWidget(self.toolbar)
@@ -81,5 +79,6 @@ class FormationWindow(QWidget, DataMixin, AnalysisRangeMixin, StatsMixin, Sample
     def refresh(self):
         self.controller.updatePlot()
         self.refresh_widgets()
-        self.correlationLabel.setText(f"Correlation coefficient: {self.controller.correlation_coefficient:.2f}")
-        self.updateStatistics(self.controller.stats, show_units=False)
+        self.correlationLabel.setText(
+            f"Correlation coefficient: {self.controller.correlation_coefficient:.2f}")
+        self.stats_widget.update_statistics(self.controller.stats, "")

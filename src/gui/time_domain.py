@@ -3,12 +3,12 @@ from PyQt6.QtGui import QImage
 from PyQt6.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from utils.data_loader import DataMixin
-from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, StatsMixin, ShowUnfilteredMixin, ShowTimeLabelsMixin, MachineSpeedMixin, CopyPlotMixin, ChildWindowCloseMixin
+from gui.components import AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, ShowUnfilteredMixin, ShowTimeLabelsMixin, MachineSpeedMixin, CopyPlotMixin, ChildWindowCloseMixin, StatsWidget
 from controllers import TimeDomainController
 from io import BytesIO
 import settings
 
-class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, StatsMixin,
+class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin,
                        ShowUnfilteredMixin, ShowTimeLabelsMixin, MachineSpeedMixin, CopyPlotMixin, ChildWindowCloseMixin):
 
     def __init__(self, controller: TimeDomainController | None = None):
@@ -30,10 +30,6 @@ class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilter
         self.setWindowTitle(f"Time domain analysis ({self.controller.dataMixin.measurement_label})")
         self.setGeometry(*settings.TIME_DOMAIN_WINDOW_GEOMETRY)
 
-
-
-
-
         mainLayout = QVBoxLayout()
         self.setLayout(mainLayout)
         self.initMenuBar(mainLayout)
@@ -48,18 +44,9 @@ class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilter
         self.addShowTimeLabelsCheckbox(mainLayout)
         self.addShowUnfilteredCheckbox(mainLayout)
 
-        # Add statistics labels
-        statsLayout = QVBoxLayout()
-        self.meanLabel = QLabel("Mean: ")
-        self.stdLabel = QLabel("σ: ")
-        self.minLabel = QLabel("Min: ")
-        self.maxLabel = QLabel("Max: ")
-        self.rangeLabel = QLabel("Range: ")
-
-        for label in [self.meanLabel, self.stdLabel, self.minLabel, self.maxLabel, self.rangeLabel]:
-            label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-            statsLayout.addWidget(label)
-        mainLayout.addLayout(statsLayout)
+        # Add statistics widget
+        self.stats_widget = StatsWidget()
+        mainLayout.addWidget(self.stats_widget)
 
         # Matplotlib figure and canvas
         self.plot = self.controller.getCanvas()
@@ -79,6 +66,10 @@ class TimeDomainWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilter
         self.controller.updatePlot()
         self.refresh_widgets()
         self.updateStatistics(self.controller.data)
+
+    def updateStatistics(self, profile_data):
+        unit = self.dataMixin.units[self.controller.channel]
+        self.stats_widget.update_statistics(profile_data, unit)
 
 
 

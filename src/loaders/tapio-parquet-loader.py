@@ -286,7 +286,9 @@ def apply_calibration_with_uniform_trimming(calibration_data):
                 y_filtered = np.delete(y_vals, min_index)
 
                 # Fixed k parameter for single-point log
-                k = ASH_MAC
+                k = cal_data.get('k', ASH_MAC)
+
+
                 # Fixed a parameter (typically close to minimum voltage)
                 a = min(x_vals)
 
