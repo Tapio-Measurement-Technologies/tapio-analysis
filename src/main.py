@@ -237,7 +237,11 @@ class MainWindow(QMainWindow, DataMixin):
                     return
 
             self.closeAll()
-            loader_module.load_data(fileNames)
+            try:
+                loader_module.load_data(fileNames)
+            except Exception as e:
+                self.dataMixin.reset()
+                QMessageBox.critical(self, "Error", f"Error loading data: {e}")
             self.refresh()
 
     def exportData(self, export_module):
