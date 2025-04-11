@@ -47,11 +47,12 @@ def read_channel_names_units_from_ca(cal_file):
     sensor_names = []
     units = {}
     logical_channel_numbers = {}
+    # Use running number for unnamed channels in case there are multiple
+    n_unnamed_channels = 0
 
     cal_file.seek(0)
     reading_sensor_names = False
     for line in cal_file:
-        line = line.strip()
         if line.startswith('[Sensor Names]'):
             reading_sensor_names = True
         elif reading_sensor_names:
@@ -61,6 +62,9 @@ def read_channel_names_units_from_ca(cal_file):
                 parts = line.split('\t')
                 if len(parts) >= 3:
                     sensor_name = parts[0]
+                    if not sensor_name.strip():
+                        n_unnamed_channels += 1
+                        sensor_name = f"Unnamed channel {n_unnamed_channels}"
                     logical_channel_number = parts[2]
                     if logical_channel_number != "-1":
                         units[sensor_name] = parts[1]
