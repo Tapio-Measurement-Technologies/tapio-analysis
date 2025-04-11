@@ -4,7 +4,7 @@ import logging
 from utils.tapio_legacy_parser import load_legacy_data
 import json
 import settings
-
+from utils.types import MeasurementFileType
 import traceback
 
 
@@ -129,3 +129,15 @@ class DataMixin:
 
         indices = np.arange(min_length)
         self.cd_distances = indices * self.sample_step
+
+    def get_file_path(self, file_type: MeasurementFileType):
+        if file_type == MeasurementFileType.HEADER:
+            return self.header_file_path
+        elif file_type == MeasurementFileType.CALIBRATION:
+            return self.calibration_file_path
+        elif file_type == MeasurementFileType.DATA:
+            return self.data_file_path
+        elif file_type == MeasurementFileType.PM:
+            return self.pm_file_path
+        elif file_type == MeasurementFileType.SAMPLES:
+            return self.samples_file_path

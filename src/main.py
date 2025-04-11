@@ -30,6 +30,7 @@ from gui.report import ReportWindow
 from utils.data_loader import DataMixin
 from utils.windows import *
 from utils.dynamic_loader import load_modules_from_folder
+from utils.types import MeasurementFileType
 
 import logging
 import os
@@ -150,7 +151,7 @@ class MainWindow(QMainWindow, DataMixin):
         # File Pickers
 
         self.fileLabels = {}
-        for fileType in ["Header", "Calibration", "Data", "Paper machine", "Sample locations"]:
+        for fileType in MeasurementFileType:
             self.addFilePicker(logoLayout, fileType)
 
         # Add the logo and file pickers layout to the main layout
@@ -236,7 +237,7 @@ class MainWindow(QMainWindow, DataMixin):
                     return
 
             self.closeAll()
-            loader_module.load_data(self, fileNames)
+            loader_module.load_data(fileNames)
             self.refresh()
 
     def exportData(self, export_module):
@@ -273,14 +274,22 @@ class MainWindow(QMainWindow, DataMixin):
         if self.dataMixin.segments:
             [i.setEnabled(True) for i in cd_functions]
 
-    def addFilePicker(self, layout, fileType):
+        self.updateFileLabels()
+
+    def addFilePicker(self, layout, fileType: MeasurementFileType):
         # Create file picker layout
         fileLayout = QVBoxLayout()
-        fileLabel = QLabel(f"{fileType} file:")
+        fileLabel = QLabel(f"{fileType.value} file:")
         self.fileLabels[fileType] = QLabel("No file selected")
         fileLayout.addWidget(fileLabel)
         fileLayout.addWidget(self.fileLabels[fileType])
         layout.addLayout(fileLayout)
+
+    def updateFileLabels(self):
+        for fileType, label in self.fileLabels.items():
+            file_path = self.dataMixin.get_file_path(fileType)
+            label_text = os.path.basename(file_path) if file_path else "No file selected"
+            label.setText(label_text)
 
     def closeAll(self):
         self.dataMixin.reset()

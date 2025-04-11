@@ -8,7 +8,7 @@ dataMixin = DataMixin.getInstance()
 file_types = "All Files (*);;Calibration files (*.ca2);;Data files (*.da2);;Header files (*.pk2);;Paper machine files (*.pmdata.json);;CD Sample location files (*.samples.json)"
 
 
-def load_data(main_window, fileNames: list[str]):
+def load_data(fileNames: list[str]):
 
     for fn in fileNames:
         # Extract the base name of the file
@@ -16,20 +16,15 @@ def load_data(main_window, fileNames: list[str]):
 
         if fn.lower().endswith('.ca2'):
             dataMixin.calibration_file_path = fn
-            main_window.fileLabels["Calibration"].setText(f"{basename}")
         elif fn.lower().endswith('.da2'):
             dataMixin.data_file_path = fn
-            main_window.fileLabels["Data"].setText(f"{basename}")
         elif fn.lower().endswith('.pk2'):
             dataMixin.header_file_path = fn
-            main_window.fileLabels["Header"].setText(f"{basename}")
         elif fn.lower().endswith('.pmdata.json'):
             dataMixin.pm_file_path = fn
-            main_window.fileLabels["Paper machine"].setText(f"{basename}")
             dataMixin.load_pm_file()
         elif fn.lower().endswith('.samples.json'):
             dataMixin.samples_file_path = fn
-            main_window.fileLabels["Sample locations"].setText(f"{basename}")
 
     if (dataMixin.calibration_file_path and dataMixin.data_file_path and dataMixin.header_file_path):
         dataMixin.load_legacy_data()

@@ -39,7 +39,7 @@ def get_sample_step():
         return None
 
 
-def load_data(main_window, fileNames: list[str]):
+def load_data(fileNames: list[str]):
     calibrations = {}
 
     for fn in fileNames:
@@ -64,7 +64,7 @@ def load_data(main_window, fileNames: list[str]):
 
                         # Add file name labels
                         basename = os.path.basename(parquet_file)
-                        main_window.fileLabels["Data"].setText(f"{basename}")
+                        dataMixin.data_file_path = fn
 
                         if len(data_df) > 1000:
                             data_df = data_df.iloc[1000:]
@@ -129,8 +129,7 @@ def load_data(main_window, fileNames: list[str]):
                 if tcal_file:
                     with zip_ref.open(tcal_file) as tcal_data:
                         basename = os.path.basename(tcal_file)
-                        main_window.fileLabels["Calibration"].setText(
-                            f"{basename}")
+                        dataMixin.calibration_file_path = fn
                         tcal_content = tcal_data.read().decode("utf-8")
                         tcal_json = json.loads(tcal_content)
 
@@ -179,7 +178,6 @@ def load_data(main_window, fileNames: list[str]):
         elif fn.endswith('.pmdata.json'):
             dataMixin.pm_file_path = fn
             basename = os.path.basename(fn)
-            main_window.fileLabels["Paper machine"].setText(f"{basename}")
             dataMixin.load_pm_file()
 
 
