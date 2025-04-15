@@ -29,7 +29,7 @@ jobs:
           pyinstaller
           -p src
           --onefile
-          --console
+          --noconsole
           --add-data "src/loaders/:loaders/"
           --add-data "src/exporters/:exporters/"
           --add-data "src/assets/:assets"
