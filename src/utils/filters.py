@@ -20,6 +20,7 @@ def mirror_pad(data, numtaps):
 def bandpass_filter(data, lowcut, highcut, fs, numtaps=settings.FILTER_NUMTAPS, window="hamming", mirror=True, use_epsilon=True, correct_mean=True):
     """
     Applies a phase-correct FIR bandpass filter with Hamming windowing.
+    The number of taps is automatically adjusted if the input data is too short.
 
     :param data: Array-like, the data to filter.
     :param lowcut: float, the low cutoff frequency.
@@ -31,6 +32,16 @@ def bandpass_filter(data, lowcut, highcut, fs, numtaps=settings.FILTER_NUMTAPS, 
     """
 
     original_mean = np.mean(data)
+    data_length = len(data)
+
+    # Adjust number of taps if data is too short
+    if data_length < numtaps:
+        # Calculate new number of taps that's smaller than data length
+        # Keep it odd for FIR filter
+        new_numtaps = data_length - (data_length % 2) - 1
+        # Ensure we have at least 3 taps for a meaningful filter
+        new_numtaps = max(3, new_numtaps)
+        numtaps = new_numtaps
 
     epsilon = 0.0001
     # Pad the data with a mirrored copy if mirror is True
