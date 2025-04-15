@@ -110,10 +110,10 @@ class LogManager(QObject):
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write(platform_info + "\n" + "\n".join(raw_logs))
             print(f"Log exported to {file_path}")
-            return True
+            return (True, f"Log exported successfully to {file_path}")
         except Exception as e:
             print(f"Error saving log: {e}")
-            return False
+            return (False, f"Failed to export logs: {e}")
 
     def _escape_html(self, text):
         return (

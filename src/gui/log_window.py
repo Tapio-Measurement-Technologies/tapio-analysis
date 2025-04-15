@@ -84,8 +84,8 @@ class LogWindow(QWidget):
             self, "Export Log", default_name, "Log Files (*.log);;Text Files (*.txt);;All Files (*)"
         )
         if path:
-            success = self.log_manager.export_logs(path)
+            (success, msg) = self.log_manager.export_logs(path)
             if success:
-                QMessageBox.information(self, "Success", "Log exported successfully to " + path)
+                QMessageBox.information(self, "Success", msg)
             else:
-                QMessageBox.critical(self, "Error", "Failed to export logs. See console for details.")
+                QMessageBox.critical(self, "Error", msg)
