@@ -45,6 +45,9 @@ class TimeDomainController(QObject, PlotMixin, ExportMixin):
             self.dataMixin.distances, self.analysis_range_high, side='right')
 
         self.distances = self.dataMixin.distances[low_index:high_index]
+        if len(self.distances) <= 1:
+            raise ValueError("Not enough data to plot")
+
         unfiltered_data = self.dataMixin.channel_df[self.channel][low_index:high_index]
         self.data = bandpass_filter(
             unfiltered_data, self.band_pass_low, self.band_pass_high, self.fs)
