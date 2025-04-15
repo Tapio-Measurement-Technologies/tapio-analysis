@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (
     QTextEdit, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QCheckBox, QFileDialog
+    QPushButton, QCheckBox, QFileDialog, QLabel
 )
 from PyQt6.QtGui import QTextCursor
 from PyQt6.QtWidgets import QMessageBox
@@ -34,9 +34,11 @@ class LogWindow(QWidget):
 
     def init_filters(self):
         self.filter_layout = QHBoxLayout()
+        self.filter_label = QLabel("Filters:")
         self.check_info = QCheckBox("INFO")
         self.check_error = QCheckBox("ERROR")
 
+        self.filter_layout.addWidget(self.filter_label)
         for checkbox in [self.check_info, self.check_error]:
             checkbox.setChecked(True)
             checkbox.stateChanged.connect(self.update_active_levels)
