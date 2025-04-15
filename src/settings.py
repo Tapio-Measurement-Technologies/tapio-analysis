@@ -320,6 +320,7 @@ STATISTICS_DECIMALS = 2
 
 LOG_WINDOW_SHOW_TIMESTAMPS = True
 LOG_WINDOW_MAX_LINES = 1000
+CRASH_DIALOG_CONTACT_EMAIL = "info@tapiotechnologies.com"
 
 
 def load_local_settings(local_settings_path):

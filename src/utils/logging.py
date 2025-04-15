@@ -6,6 +6,7 @@ import settings
 from collections import deque
 from PyQt6.QtCore import QObject, pyqtSignal
 from utils.log_stream import EmittingStream
+from gui.crash_dialog import CrashDialog
 
 # TODO: This whole module could be refactored to use python's logging module which does most of these things already
 
@@ -121,3 +122,16 @@ class LogManager(QObject):
                 .replace("<", "&lt;")
                 .replace(">", "&gt;")
         )
+
+    def handle_crash(self, traceback_text):
+        """Show crash dialog when an unhandled exception occurs"""
+        # Log the crash to the log buffer
+        self.append_message("**************************", "ERROR")
+        self.append_message("BEGIN CRASH TRACEBACK:", "ERROR")
+        self.append_message("**************************", "ERROR")
+        self.append_message(traceback_text, "ERROR")
+
+        # Show the crash dialog
+        dialog = CrashDialog(self, traceback_text)
+        dialog.exec()
+        sys.exit(1)

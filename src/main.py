@@ -13,7 +13,10 @@ from utils.log_stream import EmittingStream, EmittingStreamType
 stdout_stream = EmittingStream(EmittingStreamType.STDOUT)
 stderr_stream = EmittingStream(EmittingStreamType.STDERR)
 
+from utils.logging import LogManager
 import settings
+log_manager = LogManager(stdout_stream, stderr_stream, settings.LOG_WINDOW_MAX_LINES, settings.LOG_WINDOW_SHOW_TIMESTAMPS)
+
 from PyQt6.QtWidgets import (QApplication, QWidget, QPushButton, QVBoxLayout, QLabel, QHBoxLayout, QMessageBox,
                              QMainWindow, QFileDialog, QFrame, QStyleFactory)
 from PyQt6.QtGui import QPixmap, QIcon, QAction
@@ -22,7 +25,6 @@ import importlib
 
 from gui.find_samples import FindSamplesWindow
 from gui.report import ReportWindow
-from utils.logging import LogManager
 from utils.data_loader import DataMixin
 from utils.windows import *
 from utils.dynamic_loader import load_modules_from_folder
@@ -31,9 +33,9 @@ from utils.types import MeasurementFileType
 import logging
 import os
 import sys
+import traceback
 
 from PyQt6.QtWidgets import QInputDialog
-
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -43,7 +45,6 @@ class MainWindow(QMainWindow, DataMixin):
 
     def __init__(self):
         super().__init__()
-        self.log_manager = LogManager(stdout_stream, stderr_stream, settings.LOG_WINDOW_MAX_LINES, settings.LOG_WINDOW_SHOW_TIMESTAMPS)
         self.dataMixin = DataMixin.getInstance()
         self.windows = []
         self.findSamplesWindow = None
@@ -338,7 +339,7 @@ class MainWindow(QMainWindow, DataMixin):
         self.updateWindowsList()
 
     def on_log_window_open(self):
-        self.logWindow = openLogWindow(self.log_manager)
+        self.logWindow = openLogWindow(log_manager)
 
     def setupAnalysisButtons(self, layout):
         # MD Analysis
@@ -436,6 +437,18 @@ class MainWindow(QMainWindow, DataMixin):
 
         layout.addLayout(columnsLayout)
 
+def handle_exception(exc_type, exc_value, exc_traceback):
+    if issubclass(exc_type, KeyboardInterrupt):
+        # Allow Ctrl+C to exit as usual
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+
+    # Format traceback
+    tb = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+    log_manager.handle_crash(tb)
+
+# Set global exception handler
+sys.excepthook = handle_exception
 
 def main():
     app = QApplication(sys.argv)
