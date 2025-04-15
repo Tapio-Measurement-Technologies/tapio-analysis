@@ -7,15 +7,10 @@
 
 # You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-import sys
-import os
+from utils.log_stream import EmittingStream, EmittingStreamType
 
-# Fix unavailable handles for pyinstaller --noconsole in Windows
-if sys.stdout is None:
-    sys.stdout = open(os.devnull, "w")
-if sys.stderr is None:
-    sys.stderr = open(os.devnull, "w")
-
+stdout_stream = EmittingStream(EmittingStreamType.STDOUT)
+stderr_stream = EmittingStream(EmittingStreamType.STDERR)
 
 import settings
 from PyQt6.QtWidgets import (QApplication, QWidget, QPushButton, QVBoxLayout, QLabel, QHBoxLayout, QMessageBox,
@@ -26,7 +21,7 @@ import importlib
 
 from gui.find_samples import FindSamplesWindow
 from gui.report import ReportWindow
-
+from gui.log_window import LogWindow
 from utils.data_loader import DataMixin
 from utils.windows import *
 from utils.dynamic_loader import load_modules_from_folder
@@ -34,6 +29,7 @@ from utils.types import MeasurementFileType
 
 import logging
 import os
+import sys
 
 from PyQt6.QtWidgets import QInputDialog
 
@@ -46,6 +42,7 @@ class MainWindow(QMainWindow, DataMixin):
 
     def __init__(self):
         super().__init__()
+        self.log_window = LogWindow(stdout_stream, stderr_stream, settings.LOG_WINDOW_MAX_LINES, settings.LOG_WINDOW_SHOW_TIMESTAMPS)
         self.dataMixin = DataMixin.getInstance()
         self.windows = []
         self.findSamplesWindow = None
@@ -119,6 +116,12 @@ class MainWindow(QMainWindow, DataMixin):
         self.closeAction.triggered.connect(self.closeAll)
         self.closeAction.setStatusTip("Close all open files")
         fileMenu.addAction(self.closeAction)
+
+        # VIEW MENU
+        viewMenu = mainMenu.addMenu('View')
+        logWindowAction = QAction('Application logs', self)
+        logWindowAction.triggered.connect(self.openLogWindow)
+        viewMenu.addAction(logWindowAction)
 
         # SETTINGS MENU
         settings_menu = mainMenu.addMenu('Settings')
@@ -331,6 +334,9 @@ class MainWindow(QMainWindow, DataMixin):
         newWindow.show()
         self.windows.append(newWindow)
         self.updateWindowsList()
+
+    def openLogWindow(self):
+        self.log_window.show()
 
     def setupAnalysisButtons(self, layout):
         # MD Analysis
