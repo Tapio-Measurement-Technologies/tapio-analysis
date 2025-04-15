@@ -9,6 +9,7 @@
 
 from utils.log_stream import EmittingStream, EmittingStreamType
 
+# Replaces sys.stdout and sys.stderr
 stdout_stream = EmittingStream(EmittingStreamType.STDOUT)
 stderr_stream = EmittingStream(EmittingStreamType.STDERR)
 
@@ -21,7 +22,7 @@ import importlib
 
 from gui.find_samples import FindSamplesWindow
 from gui.report import ReportWindow
-from gui.log_window import LogWindow
+from utils.logging import LogManager
 from utils.data_loader import DataMixin
 from utils.windows import *
 from utils.dynamic_loader import load_modules_from_folder
@@ -42,10 +43,11 @@ class MainWindow(QMainWindow, DataMixin):
 
     def __init__(self):
         super().__init__()
-        self.log_window = LogWindow(stdout_stream, stderr_stream, settings.LOG_WINDOW_MAX_LINES, settings.LOG_WINDOW_SHOW_TIMESTAMPS)
+        self.log_manager = LogManager(stdout_stream, stderr_stream, settings.LOG_WINDOW_MAX_LINES, settings.LOG_WINDOW_SHOW_TIMESTAMPS)
         self.dataMixin = DataMixin.getInstance()
         self.windows = []
         self.findSamplesWindow = None
+        self.logWindow = None
 
         base_path = os.path.dirname(os.path.abspath(__file__))
         self.loaders = load_modules_from_folder(
@@ -120,7 +122,7 @@ class MainWindow(QMainWindow, DataMixin):
         # VIEW MENU
         viewMenu = mainMenu.addMenu('View')
         logWindowAction = QAction('Application logs', self)
-        logWindowAction.triggered.connect(self.openLogWindow)
+        logWindowAction.triggered.connect(self.on_log_window_open)
         viewMenu.addAction(logWindowAction)
 
         # SETTINGS MENU
@@ -335,8 +337,8 @@ class MainWindow(QMainWindow, DataMixin):
         self.windows.append(newWindow)
         self.updateWindowsList()
 
-    def openLogWindow(self):
-        self.log_window.show()
+    def on_log_window_open(self):
+        self.logWindow = openLogWindow(self.log_manager)
 
     def setupAnalysisButtons(self, layout):
         # MD Analysis

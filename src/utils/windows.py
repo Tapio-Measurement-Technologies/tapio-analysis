@@ -6,6 +6,7 @@ from gui.spectrum import SpectrumWindow
 from gui.spectrogram import SpectrogramWindow
 from gui.time_domain import TimeDomainWindow
 from gui.vca import VCAWindow
+from gui.log_window import LogWindow
 
 def openTimeDomainAnalysis(parent, controller = None):
     newWindow = TimeDomainWindow(controller)
@@ -38,3 +39,8 @@ def openChannelCorrelation(parent, window_type="MD", controller = None):
 def openFormationAnalysis(parent, window_type="MD", controller = None):
     newWindow = FormationWindow(window_type, controller)
     parent.add_window(newWindow)
+
+def openLogWindow(log_manager):
+    newWindow = LogWindow(log_manager)
+    newWindow.show()
+    return newWindow
