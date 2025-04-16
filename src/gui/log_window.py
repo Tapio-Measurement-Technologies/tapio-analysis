@@ -4,18 +4,17 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QTextCursor
 from PyQt6.QtWidgets import QMessageBox
-from utils.logging import LogManager
 from datetime import datetime
+from utils import store
 
 class LogWindow(QWidget):
-    def __init__(self, log_manager: LogManager):
+    def __init__(self):
         super().__init__()
         self.setWindowTitle("Application logs")
         self.setMinimumSize(800, 400)
 
         # Use provided log manager or create a new one
-        self.log_manager = log_manager
-        self.log_manager.log_updated.connect(self.refresh_text_edit)
+        store.log_manager.log_updated.connect(self.refresh_text_edit)
 
         # Layouts
         self.text_edit = QTextEdit()
@@ -67,16 +66,16 @@ class LogWindow(QWidget):
             active_levels.add("INFO")
         if self.check_error.isChecked():
             active_levels.add("ERROR")
-        self.log_manager.active_levels = active_levels
+        store.log_manager.active_levels = active_levels
         self.refresh_text_edit()
 
     def refresh_text_edit(self):
-        filtered_logs = self.log_manager.get_filtered_logs()
+        filtered_logs = store.log_manager.get_filtered_logs()
         self.text_edit.setHtml("<br>".join(filtered_logs))
         self.text_edit.moveCursor(QTextCursor.MoveOperation.End)
 
     def clear_log(self):
-        self.log_manager.clear_logs()
+        store.log_manager.clear_logs()
         self.text_edit.clear()
 
     def export_log(self):
@@ -86,7 +85,7 @@ class LogWindow(QWidget):
             self, "Export Log", default_name, "Log Files (*.log);;Text Files (*.txt);;All Files (*)"
         )
         if path:
-            (success, msg) = self.log_manager.export_logs(path)
+            (success, msg) = store.log_manager.export_logs(path)
             if success:
                 QMessageBox.information(self, "Success", msg)
             else:

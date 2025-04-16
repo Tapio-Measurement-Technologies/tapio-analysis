@@ -11,6 +11,7 @@
 Global store for application-wide resources and objects.
 This helps avoid circular imports by providing a central place to access shared resources.
 """
+from utils.logging import LogManager
 
 # This will be set in main.py
-log_manager = None
+log_manager: LogManager | None = None

@@ -40,7 +40,7 @@ def openFormationAnalysis(parent, window_type="MD", controller = None):
     newWindow = FormationWindow(window_type, controller)
     parent.add_window(newWindow)
 
-def openLogWindow(log_manager):
-    newWindow = LogWindow(log_manager)
+def openLogWindow():
+    newWindow = LogWindow()
     newWindow.show()
     return newWindow

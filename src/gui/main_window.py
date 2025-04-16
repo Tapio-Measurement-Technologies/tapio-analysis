@@ -21,7 +21,6 @@ from utils.data_loader import DataMixin
 from utils.windows import *
 from utils.dynamic_loader import load_modules_from_folder
 from utils.types import MeasurementFileType
-from utils import store
 import settings
 
 
@@ -320,7 +319,7 @@ class MainWindow(QMainWindow, DataMixin):
         self.updateWindowsList()
 
     def on_log_window_open(self):
-        self.logWindow = openLogWindow(store.log_manager)
+        self.logWindow = openLogWindow()
 
     def setupAnalysisButtons(self, layout):
         # MD Analysis
