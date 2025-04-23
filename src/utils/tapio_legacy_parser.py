@@ -60,9 +60,10 @@ def read_channel_names_units_from_ca(cal_file):
                 break
             if line:
                 parts = line.split('\t')
+                parts = [part.strip() for part in parts]
                 if len(parts) >= 3:
                     sensor_name = parts[0]
-                    if not sensor_name.strip():
+                    if not sensor_name:
                         n_unnamed_channels += 1
                         sensor_name = f"Unnamed channel {n_unnamed_channels}"
                     logical_channel_number = parts[2]
