@@ -17,7 +17,7 @@ REPORT_FORMAT_DEFAULT = 'latex'
 
 FORCE_PRIMARY_SCALE_SUPPLEMENTARY = False
 
-
+ANALYSIS_DIR = 'analyses'
 ANALYSES = {
     "CD": {
         "profile": {

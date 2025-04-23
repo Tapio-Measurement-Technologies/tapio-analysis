@@ -1,14 +1,28 @@
 from utils.data_loader import DataMixin
-from gui.components import PlotMixin
 from PyQt6.QtCore import QObject, pyqtSignal
-from PyQt6.QtWidgets import QMessageBox
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QMenuBar, QMessageBox
+from PyQt6.QtGui import QAction
+from qtpy.QtCore import Qt
 from matplotlib import pyplot as plt
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from scipy.optimize import curve_fit
+from gui.components import (
+    AnalysisRangeMixin,
+    SampleSelectMixin,
+    ShowProfilesMixin,
+    CopyPlotMixin,
+    ChildWindowCloseMixin,
+    StatsWidget,
+    PlotMixin
+)
+from utils.types import AnalysisType
 import settings
 import numpy as np
 
+analysis_name = "Formation"
+analysis_types = [AnalysisType.MD, AnalysisType.CD]
 
-class FormationController(QObject, PlotMixin):
+class AnalysisController(QObject, PlotMixin):
     updated = pyqtSignal()
 
     def __init__(self, window_type="MD"):
@@ -41,12 +55,12 @@ class FormationController(QObject, PlotMixin):
             'BW': settings.FORMATION_BW_CHANNEL,
             'Transmission': settings.FORMATION_TRANSMISSION_CHANNEL
         }
-        
+
         missing_channels = []
         for channel_type, channel_name in required_channels.items():
             if channel_name not in self.dataMixin.channels:
                 missing_channels.append(f"{channel_type} ({channel_name})")
-        
+
         if missing_channels:
             self.warning_message = f"Required channels not found: {', '.join(missing_channels)}"
             msg = QMessageBox()
@@ -56,7 +70,7 @@ class FormationController(QObject, PlotMixin):
             msg.setWindowTitle("Missing Channels")
             msg.exec()
             return False
-            
+
         self.channel = settings.FORMATION_BW_CHANNEL
         self.transmission_channel = settings.FORMATION_TRANSMISSION_CHANNEL
         self.bw_channel = settings.FORMATION_BW_CHANNEL
@@ -196,3 +210,79 @@ class FormationController(QObject, PlotMixin):
             result[i] = variance / sqrt_mean if sqrt_mean != 0 else 0
 
         return result
+
+
+class AnalysisWindow(QWidget, DataMixin, AnalysisRangeMixin, SampleSelectMixin, ShowProfilesMixin, CopyPlotMixin, ChildWindowCloseMixin):
+    def __init__(self, window_type="MD", controller: AnalysisController | None = None):
+        super().__init__()
+        self.dataMixin = DataMixin.getInstance()
+        self.controller = controller if controller else AnalysisController(
+            window_type)
+        if not self.controller.can_calculate:
+            self.close()
+            return
+        self.window_type = window_type
+        self.initUI()
+
+    def initMenuBar(self, layout):
+        menuBar = QMenuBar()
+        layout.setMenuBar(menuBar)
+        viewMenu = menuBar.addMenu('View')
+        self.selectSamplesAction = QAction('Select samples', self)
+        viewMenu.addAction(self.selectSamplesAction)
+        self.selectSamplesAction.triggered.connect(
+            self.toggleSelectSamples)
+
+    def initUI(self):
+        if settings.FORMATION_TITLE_SHOW:
+            self.setWindowTitle(
+                f"Formation analysis ({self.dataMixin.measurement_label})")
+        self.setGeometry(100, 100, 700, 800)
+
+        mainLayout = QVBoxLayout()
+        self.setLayout(mainLayout)
+        if self.window_type == "CD":
+            self.initMenuBar(mainLayout)
+
+        # Analysis range slider
+        self.addAnalysisRangeSlider(mainLayout)
+
+        if self.window_type == "CD":
+            self.addShowProfilesCheckbox(mainLayout)
+
+        # Add description label
+        self.textLabel = QLabel(
+            "Formation index (calculated from transmission correlated to BW)")
+        self.textLabel.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse)
+        mainLayout.addWidget(self.textLabel)
+
+        # Add correlation coefficient label
+        self.correlationLabel = QLabel("Correlation coefficient: ")
+        self.correlationLabel.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse)
+        mainLayout.addWidget(self.correlationLabel)
+
+        # Add statistics widget
+        self.stats_widget = StatsWidget()
+        mainLayout.addWidget(self.stats_widget)
+
+        # Matplotlib figure and canvas
+        self.plot = self.controller.getCanvas()
+        mainLayout.addWidget(self.plot, 1)
+        self.toolbar = NavigationToolbar(self.plot, self)
+        mainLayout.addWidget(self.toolbar)
+
+        self.refresh()
+
+    def refresh_widgets(self):
+        self.initAnalysisRangeSlider(block_signals=True)
+        if self.window_type == "CD":
+            self.initShowProfilesCheckbox(block_signals=True)
+
+    def refresh(self):
+        self.controller.updatePlot()
+        self.refresh_widgets()
+        self.correlationLabel.setText(
+            f"Correlation coefficient: {self.controller.correlation_coefficient:.2f}")
+        self.stats_widget.update_statistics(self.controller.stats, "")

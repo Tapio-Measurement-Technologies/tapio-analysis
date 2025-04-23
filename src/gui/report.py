@@ -4,27 +4,18 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBo
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QStandardItemModel, QStandardItem, QAction
 from utils.data_loader import DataMixin
-from controllers import *
-from utils.windows import *
 import settings
-import datetime
-from docx import Document
-from docx.shared import Mm, Cm, Pt
-from docx.enum.table import WD_ALIGN_VERTICAL
-from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
-from docx.oxml import OxmlElement
-from docx.oxml.ns import qn
 from utils.report_generator import create_report_generator
-
-
-import numpy as np
-import json
 import os
 from customizations import apply_plot_customizations
 import traceback
 import importlib.util
-import matplotlib.pyplot as plt
+from utils import store
 
+analysis_name_mapping = {
+    analysis["name"]: module_name
+    for module_name, analysis in store.analyses.items()
+}
 
 class Editor(QTextEdit):
     def __init__(self):
@@ -293,7 +284,7 @@ class ReportWindow(QWidget, DataMixin):
 
                 self.update_report_title(module.report_title)
                 self.update_report_subtitle(module.report_subtitle)
-                
+
                 # Set additional info if it exists in the template
                 if hasattr(module, "additional_info"):
                     self.additional_info_input.setText(module.additional_info)
@@ -308,8 +299,7 @@ class ReportWindow(QWidget, DataMixin):
                     analyses = section.get("analyses", [])
 
                     for analysis in analyses:
-                        analysis_name = settings.ANALYSES[self.window_type].get(
-                            analysis.get("analysis"), {}).get("label", "Unknown")
+                        analysis_name = store.analyses[analysis_name_mapping[analysis.get("analysis")]].get("name", "Unknown")
 
                         channel = analysis.get("channel", "")
                         channel1 = analysis.get("channel1", "")
@@ -400,7 +390,13 @@ class ReportSectionWidget(QFrame):
 
         # ComboBox for analysis items
         self.analysis_combobox = QComboBox()
-        self.analyses = settings.ANALYSES[self.window_type]
+        self.analyses = {
+            module_name: {
+                "label": analysis["name"]
+            }
+            for module_name, analysis in store.analyses.items()
+            if module_name in settings.ANALYSES[self.window_type].keys()
+        }
         labels = [analysis["label"] for analysis in self.analyses.values()]
         self.setup_combobox(self.analysis_combobox, labels)
         self.analysis_combobox.currentIndexChanged.connect(
@@ -462,52 +458,9 @@ class AnalysisWidget(QWidget):
         self.report_layout = report_layout
         self.image_width_mm = image_width_mm
 
-        if self.window_type == "CD":
-            if analysis_name == self.analyses[self.window_type]["profile"]["label"]:
-                window_type = "2d"
-                self.controller = CDProfileController(window_type)
-                self.preview_window = CDProfileWindow(
-                    window_type, self.controller)
-
-            elif analysis_name == self.analyses[self.window_type]["profile_waterfall"]["label"]:
-                window_type = "waterfall"
-                self.controller = CDProfileController(window_type)
-                self.preview_window = CDProfileWindow(
-                    window_type, self.controller)
-
-            elif analysis_name == self.analyses[self.window_type]["vca"]["label"]:
-                self.controller = VCAController()
-                self.preview_window = VCAWindow(self.controller)
-
-        elif self.window_type == "MD":
-            if analysis_name == self.analyses[self.window_type]["time_domain"]["label"]:
-                self.controller = TimeDomainController()
-                self.preview_window = TimeDomainWindow(self.controller)
-
-        if analysis_name == self.analyses[self.window_type]["spectrum"]["label"]:
-            self.controller = SpectrumController(self.window_type)
-            self.preview_window = SpectrumWindow(
-                self.window_type, self.controller)
-
-        elif analysis_name == self.analyses[self.window_type]["spectrogram"]["label"]:
-            self.controller = SpectrogramController(self.window_type)
-            self.preview_window = SpectrogramWindow(
-                self.window_type, self.controller)
-
-        elif analysis_name == self.analyses[self.window_type]["channel_correlation"]["label"]:
-            self.controller = ChannelCorrelationController(self.window_type)
-            self.preview_window = ChannelCorrelationWindow(
-                self.window_type, self.controller)
-
-        elif analysis_name == self.analyses[self.window_type]["correlation_matrix"]["label"]:
-            self.controller = CorrelationMatrixController(self.window_type)
-            self.preview_window = CorrelationMatrixWindow(
-                self.window_type, self.controller)
-
-        elif analysis_name == self.analyses[self.window_type]["formation"]["label"]:
-            self.controller = FormationController(self.window_type)
-            self.preview_window = FormationWindow(
-                self.window_type, self.controller)
+        self.controller = store.analyses[analysis_name_mapping[analysis_name]]["controller"](self.window_type)
+        self.preview_window = store.analyses[analysis_name_mapping[analysis_name]]["window"](self.window_type, self.controller)
+        print(self.preview_window)
 
         if self.controller:
             self.controller.updated.connect(self.update_analysis_label)
@@ -548,10 +501,7 @@ class AnalysisWidget(QWidget):
 
         self.layout.addLayout(button_layout)
 
-        # TODO: Fix this, causing flashing windows. But if the window is not viewed, the aspect ratio of the images is also not updated!
-        self.preview_window.show()
-        self.preview_window.hide()
-
+        # Just refresh the window content without showing it
         self.preview_window.refresh()
 
     def get_channel_text(self):

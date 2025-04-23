@@ -7,3 +7,7 @@ class MeasurementFileType(Enum):
     DATA = "Data"
     PM = "Paper machine"
     SAMPLES = "CD Sample locations"
+
+class AnalysisType(Enum):
+    CD = "CD"
+    MD = "MD"

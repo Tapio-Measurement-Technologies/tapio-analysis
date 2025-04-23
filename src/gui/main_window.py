@@ -17,10 +17,11 @@ import sys
 
 from gui.find_samples import FindSamplesWindow
 from gui.report import ReportWindow
+from gui.log_window import LogWindow
 from utils.data_loader import DataMixin
-from utils.windows import *
 from utils.dynamic_loader import load_modules_from_folder
 from utils.types import MeasurementFileType
+from utils import store
 import settings
 
 
@@ -319,33 +320,41 @@ class MainWindow(QMainWindow, DataMixin):
         self.updateWindowsList()
 
     def on_log_window_open(self):
-        self.logWindow = openLogWindow()
+        self.logWindow = LogWindow()
+        self.logWindow.show()
+
+    def open_analysis_window(self, analysis_name, window_type):
+        analysis = store.analyses[analysis_name]
+        newWindow = analysis["window"](window_type=window_type)
+        self.add_window(newWindow)
 
     def setupAnalysisButtons(self, layout):
+        self.md_analyses = {
+            module_name: {
+                "label": analysis["name"]
+            }
+            for module_name, analysis in store.analyses.items()
+            if module_name in settings.ANALYSES["MD"].keys()
+        }
+        self.cd_analyses = {
+            module_name: {
+                "label": analysis["name"]
+            }
+            for module_name, analysis in store.analyses.items()
+            if module_name in settings.ANALYSES["CD"].keys()
+        }
+
         # MD Analysis
         mdLayout = QVBoxLayout()
         mdLabel = QLabel("MD Analysis")
         mdLayout.addWidget(mdLabel)
 
-        self.md_analyses = settings.ANALYSES["MD"].copy()
-        self.md_analyses["time_domain"]["callback"] = lambda: openTimeDomainAnalysis(
-            self)
-        self.md_analyses["spectrum"]["callback"] = lambda: openSpectrumAnalysis(
-            self, window_type="MD")
-        self.md_analyses["spectrogram"]["callback"] = lambda: openSpectroGram(
-            self, window_type="MD")
-        self.md_analyses["channel_correlation"]["callback"] = lambda: openChannelCorrelation(
-            self, window_type="MD")
-        self.md_analyses["correlation_matrix"]["callback"] = lambda: openCorrelationMatrix(
-            self, window_type="MD")
-        self.md_analyses["formation"]["callback"] = lambda: openFormationAnalysis(
-            self, window_type="MD")
-
-        for analysis in self.md_analyses.values():
+        for module_name, analysis in self.md_analyses.items():
             button = QPushButton(analysis["label"], self)
+            button.clicked.connect(lambda _, module_name=module_name:
+                self.open_analysis_window(module_name, "MD")
+            )
             mdLayout.addWidget(button)
-            if "callback" in analysis:
-                button.clicked.connect(analysis["callback"])
             analysis["button"] = button
 
         mdLayout.addStretch(1)  # Add stretch to push everything to the top
@@ -364,30 +373,13 @@ class MainWindow(QMainWindow, DataMixin):
         separator.setFrameShadow(QFrame.Shadow.Sunken)
         cdLayout.addWidget(separator)
 
-        self.cd_analyses = settings.ANALYSES["CD"].copy()
-        self.cd_analyses["profile"]["callback"] = lambda: openCDProfileAnalysis(
-            self, window_type="2d")
-        self.cd_analyses["profile_waterfall"]["callback"] = lambda: openCDProfileAnalysis(
-            self, window_type="waterfall")
-        self.cd_analyses["spectrum"]["callback"] = lambda: openSpectrumAnalysis(
-            self, window_type="CD")
-        self.cd_analyses["spectrogram"]["callback"] = lambda: openSpectroGram(
-            self, window_type="CD")
-        self.cd_analyses["channel_correlation"]["callback"] = lambda: openChannelCorrelation(
-            self, window_type="CD")
-        self.cd_analyses["correlation_matrix"]["callback"] = lambda: openCorrelationMatrix(
-            self, window_type="CD")
-        self.cd_analyses["vca"]["callback"] = lambda: openVCA(self)
-        self.cd_analyses["formation"]["callback"] = lambda: openFormationAnalysis(
-            self, window_type="CD")
-
-        for analysis in self.cd_analyses.values():
+        for module_name, analysis in self.cd_analyses.items():
             button = QPushButton(analysis["label"], self)
+            button.clicked.connect(lambda _, module_name=module_name:
+                self.open_analysis_window(module_name, "CD")
+            )
             cdLayout.addWidget(button)
-            if "callback" in analysis:
-                button.clicked.connect(analysis["callback"])
             analysis["button"] = button
-
         cdLayout.addStretch(1)  # Add stretch to push everything to the top
 
         reportLayout = QVBoxLayout()

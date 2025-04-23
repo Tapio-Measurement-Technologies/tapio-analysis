@@ -14,5 +14,9 @@ def load_modules_from_folder(folder_path):
                 module.menu_text = module.menu_text()
             if hasattr(module, 'file_types') and callable(getattr(module, 'file_types', None)):
                 module.file_types = module.file_types()
+            if hasattr(module, 'analysis_name') and callable(getattr(module, 'analysis_name', None)):
+                module.analysis_name = module.analysis_name()
+            if hasattr(module, 'analysis_types') and callable(getattr(module, 'analysis_types', None)):
+                module.analysis_types = module.analysis_types()
             modules[module_name] = module
     return modules
