@@ -31,7 +31,6 @@ class FormationController(QObject, PlotMixin):
             self.analysis_range_high = settings.CD_FORMATION_RANGE_HIGH_DEFAULT * self.max_dist
 
             self.selected_samples = self.dataMixin.selected_samples.copy()
-            self.sampleSelectorWindow = None
 
         self.show_profiles = False
 

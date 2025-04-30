@@ -12,12 +12,15 @@ class FormationWindow(QWidget, DataMixin, AnalysisRangeMixin, SampleSelectMixin,
     def __init__(self, window_type="MD", controller: FormationController | None = None):
         super().__init__()
         self.dataMixin = DataMixin.getInstance()
+
+
         self.controller = controller if controller else FormationController(
             window_type)
         if not self.controller.can_calculate:
             self.close()
             return
         self.window_type = window_type
+        self.sampleSelectorWindow = None
         self.initUI()
 
     def initMenuBar(self, layout):
@@ -48,7 +51,7 @@ class FormationWindow(QWidget, DataMixin, AnalysisRangeMixin, SampleSelectMixin,
 
         # Add description label
         self.textLabel = QLabel(
-            "Formation index (calculated from transmission correlated to BW)")
+            f"Formation index (calculated from {settings.FORMATION_TRANSMISSION_CHANNEL} correlated to {settings.FORMATION_BW_CHANNEL})")
         self.textLabel.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse)
         mainLayout.addWidget(self.textLabel)
