@@ -5,6 +5,8 @@ from .FindSamples import FindSamplesController
 from .Formation import FormationController
 from .SOSAnalysis import SOSAnalysisController
 from .Spectrogram import SpectrogramController
+from .Cepstrum import CepstrumController
+from .Coherence import CoherenceController
 from .Spectrum import SpectrumController
 from .TimeDomain import TimeDomainController
 from .VCA import VCAController

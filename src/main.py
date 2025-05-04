@@ -352,6 +352,11 @@ class MainWindow(QMainWindow, DataMixin):
             self)
         self.md_analyses["spectrum"]["callback"] = lambda: openSpectrumAnalysis(
             self, window_type="MD")
+
+        self.md_analyses["cepstrum"]["callback"] = lambda: openCepstrumAnalysis(
+            self, window_type="MD")
+        self.md_analyses["coherence"]["callback"] = lambda: openCoherenceAnalysis(
+            self, window_type="MD")
         self.md_analyses["spectrogram"]["callback"] = lambda: openSpectroGram(
             self, window_type="MD")
         self.md_analyses["channel_correlation"]["callback"] = lambda: openChannelCorrelation(
@@ -390,6 +395,10 @@ class MainWindow(QMainWindow, DataMixin):
         self.cd_analyses["profile_waterfall"]["callback"] = lambda: openCDProfileAnalysis(
             self, window_type="waterfall")
         self.cd_analyses["spectrum"]["callback"] = lambda: openSpectrumAnalysis(
+            self, window_type="CD")
+        self.md_analyses["cepstrum"]["callback"] = lambda: openCepstrumAnalysis(
+            self, window_type="CD")
+        self.md_analyses["coherence"]["callback"] = lambda: openCoherenceAnalysis(
             self, window_type="CD")
         self.cd_analyses["spectrogram"]["callback"] = lambda: openSpectroGram(
             self, window_type="CD")

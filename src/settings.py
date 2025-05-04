@@ -29,6 +29,12 @@ ANALYSES = {
         "spectrum": {
             "label": "CD Spectrum"
         },
+        "coherence": {
+            "label": "CD Coherence"
+        },
+        "cepstrum": {
+            "label": "CD Cepstrum"
+        },
         "spectrogram": {
             "label": "CD Spectrogram"
         },
@@ -54,6 +60,12 @@ ANALYSES = {
         },
         "spectrogram": {
             "label": "Spectrogram"
+        },
+        "cepstrum": {
+            "label": "Cepstrum"
+        },
+        "coherence": {
+            "label": "Coherence"
         },
         "channel_correlation": {
             "label": "Channel correlation"
@@ -248,7 +260,7 @@ NLS_STEP = 0.001
 NLS_RANGE = 0.1
 
 # CD Profile settings
-#THIS will flip loaded data in the parquet loader
+# THIS will flip loaded data in the parquet loader
 FLIP_LOADED_DATA = False
 
 CD_PROFILE_WINDOW_GEOMETRY = (100, 100, 700, 800)
@@ -356,4 +368,3 @@ else:
     except ImportError:
         print(f"Could not load local settings from internal project folder")
         pass
-

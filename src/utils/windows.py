@@ -3,6 +3,8 @@ from gui.channel_correlation import ChannelCorrelationWindow
 from gui.correlation_matrix import CorrelationMatrixWindow
 from gui.formation import FormationWindow
 from gui.spectrum import SpectrumWindow
+from gui.cepstrum import CepstrumWindow
+from gui.coherence import CoherenceWindow
 from gui.spectrogram import SpectrogramWindow
 from gui.time_domain import TimeDomainWindow
 from gui.vca import VCAWindow
@@ -23,6 +25,16 @@ def openCDProfileAnalysis(parent, window_type="2d", controller = None):
 def openSpectrumAnalysis(parent, window_type="MD", controller = None):
     newWindow = SpectrumWindow(window_type, controller)
     parent.add_window(newWindow)
+
+def openCepstrumAnalysis(parent, window_type="MD", controller = None):
+    newWindow = CepstrumWindow(window_type, controller)
+    parent.add_window(newWindow)
+
+def openCoherenceAnalysis(parent, window_type="MD", controller = None):
+    newWindow = CoherenceWindow(window_type, controller)
+    parent.add_window(newWindow)
+
+
 
 def openSpectroGram(parent, window_type="MD", controller = None):
     newWindow = SpectrogramWindow(window_type, controller)
