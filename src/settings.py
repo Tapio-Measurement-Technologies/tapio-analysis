@@ -32,9 +32,9 @@ ANALYSES = {
         "coherence": {
             "label": "CD Coherence"
         },
-        "cepstrum": {
-            "label": "CD Cepstrum"
-        },
+        # "cepstrum": {
+        #     "label": "CD Cepstrum"
+        # },
         "spectrogram": {
             "label": "CD Spectrogram"
         },
@@ -61,9 +61,9 @@ ANALYSES = {
         "spectrogram": {
             "label": "Spectrogram"
         },
-        "cepstrum": {
-            "label": "Cepstrum"
-        },
+        # "cepstrum": {
+        #     "label": "Cepstrum"
+        # },
         "coherence": {
             "label": "Coherence"
         },

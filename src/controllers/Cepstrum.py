@@ -129,7 +129,7 @@ class CepstrumController(QObject, PlotMixin, ExportMixin):
 
         self.selected_elements = []
         self.selected_samples = self.dataMixin.selected_samples.copy()
-        self.selected_quefrencies = []
+        self.selected_freqs = []
         self.show_wavelength = settings.SHOW_WAVELENGTH_DEFAULT
         self.auto_detect_peaks = settings.AUTO_DETECT_PEAKS_DEFAULT
 
@@ -147,7 +147,7 @@ class CepstrumController(QObject, PlotMixin, ExportMixin):
         overlap_per = self.overlap
         noverlap = round(self.nperseg) * overlap_per
 
-        # Welch calculation (same as Spectrum)
+        # Extract the segment of data for analysis
         if self.window_type == "MD":
             ylim = settings.MD_SPECTRUM_FIXED_YLIM.get(self.channel)
             self.low_index = np.searchsorted(
@@ -169,7 +169,9 @@ class CepstrumController(QObject, PlotMixin, ExportMixin):
                            scaling='spectrum')
 
         elif self.window_type == "CD":
+
             ylim = settings.MD_SPECTRUM_FIXED_YLIM.get(self.channel)
+
             self.low_index = np.searchsorted(
                 self.dataMixin.cd_distances, self.analysis_range_low)
             self.high_index = np.searchsorted(
@@ -180,10 +182,14 @@ class CepstrumController(QObject, PlotMixin, ExportMixin):
                 self.updated.emit()
                 return self.canvas
 
+            x = self.dataMixin.cd_distances[self.low_index:self.high_index]
+
             unfiltered_data = [
                 self.dataMixin.segments[self.channel][sample_idx][self.low_index:self.high_index]
                 for sample_idx in self.selected_samples
             ]
+
+            # Calculate individual power spectra, then use the mean. This to prevent opposite phases canceling each other.
             welches = np.array([
                 welch(y, fs=self.fs, window='hann', nperseg=self.nperseg,
                       noverlap=noverlap, scaling='spectrum')
@@ -192,182 +198,78 @@ class CepstrumController(QObject, PlotMixin, ExportMixin):
             f = welches[0][0]
             Pxx = np.mean(welches[:, 1], axis=0)
 
-        # --- CEPSTRUM CALCULATION ---
-        # Use the amplitude spectrum as in Spectrum
-        amplitude_spectrum = np.sqrt(Pxx*2) * settings.SPECTRUM_AMPLITUDE_SCALING
+        # --- CEPSTRUM CALCULATION AND PLOTTING ---
+        # Use the extracted data segment for cepstrum calculation
+        if self.window_type == "MD":
+            data_for_cepstrum = self.data
+        else:  # CD
+            data_for_cepstrum = np.mean(unfiltered_data, axis=0)
 
-        # Take log and IFFT to get cepstrum
-        log_amp = np.log(amplitude_spectrum + 1e-12)
-        cepstrum = np.fft.ifft(log_amp).real
+        # Calculate real cepstrum
+        spectrum = np.fft.fft(data_for_cepstrum)
+        log_spectrum = np.log(np.abs(spectrum) + 1e-12)  # avoid log(0)
+        cepstrum = np.fft.ifft(log_spectrum).real
 
         # Quefrency axis (in meters)
-        quefrency = np.arange(len(cepstrum)) / self.fs
+        quefrency = np.arange(len(cepstrum)) * self.dataMixin.sample_step
 
-        # Use the same range selection logic, but for quefrency
-        q_low_index = np.searchsorted(quefrency, self.frequency_range_low)
-        q_high_index = np.searchsorted(quefrency, self.frequency_range_high, side='right')
-
-        self.frequencies = quefrency[q_low_index:q_high_index]  # Now quefrency!
-        self.amplitudes = cepstrum[q_low_index:q_high_index]    # Now cepstrum value!
-
-        ax.plot(self.frequencies, self.amplitudes)
-        if settings.SPECTRUM_LOGARITHMIC_SCALE:
-            ax.set_yscale("log")
-            ax.yaxis.set_major_locator(LogLocator(
-                base=10.0, subs=np.arange(1.0, 10.0) * 0.1, numticks=10))
+        # Plot only the first half (up to Nyquist quefrency)
+        N = len(cepstrum) // 2
+        ax.plot(quefrency[:N], cepstrum[:N])
+        ax.set_xlabel("Quefrency [m]")
+        ax.set_ylabel("Cepstrum amplitude")
 
         if settings.SPECTRUM_TITLE_SHOW:
             ax.set_title(f"{self.dataMixin.measurement_label} ({self.channel}) - Cepstrum")
 
-        ax.set_xlabel("Quefrency [m]")
-        ax.set_ylabel(f"Cepstrum [{self.dataMixin.units[self.channel]}]")
-        if ylim:
-            ax.set_ylim(bottom=ylim[0], top=ylim[1])
-
-        secax = ax.twiny()
-
-        if self.window_type == "CD" or self.show_wavelength:
-
-            def update_secax(*args):
-                primary_ticks = ax.get_xticks()
-                secax.set_xticks(primary_ticks)
-                secax.set_xlim(*ax.get_xlim())
-                secondary_ticks = [100 * (1 / i) for i in secax.get_xticks()]
-                secax.set_xticklabels(
-                    [f"{tick:.2f}" for tick in secondary_ticks])
-
-            secax.set_xlabel(f"Wavelength [cm]")
-
-        elif self.window_type == "MD":
-
-            def update_secax(*args):
-                primary_ticks = ax.get_xticks()
-                secax.set_xticks(primary_ticks)
-                secax.set_xlim(*ax.get_xlim())
-                secondary_ticks = secax.get_xticks() * self.machine_speed / 60
-                secax.set_xticklabels(
-                    [f"{tick:.2f}" for tick in secondary_ticks])
-
-            secax.set_xlabel(f"Frequency [Hz] at machine speed {
-                             self.machine_speed:.1f} m/min")
-
-        ax.set_zorder(secax.get_zorder() + 1)
-        update_secax()  # Initial call to update secondary axis
-
-        # Update secondary axis on primary axis changes
-        ax.callbacks.connect('xlim_changed', update_secax)
-        ax.figure.canvas.mpl_connect('resize_event', update_secax)
-
-        if self.auto_detect_peaks:
-            # Detect peaks in the cepstrum within the selected quefrency range
-            peaks, properties = find_peaks(self.amplitudes)
-            sorted_peak_indices = peaks[np.argsort(self.amplitudes[peaks])][::-1]
-            visible_peaks = [idx for idx in sorted_peak_indices
-                             if q_low_index <= idx < q_high_index]
-            if settings.MULTIPLE_SELECT_MODE:
-                top_peaks = visible_peaks[:settings.SPECTRUM_AUTO_DETECT_PEAKS]
-            else:
-                top_peaks = visible_peaks[:1]
-            self.selected_quefrencies = [self.frequencies[peak] for peak in top_peaks]
-        else:
-            self.selected_quefrencies = []
-
-        # Draw vertical lines at detected quefrency peaks
-        if len(self.selected_quefrencies) > 0:
-            for i, selected_q in enumerate(self.selected_quefrencies):
-                amplitude = self.amplitudes[np.searchsorted(self.frequencies, selected_q)]
-                label = f"Quefrency: {selected_q:.2f} m, Cepstrum: {amplitude:.2f}"
-                ax.axvline(x=selected_q, linestyle='--', alpha=0.5, color='r', label=label)
-                self.current_vlines.append(ax)
-
-        colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
-
-        for index, element in enumerate(self.selected_elements):
-            xlim = ax.get_xlim()
-            for i in range(1, settings.MAX_HARMONICS_DISPLAY):
-                f = element["spatial_frequency"]
-                if (f * i > xlim[1]) or (f * i < xlim[0]):
-                    # Skip drawing the line if it is out of bounds
-                    continue
-                label = element["name"] if (i == 1) else None
-                color_index = index % len(colors)
-                current_color = colors[color_index]
-
-                vl = ax.axvline(x=f * i,
-                                linestyle='--',
-                                alpha=1 -
-                                (1 / settings.MAX_HARMONICS_DISPLAY) * i,
-                                label=label,
-                                color=current_color)
-                self.current_vlines.append(vl)
-        handles, labels = ax.get_legend_handles_labels()
-
-        if settings.SPECTRUM_SHOW_LEGEND:
-            if labels:  # This list will be non-empty if there are items to include in the legend
-                if settings.SPECTRUM_LEGEND_OUTSIDE_PLOT:
-                    leg = tabular_legend(ax, legend_columns, legend_data, loc="upper left", bbox_to_anchor=(
-                        1.05, 1), borderaxespad=0.)
-
-                    leg.get_frame().set_alpha(0)
-                else:
-                    ax.legend(handles, labels, loc="upper right")
-
-        ax.figure.set_constrained_layout(True)
-
-        if settings.SPECTRUM_MINOR_GRID:
-            ax.grid(True, which='both')
-            ax.minorticks_on()
-            ax.xaxis.set_minor_locator(AutoMinorLocator(5))
-            ax.yaxis.set_minor_locator(AutoMinorLocator(4))
-            ax.grid(True, which='minor', linestyle=':', linewidth=0.5)
-        else:
-            ax.grid()
-
+        ax.grid(True)
         self.canvas.draw()
         self.updated.emit()
-
         return self.canvas
 
     def get_freq_in_hz(self, freq_1m):
         return freq_1m * self.machine_speed / 60
 
     def getStatsTableData(self):
+        return None
         stats = []
 
         # Add headers based on window type
         if self.window_type == "MD":
             stats.append(
-                [f"Cepstrum {self.dataMixin.units[self.channel]}", "Quefrency [m]", "Wavelength [cm]", "Frequency [Hz]"])
+                [f"Amplitude {self.dataMixin.units[self.channel]}", "Wavelength [cm]", "Frequency [Hz]", ])
         elif self.window_type == "CD":
-            stats.append(["Cepstrum", "Quefrency [m]", "Wavelength [cm]"])
+            stats.append(["Amplitude", "Wavelength [m]"])
 
-        # Loop over selected quefrencies
-        for q in getattr(self, "selected_quefrencies", []):
-            if q:  # Check if the quefrency is valid
-                wavelength = q  # In cepstrum, quefrency is already in meters
-                # Find the corresponding cepstrum value
-                idx = np.searchsorted(self.frequencies, q)
-                cepstrum_val = self.amplitudes[idx]
+        # Loop over selected frequencies
+        for freq in self.selected_freqs:
+            if freq:  # Check if the frequency is valid
+                wavelength = 1 / freq  # Calculate wavelength from frequency
+
+                # Find the corresponding amplitude
+                amplitude_index = np.argmax(self.frequencies == freq)
+                amplitude = self.amplitudes[amplitude_index]
+
+                # Add row based on window type
                 if self.window_type == "MD":
-                    freq_hz = 1 / q * self.machine_speed / 60 if q != 0 else 0
+                    frequency_in_hz = self.get_freq_in_hz(freq)
                     stats.append([
-                        f"{cepstrum_val:.2f}",  # Cepstrum
-                        f"{q:.2f}",            # Quefrency in meters
-                        f"{100 * q:.2f}",      # Wavelength in cm
-                        f"{freq_hz:.2f}"       # Frequency in Hz
+                        f"{amplitude:.2f}",          # Amplitude
+                        f"{100 * wavelength:.2f}",  # Wavelength in meters
+                        f"{frequency_in_hz:.2f}"   # Frequency in Hz
                     ])
                 elif self.window_type == "CD":
                     stats.append([
-                        f"{cepstrum_val:.2f}",  # Cepstrum
-                        f"{q:.2f}",             # Quefrency in meters
-                        f"{100 * q:.2f}"        # Wavelength in cm
+                        f"{amplitude:.2f}",          # Amplitude
+                        f"{100 * wavelength:.2f}"  # Wavelength in meters
                     ])
 
         return stats
 
     def getExportData(self):
         data = {
-            "Quefrency [m]": self.frequencies,
-            f"{self.channel} Cepstrum [{self.dataMixin.units[self.channel]}]": self.amplitudes
+            "Frequency [1/m]": self.frequencies,
+            f"{self.channel} amplitude [{self.dataMixin.units[self.channel]}]": self.amplitudes
         }
+
         return pd.DataFrame(data)
