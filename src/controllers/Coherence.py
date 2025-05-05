@@ -152,7 +152,6 @@ class CoherenceController(QObject, PlotMixin, ExportMixin):
         noverlap = round(self.nperseg) * overlap_per
 
         if self.window_type == "MD":
-            ylim = settings.MD_SPECTRUM_FIXED_YLIM.get(self.channel1)
             self.low_index = np.searchsorted(
                 self.dataMixin.distances, self.analysis_range_low)
             self.high_index = np.searchsorted(
@@ -182,7 +181,6 @@ class CoherenceController(QObject, PlotMixin, ExportMixin):
                 return self.canvas
 
         elif self.window_type == "CD":
-            ylim = settings.MD_SPECTRUM_FIXED_YLIM.get(self.channel1)
 
             self.low_index = np.searchsorted(
                 self.dataMixin.cd_distances, self.analysis_range_low)
@@ -243,7 +241,7 @@ class CoherenceController(QObject, PlotMixin, ExportMixin):
 
         ax.set_xlabel("Frequency [1/m]")
         ax.set_ylabel(f"Coherence")
-        ax.set_ylim(0, 1)
+        ax.set_ylim(0, 1.1)
 
         secax = ax.twiny()
 
@@ -319,10 +317,10 @@ class CoherenceController(QObject, PlotMixin, ExportMixin):
             # legend_columns = [f"Amplitude [{self.dataMixin.units[self.channel1]}]",
             #                   "Frequency [1/m]", "Wavelength [cm]", "Frequency [Hz]"]
             if self.window_type == "MD":
-                legend_columns = [f"A [{self.dataMixin.units[self.channel1]}]",
+                legend_columns = [f"C",
                                   "F [1/m]", "λ [cm]", "F [Hz]"]
             if self.window_type == "CD":
-                legend_columns = [f"A [{self.dataMixin.units[self.channel1]}]",
+                legend_columns = [f"C",
                                   "F [1/m]", "λ [cm]"]
 
             legend_data = []
@@ -340,13 +338,13 @@ class CoherenceController(QObject, PlotMixin, ExportMixin):
 
                     if self.window_type == "CD":
                         label = f"{selected_freq:.2f} 1/m λ = {100 *
-                                                               1/selected_freq:.2f} cm A = {amplitude:.2f} {self.dataMixin.units[self.channel1]}"
+                                                               1/selected_freq:.2f} cm C = {amplitude:.2f}"
                         print(f"Spectral peak in {self.channel1}: {label}")
                         legend_data.append([f"{amplitude:.2f}", f"{selected_freq:.2f}", f"{
                                            100*(1/selected_freq):.2f}"])
                     elif self.window_type == "MD":
                         label = f"{selected_freq:.2f} 1/m ({self.get_freq_in_hz(selected_freq):.2f} Hz) λ = {
-                            100 * 1/selected_freq:.2f} cm A = {amplitude:.2f} {self.dataMixin.units[self.channel1]}"
+                            100 * 1/selected_freq:.2f} cm C = {amplitude:.2f}"
                         print(f"Spectral peak in {self.channel1}: {label}")
 
                         legend_data.append([f"{amplitude:.3f}", f"{selected_freq:.2f}", f"{

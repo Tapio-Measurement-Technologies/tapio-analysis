@@ -128,9 +128,9 @@ class CoherenceWindow(QWidget, DataMixin, AnalysisRangeMixin, DoubleChannelMixin
         self.selectedFrequencyLabel = QLabel("Selected frequency: None")
         mainLayout.addWidget(self.selectedFrequencyLabel)
 
-        self.refineButton = QPushButton("Refine")
-        self.refineButton.clicked.connect(self.refineFrequency)
-        mainLayout.addWidget(self.refineButton)
+        # self.refineButton = QPushButton("Refine")
+        # self.refineButton.clicked.connect(self.refineFrequency)
+        # mainLayout.addWidget(self.refineButton)
 
         self.clearButton = QPushButton("Clear")
         self.clearButton.clicked.connect(self.clearFrequency)
