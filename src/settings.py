@@ -30,7 +30,8 @@ ANALYSIS_SECTIONS = [
             MainWindowSectionModule(name="spectrogram",         type="MD"),
             MainWindowSectionModule(name="channel_correlation", type="MD"),
             MainWindowSectionModule(name="correlation_matrix",  type="MD"),
-            MainWindowSectionModule(name="formation",           type="MD")
+            MainWindowSectionModule(name="formation",           type="MD"),
+            MainWindowSectionModule(name="coherence",           type="MD")
         ]
     ),
     MainWindowSection(
@@ -43,7 +44,8 @@ ANALYSIS_SECTIONS = [
             MainWindowSectionModule(name="channel_correlation",     type="CD"),
             MainWindowSectionModule(name="correlation_matrix",      type="CD"),
             MainWindowSectionModule(name="vca",                     type="CD"),
-            MainWindowSectionModule(name="formation",               type="CD")
+            MainWindowSectionModule(name="formation",               type="CD"),
+            MainWindowSectionModule(name="coherence",               type="CD")
         ]
     ),
 ]
