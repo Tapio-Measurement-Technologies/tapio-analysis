@@ -20,10 +20,9 @@ from gui.report import ReportWindow
 from gui.log_window import LogWindow
 from utils.data_loader import DataMixin
 from utils.dynamic_loader import load_modules_from_folder
-from utils.types import MeasurementFileType
+from utils.types import MeasurementFileType, MainWindowSectionModule, MainWindowSection
 from utils import store
 import settings
-
 
 class MainWindow(QMainWindow, DataMixin):
 
@@ -245,19 +244,14 @@ class MainWindow(QMainWindow, DataMixin):
         export_module.export_data(self, fileName)
 
     def refresh(self):
+        main_window_modules = [module for section in settings.ANALYSIS_SECTIONS for module in section.modules]
         # Disable the buttons and file entries which will be enabled if the correct data are found in the datamixin
-        md_functions = [self.closeAction,
-                        self.MDReportButton, self.findSamplesButton]
+        md_functions = [self.closeAction]
         md_functions += self.md_export_actions
-        md_functions += [value["button"]
-                         for value in self.md_analyses.values()]
+        md_functions += [module.button for module in main_window_modules if module.type == "MD"]
+        cd_functions = [module.button for module in main_window_modules if module.type == "CD"]
 
         [i.setEnabled(False) for i in md_functions]
-
-        cd_functions = [self.CDReportButton, self.CustomReportButton]
-        cd_functions += [value["button"]
-                         for value in self.cd_analyses.values()]
-
         [i.setEnabled(False) for i in cd_functions]
 
         if not self.dataMixin.channel_df.empty:
@@ -324,87 +318,60 @@ class MainWindow(QMainWindow, DataMixin):
         self.logWindow.show()
 
     def open_analysis_window(self, analysis_name, window_type):
-        analysis = store.analyses[analysis_name]
+        analysis = store.analyses.get(analysis_name, None)
+        if not analysis:
+            print(f"Error: Analysis '{analysis_name}' not found")
+            return
         newWindow = analysis["window"](window_type=window_type)
         self.add_window(newWindow)
 
+    # Used to insert custom buttons that have dependencies on main window
+    def add_custom_buttons(self):
+        for section in settings.ANALYSIS_SECTIONS:
+            if "CD" in section.name:
+                find_samples_module = MainWindowSectionModule(
+                    name="Find samples",
+                    callback=self.openFindSamples,
+                    type="MD"
+                )
+                section.modules.insert(0, find_samples_module)
+
+        report_section = MainWindowSection(
+            name="Reports",
+            modules=[
+                MainWindowSectionModule(name="MD report", callback=self.openReport, type="MD"),
+                MainWindowSectionModule(name="CD report", callback=self.openReport, type="CD"),
+            ]
+        )
+        settings.ANALYSIS_SECTIONS.append(report_section)
+
     def setupAnalysisButtons(self, layout):
-        self.md_analyses = {
-            module_name: {
-                "label": analysis["name"]
-            }
-            for module_name, analysis in store.analyses.items()
-            if module_name in settings.ANALYSES["MD"].keys()
-        }
-        self.cd_analyses = {
-            module_name: {
-                "label": analysis["name"]
-            }
-            for module_name, analysis in store.analyses.items()
-            if module_name in settings.ANALYSES["CD"].keys()
-        }
+        # Add custom buttons not included in the settings template
+        self.add_custom_buttons()
 
-        # MD Analysis
-        mdLayout = QVBoxLayout()
-        mdLabel = QLabel("MD Analysis")
-        mdLayout.addWidget(mdLabel)
-
-        for module_name, analysis in self.md_analyses.items():
-            button = QPushButton(analysis["label"], self)
-            button.clicked.connect(lambda _, module_name=module_name:
-                self.open_analysis_window(module_name, "MD")
-            )
-            mdLayout.addWidget(button)
-            analysis["button"] = button
-
-        mdLayout.addStretch(1)  # Add stretch to push everything to the top
-
-        # CD Analysis
-        cdLayout = QVBoxLayout()
-        cdLabel = QLabel("CD Analysis")
-        cdLayout.addWidget(cdLabel)
-
-        self.findSamplesButton = QPushButton("Find samples", self)
-        cdLayout.addWidget(self.findSamplesButton)
-        self.findSamplesButton.clicked.connect(self.openFindSamples)
-
-        separator = QFrame()
-        separator.setFrameShape(QFrame.Shape.HLine)
-        separator.setFrameShadow(QFrame.Shadow.Sunken)
-        cdLayout.addWidget(separator)
-
-        for module_name, analysis in self.cd_analyses.items():
-            button = QPushButton(analysis["label"], self)
-            button.clicked.connect(lambda _, module_name=module_name:
-                self.open_analysis_window(module_name, "CD")
-            )
-            cdLayout.addWidget(button)
-            analysis["button"] = button
-        cdLayout.addStretch(1)  # Add stretch to push everything to the top
-
-        reportLayout = QVBoxLayout()
-        reportLabel = QLabel("Reports")
-        reportLayout.addWidget(reportLabel)
-
-        self.MDReportButton = QPushButton("MD report", self)
-        reportLayout.addWidget(self.MDReportButton)
-        self.MDReportButton.clicked.connect(
-            lambda: self.openReport(window_type="MD"))
-
-        self.CDReportButton = QPushButton("CD report", self)
-        reportLayout.addWidget(self.CDReportButton)
-        self.CDReportButton.clicked.connect(
-            lambda: self.openReport(window_type="CD"))
-
-        self.CustomReportButton = QPushButton("Custom report", self)
-        reportLayout.addWidget(self.CustomReportButton)
-
-        reportLayout.addStretch(1)  # Add stretch to push everything to the top
-
-        # Main layout for columns
         columnsLayout = QHBoxLayout()
-        columnsLayout.addLayout(mdLayout)
-        columnsLayout.addLayout(cdLayout)
-        columnsLayout.addLayout(reportLayout)
+        for section in settings.ANALYSIS_SECTIONS:
+            section_layout = QVBoxLayout()
+            section_label = QLabel(section.name)
+            section_layout.addWidget(section_label)
+
+            for module in section.modules:
+                analysis = store.analyses.get(module.name, None)
+                button_title = analysis["name"] if analysis else module.name
+                button = QPushButton(button_title, self)
+
+                # Create a function that captures the current module value
+                def create_callback(mod=module):
+                    if mod.callback:
+                        return lambda _: mod.callback(**(mod.arguments or {}))
+                    else:
+                        return lambda _: self.open_analysis_window(mod.name, mod.type)
+
+                button.clicked.connect(create_callback())
+                section_layout.addWidget(button)
+                module.button = button
+
+            section_layout.addStretch(1)
+            columnsLayout.addLayout(section_layout)
 
         layout.addLayout(columnsLayout)

@@ -395,7 +395,7 @@ class ReportSectionWidget(QFrame):
                 "label": analysis["name"]
             }
             for module_name, analysis in store.analyses.items()
-            if module_name in settings.ANALYSES[self.window_type].keys()
+            if window_type in analysis["types"] and module_name not in settings.ANALYSES_EXCLUDED_FROM_REPORT
         }
         labels = [analysis["label"] for analysis in self.analyses.values()]
         self.setup_combobox(self.analysis_combobox, labels)
@@ -452,7 +452,6 @@ class AnalysisWidget(QWidget):
         self.analysis_name = analysis_name
         self.window_type = window_type
         self.main_window = main_window
-        self.analyses = settings.ANALYSES
         self.analysis_title = analysis_title
         self.info_string = info_string
         self.report_layout = report_layout

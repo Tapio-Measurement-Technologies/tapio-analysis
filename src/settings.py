@@ -2,6 +2,7 @@ import os
 
 import importlib.util
 import sys
+from utils.types import MainWindowSection, MainWindowSectionModule
 
 DEBUG = False
 
@@ -18,54 +19,33 @@ REPORT_FORMAT_DEFAULT = 'latex'
 FORCE_PRIMARY_SCALE_SUPPLEMENTARY = False
 
 ANALYSIS_DIR = 'analyses'
-ANALYSES = {
-    "CD": {
-        "profile": {
-            "label": "CD Profile"
-        },
-        "profile_waterfall": {
-            "label": "CD Profile waterfall"
-        },
-        "spectrum": {
-            "label": "CD Spectrum"
-        },
-        "spectrogram": {
-            "label": "CD Spectrogram"
-        },
-        "channel_correlation": {
-            "label": "CD Channel correlation"
-        },
-        "correlation_matrix": {
-            "label": "CD Correlation matrix"
-        },
-        "vca": {
-            "label": "Variance component analysis"
-        },
-        "formation": {
-            "label": "CD Formation"
-        }
-    },
-    "MD": {
-        "time_domain": {
-            "label": "Time domain"
-        },
-        "spectrum": {
-            "label": "Spectrum"
-        },
-        "spectrogram": {
-            "label": "Spectrogram"
-        },
-        "channel_correlation": {
-            "label": "Channel correlation"
-        },
-        "correlation_matrix": {
-            "label": "Correlation matrix"
-        },
-        "formation": {
-            "label": "Formation"
-        }
-    }
-}
+ANALYSIS_SECTIONS = [
+    MainWindowSection(
+        name="MD Analysis",
+        modules=[
+            MainWindowSectionModule(name="time_domain",         type="MD"),
+            MainWindowSectionModule(name="spectrum",            type="MD"),
+            MainWindowSectionModule(name="spectrogram",         type="MD"),
+            MainWindowSectionModule(name="channel_correlation", type="MD"),
+            MainWindowSectionModule(name="correlation_matrix",  type="MD"),
+            MainWindowSectionModule(name="formation",           type="MD")
+        ]
+    ),
+    MainWindowSection(
+        name="CD Analysis",
+        modules=[
+            MainWindowSectionModule(name="cd_profile",              type="CD"),
+            MainWindowSectionModule(name="cd_profile_waterfall",    type="CD"),
+            MainWindowSectionModule(name="spectrum",                type="CD"),
+            MainWindowSectionModule(name="spectrogram",             type="CD"),
+            MainWindowSectionModule(name="channel_correlation",     type="CD"),
+            MainWindowSectionModule(name="correlation_matrix",      type="CD"),
+            MainWindowSectionModule(name="vca",                     type="CD"),
+            MainWindowSectionModule(name="formation",               type="CD")
+        ]
+    ),
+]
+ANALYSES_EXCLUDED_FROM_REPORT = ["sos"]
 
 UPDATE_ON_SLIDE = False
 IGNORE_CHANNELS = ["Density"]

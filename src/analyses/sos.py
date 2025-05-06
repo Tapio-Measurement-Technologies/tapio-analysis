@@ -5,10 +5,9 @@ from utils.signal_processing import harmonic_fitting_units
 from gui.components import PlotMixin
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import numpy as np
-from utils.types import AnalysisType
 
 analysis_name = "SOS Analysis"
-analysis_types = [AnalysisType.CD]
+analysis_types = ["CD"]
 
 class AnalysisController(QObject, PlotMixin):
     updated = pyqtSignal()

@@ -2,7 +2,6 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QMenuBar, QPushButton
 from PyQt6.QtGui import QAction
 from utils.data_loader import DataMixin
-from utils.types import AnalysisType
 from utils.signal_processing import hs_units
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -29,7 +28,7 @@ import pandas as pd
 import settings
 from utils import store
 analysis_name = "Spectrum"
-analysis_types = [AnalysisType.MD, AnalysisType.CD]
+analysis_types = ["MD", "CD"]
 
 def tabular_legend(ax, col_labels, data, *args, **kwargs):
     """

@@ -2,7 +2,6 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QMenuBar
 from PyQt6.QtGui import QAction
 from scipy.stats import pearsonr
-from utils.types import AnalysisType
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from utils.data_loader import DataMixin
 from utils.filters import bandpass_filter
@@ -21,7 +20,7 @@ import numpy as np
 import logging
 
 analysis_name = "Channel Correlation"
-analysis_types = [AnalysisType.MD, AnalysisType.CD]
+analysis_types = ["MD", "CD"]
 
 class AnalysisController(QObject, PlotMixin):
     updated = pyqtSignal()

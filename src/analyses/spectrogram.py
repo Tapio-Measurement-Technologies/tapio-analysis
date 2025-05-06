@@ -3,7 +3,6 @@ from PyQt6.QtGui import QAction
 from PyQt6.QtCore import QObject, pyqtSignal
 from utils.data_loader import DataMixin
 from utils.signal_processing import hs_units
-from utils.types import AnalysisType
 import matplotlib.pyplot as plt
 import matplotlib
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -25,7 +24,7 @@ import settings
 import numpy as np
 
 analysis_name = "Spectrogram"
-analysis_types = [AnalysisType.MD, AnalysisType.CD]
+analysis_types = ["MD", "CD"]
 
 class AnalysisController(QObject, PlotMixin):
     updated = pyqtSignal()

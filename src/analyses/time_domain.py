@@ -2,7 +2,6 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QMenuBar
 from utils.data_loader import DataMixin
 from utils.filters import bandpass_filter
-from utils.types import AnalysisType
 from matplotlib.ticker import AutoMinorLocator
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from gui.components import (
@@ -23,7 +22,7 @@ import numpy as np
 import pandas as pd
 
 analysis_name = "Time Domain"
-analysis_types = [AnalysisType.MD]
+analysis_types = ["MD"]
 
 class AnalysisController(QObject, PlotMixin, ExportMixin):
     updated = pyqtSignal()

@@ -3,7 +3,6 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QMenuBar
 from PyQt6.QtGui import QAction
 from utils.data_loader import DataMixin
 from utils.filters import bandpass_filter
-from utils.types import AnalysisType
 from scipy.stats import norm
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import matplotlib.pyplot as plt
@@ -30,7 +29,7 @@ import numpy as np
 import pandas as pd
 
 analysis_name = "CD Profile (Waterfall)"
-analysis_types = [AnalysisType.CD]
+analysis_types = ["CD"]
 
 class AnalysisController(QObject, PlotMixin, ExportMixin):
     updated = pyqtSignal()

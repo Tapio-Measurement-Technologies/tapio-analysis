@@ -3,7 +3,6 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QMenuBar, QGridLayout,
 from PyQt6.QtGui import QAction
 from qtpy.QtCore import Qt
 from utils.filters import bandpass_filter
-from utils.types import AnalysisType
 from utils.data_loader import DataMixin
 from matplotlib.ticker import MaxNLocator
 from matplotlib import colors, cm
@@ -21,7 +20,7 @@ import settings
 import numpy as np
 
 analysis_name = "Variance Component Analysis"
-analysis_types = [AnalysisType.CD]
+analysis_types = ["CD"]
 
 class AnalysisController(QObject, PlotMixin):
     updated = pyqtSignal()

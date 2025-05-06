@@ -15,12 +15,11 @@ from gui.components import (
     StatsWidget,
     PlotMixin
 )
-from utils.types import AnalysisType
 import settings
 import numpy as np
 
 analysis_name = "Formation"
-analysis_types = [AnalysisType.MD, AnalysisType.CD]
+analysis_types = ["MD", "CD"]
 
 class AnalysisController(QObject, PlotMixin):
     updated = pyqtSignal()

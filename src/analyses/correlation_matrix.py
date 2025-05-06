@@ -1,7 +1,6 @@
 from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtWidgets import QWidget, QVBoxLayout
 from utils.data_loader import DataMixin
-from utils.types import AnalysisType
 from utils.filters import bandpass_filter
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import matplotlib.patheffects as path_effects
@@ -18,7 +17,7 @@ import numpy as np
 import pandas as pd
 
 analysis_name = "Correlation Matrix"
-analysis_types = [AnalysisType.MD, AnalysisType.CD]
+analysis_types = ["MD", "CD"]
 
 class AnalysisController(QObject, PlotMixin):
     updated = pyqtSignal()
