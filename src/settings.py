@@ -18,6 +18,8 @@ REPORT_FORMAT_DEFAULT = 'latex'
 
 FORCE_PRIMARY_SCALE_SUPPLEMENTARY = False
 
+LOADERS_DIR = 'loaders'
+EXPORTERS_DIR = 'exporters'
 ANALYSIS_DIR = 'analyses'
 ANALYSIS_SECTIONS = [
     MainWindowSection(

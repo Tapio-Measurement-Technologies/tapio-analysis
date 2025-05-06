@@ -14,16 +14,17 @@ This helps avoid circular imports by providing a central place to access shared 
 from utils.logging import LogManager
 from utils.dynamic_loader import load_modules_from_folder
 import os
-from settings import ANALYSIS_DIR
+from settings import ANALYSIS_DIR, LOADERS_DIR, EXPORTERS_DIR
 
 # This will be set in main.py
 log_manager: LogManager | None = None
 base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-analyses = {}
+loaders = load_modules_from_folder(os.path.join(base_path, LOADERS_DIR))
+exporters = load_modules_from_folder(os.path.join(base_path, EXPORTERS_DIR))
 
 # Load analysis modules
-analysis_modules = load_modules_from_folder(
-    os.path.join(base_path, ANALYSIS_DIR))
+analyses = {}
+analysis_modules = load_modules_from_folder(os.path.join(base_path, ANALYSIS_DIR))
 
 for module_name, module in analysis_modules.items():
     analyses[module_name] = {

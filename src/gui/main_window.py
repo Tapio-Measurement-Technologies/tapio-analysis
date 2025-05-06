@@ -18,7 +18,6 @@ from gui.report import ReportWindow
 from gui.log_window import LogWindow
 from gui.setting_input_dialog import open_setting_input_dialog
 from utils.data_loader import DataMixin
-from utils.dynamic_loader import load_modules_from_folder
 from utils.types import MeasurementFileType, MainWindowSectionModule, MainWindowSection
 from utils import store
 import settings
@@ -31,12 +30,6 @@ class MainWindow(QMainWindow, DataMixin):
         self.windows = []
         self.findSamplesWindow = None
         self.logWindow = None
-
-        base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        self.loaders = load_modules_from_folder(
-            os.path.join(base_path, 'loaders'))
-        self.exporters = load_modules_from_folder(
-            os.path.join(base_path, 'exporters'))
 
         self.md_export_actions = []
         self.initUI()
@@ -64,7 +57,7 @@ class MainWindow(QMainWindow, DataMixin):
         # action_priority = getattr(module, 'menu_priority', module_name)
 
         modules_sorted = sorted(
-            self.loaders.items(),
+            store.loaders.items(),
             key=lambda item: getattr(item[1], 'menu_priority', 1)
         )
 
@@ -84,14 +77,14 @@ class MainWindow(QMainWindow, DataMixin):
                 first = False
 
         # Create menu items for export module
-        for module_name, module in self.exporters.items():
+        for module_name, module in store.exporters.items():
             action_text = getattr(module, 'menu_text', module_name)
             action = QAction(action_text, self)
             action.triggered.connect(
                 lambda checked, module=module: self.exportData(module))
             fileMenu.addAction(action)
 
-            if len(self.exporters.items()) == 1:
+            if len(store.exporters.items()) == 1:
                 action.setShortcut('Ctrl+E')
 
             if module_name.startswith('md'):
