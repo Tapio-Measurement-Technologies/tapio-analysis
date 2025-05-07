@@ -1,6 +1,6 @@
 from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtWidgets import QWidget, QVBoxLayout
-from utils.data_loader import DataMixin
+from utils.measurement import Measurement
 from utils.filters import bandpass_filter
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import matplotlib.patheffects as path_effects
@@ -22,15 +22,15 @@ analysis_types = ["MD", "CD"]
 class AnalysisController(QObject, PlotMixin):
     updated = pyqtSignal()
 
-    def __init__(self, window_type="MD"):
+    def __init__(self, measurement: Measurement, window_type="MD"):
         super().__init__()
-        self.dataMixin = DataMixin.getInstance()
+        self.measurement = measurement
         self.window_type = window_type
 
         if window_type == "MD":
-            self.max_dist = np.max(self.dataMixin.distances)
+            self.max_dist = np.max(self.measurement.distances)
         elif window_type == "CD":
-            self.max_dist = np.max(self.dataMixin.cd_distances)
+            self.max_dist = np.max(self.measurement.cd_distances)
 
         setting_defaults = {
             "MD": {
@@ -52,10 +52,10 @@ class AnalysisController(QObject, PlotMixin):
         self.band_pass_high = config["band_pass_high"]
         self.analysis_range_low = config["analysis_range_low"]
         self.analysis_range_high = config["analysis_range_high"]
-        self.fs = 1 / self.dataMixin.sample_step
+        self.fs = 1 / self.measurement.sample_step
 
     def plot(self):
-        if self.dataMixin.channel_df.empty:
+        if self.measurement.channel_df.empty:
             logging.info("No data available for correlation matrix plot.")
             return
 
@@ -70,23 +70,23 @@ class AnalysisController(QObject, PlotMixin):
 
         if self.window_type == "MD":
             low_index = np.searchsorted(
-                self.dataMixin.distances, self.analysis_range_low)
+                self.measurement.distances, self.analysis_range_low)
             high_index = np.searchsorted(
-                self.dataMixin.distances, self.analysis_range_high, side='right')
-            data_slice = self.dataMixin.channel_df.iloc[low_index:high_index]
+                self.measurement.distances, self.analysis_range_high, side='right')
+            data_slice = self.measurement.channel_df.iloc[low_index:high_index]
 
             data_slice = apply_bandpass_to_dataframe(
                 data_slice, self.band_pass_low, self.band_pass_high, self.fs)
 
         elif self.window_type == "CD":
             low_index = np.searchsorted(
-                self.dataMixin.cd_distances, self.analysis_range_low)
+                self.measurement.cd_distances, self.analysis_range_low)
             high_index = np.searchsorted(
-                self.dataMixin.cd_distances, self.analysis_range_high, side='right')
+                self.measurement.cd_distances, self.analysis_range_high, side='right')
 
             cd_data_frame = pd.DataFrame(index=range(low_index, high_index))
 
-            for channel, segments in self.dataMixin.segments.items():
+            for channel, segments in self.measurement.segments.items():
                 channel_data = np.mean(segments, axis=0)[low_index:high_index]
                 print(channel)
                 cd_data_frame[channel] = channel_data
@@ -148,19 +148,19 @@ class AnalysisController(QObject, PlotMixin):
         stats = []
         return stats
 
-class AnalysisWindow(QWidget, DataMixin, AnalysisRangeMixin, BandPassFilterMixin, CopyPlotMixin, ChildWindowCloseMixin):
+class AnalysisWindow(QWidget, AnalysisRangeMixin, BandPassFilterMixin, CopyPlotMixin, ChildWindowCloseMixin):
 
-    def __init__(self, window_type="MD", controller: AnalysisController | None = None):
+    def __init__(self, window_type="MD", controller: AnalysisController | None = None, measurement: Measurement | None = None):
         super().__init__()
-        self.dataMixin = DataMixin.getInstance()
         self.controller = controller if controller else AnalysisController(
-            window_type)
+            measurement, window_type)
+        self.measurement = self.controller.measurement
         self.window_type = window_type
         self.initUI()
 
     def initUI(self):
         self.setWindowTitle(
-            f"Correlation matrix ({self.dataMixin.measurement_label})")
+            f"Correlation matrix ({self.measurement.measurement_label})")
         self.setGeometry(100, 100, 750, 750)
 
         mainLayout = QVBoxLayout()

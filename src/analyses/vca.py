@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QMenuBar, QGridLayout,
 from PyQt6.QtGui import QAction
 from qtpy.QtCore import Qt
 from utils.filters import bandpass_filter
-from utils.data_loader import DataMixin
+from utils.measurement import Measurement
 from matplotlib.ticker import MaxNLocator
 from matplotlib import colors, cm
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -25,22 +25,22 @@ analysis_types = ["CD"]
 class AnalysisController(QObject, PlotMixin):
     updated = pyqtSignal()
 
-    def __init__(self, window_type="CD"):
+    def __init__(self, measurement: Measurement, window_type="CD"):
         super().__init__()
-        self.dataMixin = DataMixin.getInstance()
+        self.measurement = measurement
 
-        self.selected_samples = self.dataMixin.selected_samples.copy()
-        self.max_dist = np.max(self.dataMixin.cd_distances)
+        self.selected_samples = self.measurement.selected_samples.copy()
+        self.max_dist = np.max(self.measurement.cd_distances)
 
         self.remove_cd_variations = False
         self.remove_md_variations = False
 
-        self.channel = self.dataMixin.channels[0]
+        self.channel = self.measurement.channels[0]
         self.band_pass_low = settings.VCA_BAND_PASS_LOW_DEFAULT_1M
         self.band_pass_high = settings.VCA_BAND_PASS_HIGH_DEFAULT_1M
         self.analysis_range_low = settings.VCA_RANGE_LOW_DEFAULT * self.max_dist
         self.analysis_range_high = settings.VCA_RANGE_HIGH_DEFAULT * self.max_dist
-        self.fs = 1 / self.dataMixin.sample_step
+        self.fs = 1 / self.measurement.sample_step
 
     def plot(self):
         self.figure.clear()
@@ -51,13 +51,13 @@ class AnalysisController(QObject, PlotMixin):
 
         # Calculate indices for slicing based on the analysis range
         low_index = np.searchsorted(
-            self.dataMixin.cd_distances, self.analysis_range_low)
+            self.measurement.cd_distances, self.analysis_range_low)
         high_index = np.searchsorted(
-            self.dataMixin.cd_distances, self.analysis_range_high, side='right')
+            self.measurement.cd_distances, self.analysis_range_high, side='right')
 
         # Preparation of data for plotting
         self.filtered_data = [bandpass_filter(
-            self.dataMixin.segments[self.channel][sample_idx][low_index:high_index],
+            self.measurement.segments[self.channel][sample_idx][low_index:high_index],
             self.band_pass_low, self.band_pass_high, self.fs) for sample_idx in self.selected_samples]
 
         # Calculate the mean profile and residuals
@@ -76,7 +76,7 @@ class AnalysisController(QObject, PlotMixin):
 
         data_colorbar_ax = self.figure.add_subplot(gs[1, 2])
 
-        x_data = self.dataMixin.cd_distances[low_index:high_index]
+        x_data = self.measurement.cd_distances[low_index:high_index]
 
         # Plotting the MD mean profile
         md_mean = np.mean(self.filtered_data, axis=1)
@@ -84,7 +84,7 @@ class AnalysisController(QObject, PlotMixin):
                         color='tab:blue', linewidth=2)
 
         md_mean_ax.set(
-            xlabel=f"MD mean [{self.dataMixin.units[self.channel]}]", ylabel="Sample index")
+            xlabel=f"MD mean [{self.measurement.units[self.channel]}]", ylabel="Sample index")
         # TODO: Restrict the number of decimals here
         md_mean_ax.yaxis.set_major_locator(MaxNLocator(nbins=2, integer=True))
         md_mean_ax.xaxis.set_major_locator(MaxNLocator(nbins=2, integer=True))
@@ -95,7 +95,7 @@ class AnalysisController(QObject, PlotMixin):
         # Plotting the CD profile on top
         cd_profile_ax.plot(x_data, cd_mean_profile)
         cd_profile_ax.set(
-            xlabel="Distance [m]", ylabel=f"CD mean [{self.dataMixin.units[self.channel]}]")
+            xlabel="Distance [m]", ylabel=f"CD mean [{self.measurement.units[self.channel]}]")
         cd_profile_ax.grid()
 
         self.plot_data = self.filtered_data
@@ -127,7 +127,7 @@ class AnalysisController(QObject, PlotMixin):
             cax, cax=data_colorbar_ax, orientation='vertical')
 
         main_heatmap_colorbar.set_label(
-            f'{self.channel} [{self.dataMixin.units[self.channel]}]')
+            f'{self.channel} [{self.measurement.units[self.channel]}]')
 
         self.canvas.draw()
         self.updated.emit()
@@ -143,7 +143,7 @@ class AnalysisController(QObject, PlotMixin):
     def getStatsTableData(self):
         stats = []
         data = np.array(self.filtered_data)
-        units = self.dataMixin.units[self.channel]
+        units = self.measurement.units[self.channel]
 
         # Compute variances and take the square root to get standard deviations
         total, md, cd, res = np.sqrt(self.calculate_variances(data))
@@ -264,11 +264,12 @@ class AnalysisController(QObject, PlotMixin):
         return total_variance, md_variance, cd_variance, residual_variance
 
 
-class AnalysisWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, CopyPlotMixin, ChildWindowCloseMixin):
-    def __init__(self, window_type="CD", controller: AnalysisController | None = None):
+class AnalysisWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, CopyPlotMixin, ChildWindowCloseMixin):
+    def __init__(self, window_type="CD", controller: AnalysisController | None = None, measurement: Measurement | None = None):
         super().__init__()
-        self.dataMixin = DataMixin.getInstance()
-        self.controller = controller if controller else AnalysisController()
+        self.controller = controller if controller else AnalysisController(
+            measurement, window_type)
+        self.measurement = self.controller.measurement
         self.initUI()
 
     def initMenuBar(self, layout):
@@ -294,7 +295,7 @@ class AnalysisWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, BandP
 
     def initUI(self):
         self.setWindowTitle(
-            f"Variance component analysis ({self.dataMixin.measurement_label})")
+            f"Variance component analysis ({self.measurement.measurement_label})")
         self.setGeometry(*settings.VCA_WINDOW_GEOMETRY)
 
         mainLayout = QVBoxLayout()
@@ -398,7 +399,7 @@ class AnalysisWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, BandP
             vca_stats["residual_std_dev"] / mean
 
         self.unit_label.setText(
-            f"{self.dataMixin.units[self.controller.channel]}")
+            f"{self.measurement.units[self.controller.channel]}")
         self.total_std_dev_label.setText(f"{vca_stats['total_std_dev']:.2f}")
         self.md_std_dev_label.setText(f"{vca_stats['md_std_dev']:.2f}")
         self.cd_std_dev_label.setText(f"{vca_stats['cd_std_dev']:.2f}")

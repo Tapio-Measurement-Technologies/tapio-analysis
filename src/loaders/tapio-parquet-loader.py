@@ -1,4 +1,3 @@
-from utils.data_loader import DataMixin
 import os
 from PyQt6.QtWidgets import QInputDialog
 import pandas as pd
@@ -8,14 +7,13 @@ from scipy.interpolate import interp1d
 from scipy.optimize import curve_fit
 import settings
 import traceback
-
+from utils.measurement import Measurement
 import zipfile
 from io import BytesIO
 
 menu_text = "Load Tapio Parquet data"
 menu_priority = 2
 
-dataMixin = DataMixin.getInstance()
 file_types = "All Files (*);;Parquet files (*.parquet);;Calibration files (*.tcal);;Paper machine files (*.pmdata.json)"
 
 RESAMPLE_STEP_DEFAULT_MM = 1
@@ -39,8 +37,9 @@ def get_sample_step():
         return None
 
 
-def load_data(fileNames: list[str]):
+def load_data(fileNames: list[str]) -> Measurement | None:
     calibrations = {}
+    measurement = Measurement()
 
     for fn in fileNames:
         if fn.endswith('.zip'):
@@ -64,7 +63,7 @@ def load_data(fileNames: list[str]):
 
                         # Add file name labels
                         basename = os.path.basename(parquet_file)
-                        dataMixin.data_file_path = fn
+                        measurement.data_file_path = fn
 
                         if len(data_df) > 1000:
                             data_df = data_df.iloc[1000:]
@@ -77,15 +76,15 @@ def load_data(fileNames: list[str]):
                             if sample_step is None:
                                 return  # User canceled the input
                             distances = np.arange(len(data_df)) * sample_step
-                            dataMixin.sample_step = sample_step
+                            measurement.sample_step = sample_step
                         else:
                             delta_distance = np.diff(distances).mean()
                             sampling_frequency = 1000  # Hz
                             delta_t = 1 / sampling_frequency
-                            dataMixin.pm_speed = 60 * \
+                            measurement.pm_speed = 60 * \
                                 (delta_distance / delta_t)
                             print(
-                                f"Average measurement speed [m/min]: {dataMixin.pm_speed:.2f}")
+                                f"Average measurement speed [m/min]: {measurement.pm_speed:.2f}")
 
                             total_samples = len(distances)
                             total_time_seconds = total_samples / sampling_frequency
@@ -118,25 +117,25 @@ def load_data(fileNames: list[str]):
                             resampled_data[:, i] = voltage_interp(
                                 resampled_distances)
 
-                        dataMixin.sample_step = RESAMPLE_STEP_DEFAULT_MM / 1000
-                        dataMixin.channel_df = pd.DataFrame(
+                        measurement.sample_step = RESAMPLE_STEP_DEFAULT_MM / 1000
+                        measurement.channel_df = pd.DataFrame(
                             resampled_data, columns=data_df.columns[1:])
-                        dataMixin.distances = resampled_distances
-                        dataMixin.channels = dataMixin.channel_df.columns
-                        dataMixin.measurement_label = os.path.splitext(
+                        measurement.distances = resampled_distances
+                        measurement.channels = measurement.channel_df.columns
+                        measurement.measurement_label = os.path.splitext(
                             os.path.basename(fn))[0]
 
                 if tcal_file:
                     with zip_ref.open(tcal_file) as tcal_data:
                         basename = os.path.basename(tcal_file)
-                        dataMixin.calibration_file_path = fn
+                        measurement.calibration_file_path = fn
                         tcal_content = tcal_data.read().decode("utf-8")
                         tcal_json = json.loads(tcal_content)
 
                         units_dict = {}
                         calibration_data = {}
 
-                        for channel_name in dataMixin.channel_df.columns:
+                        for channel_name in measurement.channel_df.columns:
                             cal_data = tcal_json.get(channel_name)
                             if cal_data:
                                 calibration_data[channel_name] = cal_data
@@ -145,11 +144,11 @@ def load_data(fileNames: list[str]):
                             else:
                                 units_dict[channel_name] = "V"
 
-                        dataMixin.units = units_dict
+                        measurement.units = units_dict
 
                         # First apply calibrations
                         apply_calibration_with_uniform_trimming(
-                            calibration_data)
+                            measurement, calibration_data)
 
                         # Then add calculated channels
                         for channel in settings.CALCULATED_CHANNELS:
@@ -157,10 +156,10 @@ def load_data(fileNames: list[str]):
                             unit = channel['unit']
                             function = channel['function']
                             try:
-                                result = function(dataMixin.channel_df)
+                                result = function(measurement.channel_df)
                                 if result is not None:
-                                    dataMixin.channel_df[name] = result
-                                    dataMixin.units[name] = unit
+                                    measurement.channel_df[name] = result
+                                    measurement.units[name] = unit
                                     print(
                                         f"Successfully added calculated channel {name}")
                                 else:
@@ -171,14 +170,16 @@ def load_data(fileNames: list[str]):
                                     f"Failed to calculate channel {name}: {e}")
                                 traceback.print_exc()
 
-                        dataMixin.channel_df = dataMixin.channel_df.drop(
+                        measurement.channel_df = measurement.channel_df.drop(
                             columns=settings.IGNORE_CHANNELS, errors='ignore')
 
-                        dataMixin.channels = dataMixin.channel_df.columns
+                        measurement.channels = measurement.channel_df.columns
         elif fn.endswith('.pmdata.json'):
-            dataMixin.pm_file_path = fn
+            measurement.pm_file_path = fn
             basename = os.path.basename(fn)
-            dataMixin.load_pm_file()
+            measurement.load_pm_file()
+
+    return measurement
 
 
 def logarithmic_fit(V, k, a, b):
@@ -195,14 +196,15 @@ def logarithmic_fit(V, k, a, b):
     return values
 
 
-def apply_calibration_with_uniform_trimming(calibration_data):
+def apply_calibration_with_uniform_trimming(measurement: Measurement, calibration_data):
     """Apply calibration and uniform trimming across all channels based on offset values, aligning distances."""
     # Dictionary to hold calibrated data temporarily and offset alignment values
     calibrated_channels = {}
     align_data_slices = {}
+    calibrated_values = {}
 
     # Calculate the zero offset to handle negative minimum distances
-    sample_step = dataMixin.sample_step
+    sample_step = measurement.sample_step
     print(calibration_data.values())
     min_distance_offset = min(cal_data.get('offset', 0)
                               for cal_data in calibration_data.values())
@@ -212,11 +214,11 @@ def apply_calibration_with_uniform_trimming(calibration_data):
     # Calibrate and align data for each channel
     for channel_name, cal_data in calibration_data.items():
         print(f"Calibrating channel: {channel_name}")
-        if channel_name not in dataMixin.channel_df.columns:
+        if channel_name not in measurement.channel_df.columns:
             print(f"Warning: Channel {channel_name} not found in data")
             continue
 
-        voltage_values = dataMixin.channel_df[channel_name].values
+        voltage_values = measurement.channel_df[channel_name].values
 
         # Apply calibration based on the type
         if cal_data['type'] == 'linregr':
@@ -360,14 +362,14 @@ def apply_calibration_with_uniform_trimming(calibration_data):
         trimmed_data[:, index] = calibrated_values[start_trim:start_trim + data_len]
 
     # Update the dataMixin with the trimmed DataFrame
-    dataMixin.channel_df = pd.DataFrame(
+    measurement.channel_df = pd.DataFrame(
         trimmed_data, columns=calibrated_channels.keys())
 
     # Update distances to match the trimmed data length
-    dataMixin.distances = dataMixin.distances[align_data_slices[min(
+    measurement.distances = measurement.distances[align_data_slices[min(
         align_data_slices, key=align_data_slices.get)]:][:data_len]
 
     # Flip the data if specified in settings
     if settings.FLIP_LOADED_DATA:
-        dataMixin.channel_df = dataMixin.channel_df.iloc[::-1]
+        measurement.channel_df = measurement.channel_df.iloc[::-1]
         # dataMixin.distances = np.flip(dataMixin.distances)

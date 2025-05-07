@@ -16,12 +16,15 @@ from utils.dynamic_loader import load_modules_from_folder
 import os
 from settings import ANALYSIS_DIR, LOADERS_DIR, EXPORTERS_DIR
 from utils.types import Exporter, ModuleName, Loader
+from utils.measurement import Measurement
 
 # This will be set in main.py
 log_manager: LogManager | None = None
 base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 loaders: dict[ModuleName, Loader] = load_modules_from_folder(os.path.join(base_path, LOADERS_DIR))
 exporters: dict[ModuleName, Exporter] = load_modules_from_folder(os.path.join(base_path, EXPORTERS_DIR))
+
+loaded_measurement: Measurement | None = None
 
 # Load analysis modules
 analyses = {}

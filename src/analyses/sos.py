@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout
 from PyQt6.QtCore import QObject, pyqtSignal
-from utils.data_loader import DataMixin
+from utils.measurement import Measurement
 from utils.signal_processing import harmonic_fitting_units
 from gui.components import PlotMixin
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -14,8 +14,8 @@ class AnalysisController(QObject, PlotMixin):
 
     def __init__(self, spectrumController):
         super().__init__()
-        self.dataMixin = DataMixin.getInstance()
         self.spectrumController = spectrumController
+        self.measurement: Measurement = self.spectrumController.measurement
 
     def plot(self):
         data = self.spectrumController.data
@@ -37,7 +37,7 @@ class AnalysisController(QObject, PlotMixin):
         ax.plot(distance, y)
         ax.set_title(f"{channel} variation at {selected_freq:.2f} 1/m")
         ax.set_xlabel("Distance [m]")
-        ax.set_ylabel(f"{self.dataMixin.units[channel]}")
+        ax.set_ylabel(f"{self.measurement.units[channel]}")
         ax.grid()
 
         ax.figure.set_constrained_layout(True)

@@ -1,6 +1,5 @@
 import pandas as pd
 import json
-from utils.types import MeasurementFileType
 
 class DataMixin:
     _instance = None
@@ -55,15 +54,3 @@ class DataMixin:
     def load_pm_file(self):
         with open(self.pm_file_path, 'r') as f:
             self.pm_data = json.load(f)
-
-    def get_file_path(self, file_type: MeasurementFileType):
-        if file_type == MeasurementFileType.HEADER:
-            return self.header_file_path
-        elif file_type == MeasurementFileType.CALIBRATION:
-            return self.calibration_file_path
-        elif file_type == MeasurementFileType.DATA:
-            return self.data_file_path
-        elif file_type == MeasurementFileType.PM:
-            return self.pm_file_path
-        elif file_type == MeasurementFileType.SAMPLES:
-            return self.samples_file_path

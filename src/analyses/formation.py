@@ -1,4 +1,3 @@
-from utils.data_loader import DataMixin
 from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QMenuBar, QMessageBox
 from PyQt6.QtGui import QAction
@@ -6,6 +5,7 @@ from qtpy.QtCore import Qt
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from scipy.optimize import curve_fit
+from utils.measurement import Measurement
 from gui.components import (
     AnalysisRangeMixin,
     SampleSelectMixin,
@@ -24,26 +24,26 @@ analysis_types = ["MD", "CD"]
 class AnalysisController(QObject, PlotMixin):
     updated = pyqtSignal()
 
-    def __init__(self, window_type="MD"):
+    def __init__(self, measurement: Measurement, window_type="MD"):
         super().__init__()
-        self.dataMixin = DataMixin.getInstance()
+        self.measurement = measurement
         self.window_type = window_type
         self.warning_message = None
         self.can_calculate = self.check_required_channels()
 
         if self.window_type == "MD":
-            self.max_dist = np.max(self.dataMixin.distances)
-            self.distances = self.dataMixin.distances
+            self.max_dist = np.max(self.measurement.distances)
+            self.distances = self.measurement.distances
             self.analysis_range_low = settings.MD_FORMATION_RANGE_LOW_DEFAULT * self.max_dist
             self.analysis_range_high = settings.MD_FORMATION_RANGE_HIGH_DEFAULT * self.max_dist
 
         elif self.window_type == "CD":
-            self.max_dist = np.max(self.dataMixin.cd_distances)
-            self.distances = self.dataMixin.cd_distances
+            self.max_dist = np.max(self.measurement.cd_distances)
+            self.distances = self.measurement.cd_distances
             self.analysis_range_low = settings.CD_FORMATION_RANGE_LOW_DEFAULT * self.max_dist
             self.analysis_range_high = settings.CD_FORMATION_RANGE_HIGH_DEFAULT * self.max_dist
 
-            self.selected_samples = self.dataMixin.selected_samples.copy()
+            self.selected_samples = self.measurement.selected_samples.copy()
             self.sampleSelectorWindow = None
 
         self.show_profiles = False
@@ -57,7 +57,7 @@ class AnalysisController(QObject, PlotMixin):
 
         missing_channels = []
         for channel_type, channel_name in required_channels.items():
-            if channel_name not in self.dataMixin.channels:
+            if channel_name not in self.measurement.channels:
                 missing_channels.append(f"{channel_type} ({channel_name})")
 
         if missing_channels:
@@ -87,20 +87,20 @@ class AnalysisController(QObject, PlotMixin):
             return self.canvas
 
         # Todo: These are in meters, li
-        # Todo: These are in meters, like distances array. Convert these to indices and have them have an effect on the displayed slice of the datamixin
+        # Todo: These are in meters, like distances array. Convert these to indices and have them have an effect on the displayed slice of the measurement
         if self.window_type == "MD":
 
             low_index = np.searchsorted(
-                self.dataMixin.distances, self.analysis_range_low)
+                self.measurement.distances, self.analysis_range_low)
             high_index = np.searchsorted(
-                self.dataMixin.distances, self.analysis_range_high, side='right')
+                self.measurement.distances, self.analysis_range_high, side='right')
 
-            x = self.dataMixin.distances[low_index:high_index]
-            unfiltered_data = self.dataMixin.channel_df[self.channel][low_index:high_index]
+            x = self.measurement.distances[low_index:high_index]
+            unfiltered_data = self.measurement.channel_df[self.channel][low_index:high_index]
 
-            transmission_data = self.dataMixin.channel_df[self.transmission_channel][low_index:high_index]
+            transmission_data = self.measurement.channel_df[self.transmission_channel][low_index:high_index]
 
-            bw_data = self.dataMixin.channel_df[self.bw_channel][low_index:high_index]
+            bw_data = self.measurement.channel_df[self.bw_channel][low_index:high_index]
 
             def linear(x, a, b):
                 return a * x + b
@@ -121,17 +121,17 @@ class AnalysisController(QObject, PlotMixin):
 
         elif self.window_type == "CD":
             low_index = np.searchsorted(
-                self.dataMixin.cd_distances, self.analysis_range_low)
+                self.measurement.cd_distances, self.analysis_range_low)
             high_index = np.searchsorted(
-                self.dataMixin.cd_distances, self.analysis_range_high, side='right')
+                self.measurement.cd_distances, self.analysis_range_high, side='right')
 
-            x = self.dataMixin.cd_distances[low_index:high_index]
+            x = self.measurement.cd_distances[low_index:high_index]
 
-            transmission_data = [self.dataMixin.segments[self.transmission_channel]
+            transmission_data = [self.measurement.segments[self.transmission_channel]
                                  [sample_idx][low_index:high_index] for sample_idx in self.selected_samples]
 
             transmission_mean_profile = np.mean(transmission_data, axis=0)
-            bw_mean_profile = np.mean([self.dataMixin.segments[self.bw_channel][sample_idx]
+            bw_mean_profile = np.mean([self.measurement.segments[self.bw_channel][sample_idx]
                                        [low_index:high_index] for sample_idx in self.selected_samples], axis=0)
 
             def linear(x, a, b):
@@ -165,7 +165,7 @@ class AnalysisController(QObject, PlotMixin):
         show_unfiltered_data = True
         ax.plot(x, y)
         ax.set_title(
-            f"{self.dataMixin.measurement_label} - Formation index ({self.channel})")
+            f"{self.measurement.measurement_label} - Formation index ({self.channel})")
 
         ax.set_xlabel("Distance [m]")
         params = {'mathtext.default': 'regular'}
@@ -185,7 +185,7 @@ class AnalysisController(QObject, PlotMixin):
         std = np.std(self.stats)
         min_val = np.min(self.stats)
         max_val = np.max(self.stats)
-        units = self.dataMixin.units[self.channel]
+        units = self.measurement.units[self.channel]
 
         stats.append(["Correlation coefficient:",
                      f"{self.correlation_coefficient:.2f}"])
@@ -211,12 +211,12 @@ class AnalysisController(QObject, PlotMixin):
         return result
 
 
-class AnalysisWindow(QWidget, DataMixin, AnalysisRangeMixin, SampleSelectMixin, ShowProfilesMixin, CopyPlotMixin, ChildWindowCloseMixin):
-    def __init__(self, window_type="MD", controller: AnalysisController | None = None):
+class AnalysisWindow(QWidget, AnalysisRangeMixin, SampleSelectMixin, ShowProfilesMixin, CopyPlotMixin, ChildWindowCloseMixin):
+    def __init__(self, window_type="MD", controller: AnalysisController | None = None, measurement: Measurement | None = None):
         super().__init__()
-        self.dataMixin = DataMixin.getInstance()
         self.controller = controller if controller else AnalysisController(
-            window_type)
+            measurement, window_type)
+        self.measurement = self.controller.measurement
         if not self.controller.can_calculate:
             self.close()
             return
@@ -235,7 +235,7 @@ class AnalysisWindow(QWidget, DataMixin, AnalysisRangeMixin, SampleSelectMixin, 
     def initUI(self):
         if settings.FORMATION_TITLE_SHOW:
             self.setWindowTitle(
-                f"Formation analysis ({self.dataMixin.measurement_label})")
+                f"Formation analysis ({self.measurement.measurement_label})")
         self.setGeometry(100, 100, 700, 800)
 
         mainLayout = QVBoxLayout()

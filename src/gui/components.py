@@ -99,8 +99,8 @@ class AnalysisRangeMixin:
         # Prevent recursive refresh calls when updating values elsewhere
         self.analysisRangeSlider.blockSignals(block_signals)
         self.analysisRangeSlider.setDecimals(settings.ANALYSIS_RANGE_DECIMALS)
-        # Ensure dataMixin is accessible
-        # self.max_dist = np.max(self.dataMixin.distances)
+        # Ensure measurement is accessible
+        # self.max_dist = np.max(self.measurement.distances)
         self.analysisRangeSlider.setRange(0, self.controller.max_dist)
         self.analysisRangeSlider.setValue(
             (self.controller.analysis_range_low, self.controller.analysis_range_high))
@@ -134,7 +134,7 @@ class ChannelMixin:
         # Prevent recursive refresh calls when updating values elsewhere
         self.channelComboBox.blockSignals(block_signals)
         initial_channel = self.controller.channel
-        if initial_channel is not None and initial_channel in self.dataMixin.channels:
+        if initial_channel is not None and initial_channel in self.measurement.channels:
             initial_index = self.channelComboBox.findText(initial_channel)
             if initial_index >= 0:  # Ensure the text was found
                 self.channelComboBox.setCurrentIndex(initial_index)
@@ -142,7 +142,7 @@ class ChannelMixin:
 
     def addChannelSelector(self, layout):
         self.channelComboBox = QComboBox()
-        self.channelComboBox.addItems(self.dataMixin.channels)
+        self.channelComboBox.addItems(self.measurement.channels)
         self.initChannelSelector()
         layout.addWidget(self.channelComboBox)
         self.channelComboBox.currentIndexChanged.connect(self.channelChanged)
@@ -342,7 +342,7 @@ class SampleSelectMixin:
         """Toggle the visibility of the sample selector window."""
         if self.sampleSelectorWindow is None:
             self.sampleSelectorWindow = SampleSelectorWindow(
-                self.controller.selected_samples, self.selectSamples)
+                self.controller.selected_samples, self.selectSamples, self.measurement)
             self.sampleSelectorWindow.show()
         elif self.sampleSelectorWindow.isVisible():
             self.sampleSelectorWindow.hide()
@@ -702,7 +702,7 @@ class ExtraDataMixin:
 class StatsMixin:
 
     def updateStatistics(self, data, show_units=True):
-        units = self.dataMixin.units[self.controller.channel] if show_units else ""
+        units = self.measurement.units[self.controller.channel] if show_units else ""
 
         if not len(data):
             self.meanLabel.setText(f"Mean: -- {units}")

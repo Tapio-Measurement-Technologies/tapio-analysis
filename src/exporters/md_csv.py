@@ -1,12 +1,10 @@
-from utils.data_loader import DataMixin
+from utils.measurement import Measurement
 import pandas as pd
 
 menu_text = "Export to CSV (MD)"
 file_types = "CSV Files (*.md.csv)"
 
-dataMixin = DataMixin.getInstance()
-
-def export_data(fileName: str) -> None:
+def export_data(fileName: str, measurement: Measurement) -> None:
     """
     Export data to a CSV file.
 
@@ -14,13 +12,13 @@ def export_data(fileName: str) -> None:
         fileName: Path to the file where data should be exported
     """
     if fileName:
-        combined_df = combineData()
+        combined_df = combineData(measurement)
         combined_df.to_csv(fileName, index=False)
         print(f"Combined data exported successfully to {fileName}.")
 
-def combineData():
+def combineData(measurement: Measurement):
     distances_df = pd.DataFrame(
-        dataMixin.distances, columns=['distance'])
-    ordered_channel_df = dataMixin.channel_df[dataMixin.channels]
+        measurement.distances, columns=['distance'])
+    ordered_channel_df = measurement.channel_df[measurement.channels]
     combined_df = pd.concat([distances_df, ordered_channel_df], axis=1)
     return combined_df

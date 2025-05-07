@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QMenuBar
 from PyQt6.QtGui import QAction
 from scipy.stats import pearsonr
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-from utils.data_loader import DataMixin
+from utils.measurement import Measurement
 from utils.filters import bandpass_filter
 from gui.components import (
     AnalysisRangeMixin,
@@ -25,17 +25,17 @@ analysis_types = ["MD", "CD"]
 class AnalysisController(QObject, PlotMixin):
     updated = pyqtSignal()
 
-    def __init__(self, window_type="MD"):
+    def __init__(self, measurement: Measurement, window_type="MD"):
         super().__init__()
-        self.dataMixin = DataMixin.getInstance()
+        self.measurement = measurement
         self.window_type = window_type
 
         if self.window_type == "MD":
-            self.max_dist = np.max(self.dataMixin.distances)
-            self.distances = self.dataMixin.distances
+            self.max_dist = np.max(self.measurement.distances)
+            self.distances = self.measurement.distances
         elif self.window_type == "CD":
-            self.max_dist = np.max(self.dataMixin.cd_distances)
-            self.distances = self.dataMixin.cd_distances
+            self.max_dist = np.max(self.measurement.cd_distances)
+            self.distances = self.measurement.cd_distances
 
         channel_correlation_config = {
             "MD": {
@@ -53,14 +53,14 @@ class AnalysisController(QObject, PlotMixin):
         }
 
         self.show_unfiltered_data = False
-        self.selected_samples = self.dataMixin.selected_samples.copy()
-        self.channels = self.dataMixin.channels
+        self.selected_samples = self.measurement.selected_samples.copy()
+        self.channels = self.measurement.channels
         self.channel1 = self.channels[0]
         self.channel2 = self.channels[0]
         config = channel_correlation_config[self.window_type]
         self.band_pass_low = config["band_pass_low"]
         self.band_pass_high = config["band_pass_high"]
-        self.fs = 1 / self.dataMixin.sample_step
+        self.fs = 1 / self.measurement.sample_step
         self.analysis_range_low = config["analysis_range_low"] * self.max_dist
         self.analysis_range_high = config["analysis_range_high"] * \
             self.max_dist
@@ -105,14 +105,14 @@ class AnalysisController(QObject, PlotMixin):
 
         if settings.CHANNEL_CORRELATION_XCORR_OUTPUT:
             max_offset = self.calculate_max_cross_correlation_offset(
-                data1, data2, self.dataMixin.sample_step)
+                data1, data2, self.measurement.sample_step)
             logging.info(f"Cross-correlation max at {max_offset:.2f} m ({1000*max_offset:.2f} mm)")
 
 
         ax_correlation.set_xlabel(
-            f"{self.channel1} [{self.dataMixin.units[self.channel1]}]")
+            f"{self.channel1} [{self.measurement.units[self.channel1]}]")
         ax_correlation.set_ylabel(
-            f"{self.channel2} [{self.dataMixin.units[self.channel2]}]")
+            f"{self.channel2} [{self.measurement.units[self.channel2]}]")
         ax_correlation.grid()
 
         self.canvas.draw()
@@ -124,24 +124,24 @@ class AnalysisController(QObject, PlotMixin):
         # This function needs to be adapted to how your data is structured and how you filter/prepare it
         if self.window_type == "MD":
             low_index = np.searchsorted(
-                self.dataMixin.distances, self.analysis_range_low)
+                self.measurement.distances, self.analysis_range_low)
             high_index = np.searchsorted(
-                self.dataMixin.distances, self.analysis_range_high, side='right')
+                self.measurement.distances, self.analysis_range_high, side='right')
 
-            x = self.dataMixin.distances[low_index:high_index]
-            unfiltered_data = self.dataMixin.channel_df[channel][low_index:high_index]
+            x = self.measurement.distances[low_index:high_index]
+            unfiltered_data = self.measurement.channel_df[channel][low_index:high_index]
             filtered_data = bandpass_filter(
                 unfiltered_data, self.band_pass_low, self.band_pass_high, self.fs)
         elif self.window_type == "CD":
             low_index = np.searchsorted(
-                self.dataMixin.cd_distances, self.analysis_range_low)
+                self.measurement.cd_distances, self.analysis_range_low)
             high_index = np.searchsorted(
-                self.dataMixin.cd_distances, self.analysis_range_high, side='right')
+                self.measurement.cd_distances, self.analysis_range_high, side='right')
 
-            x = self.dataMixin.cd_distances[low_index:high_index]
+            x = self.measurement.cd_distances[low_index:high_index]
 
             unfiltered_data = np.mean([
-                self.dataMixin.segments[channel][sample_idx][low_index:high_index]
+                self.measurement.segments[channel][sample_idx][low_index:high_index]
                 for sample_idx in self.selected_samples
             ],
                 axis=0)
@@ -159,7 +159,7 @@ class AnalysisController(QObject, PlotMixin):
         ax.set_xlabel(
             f"Distance [{settings.CORRELATION_ANALYSIS_DISPLAY_UNIT}]")
         ax.set_ylabel(
-            f"{channel} [{self.dataMixin.units[channel]}]", color=color)
+            f"{channel} [{self.measurement.units[channel]}]", color=color)
         ax.tick_params(axis='y', labelcolor=color)
         # ax.grid()
 
@@ -170,19 +170,19 @@ class AnalysisController(QObject, PlotMixin):
         return stats
 
 
-class AnalysisWindow(QWidget, DataMixin, AnalysisRangeMixin, BandPassFilterMixin, SampleSelectMixin, ShowUnfilteredMixin, DoubleChannelMixin, CopyPlotMixin, ChildWindowCloseMixin):
-    def __init__(self, window_type="MD", controller: AnalysisController | None = None):
+class AnalysisWindow(QWidget, AnalysisRangeMixin, BandPassFilterMixin, SampleSelectMixin, ShowUnfilteredMixin, DoubleChannelMixin, CopyPlotMixin, ChildWindowCloseMixin):
+    def __init__(self, window_type="MD", controller: AnalysisController | None = None, measurement: Measurement | None = None):
         super().__init__()
         self.window_type = window_type
-        self.dataMixin = DataMixin.getInstance()
         self.controller = controller if controller else AnalysisController(
-            window_type)
+            measurement, window_type)
+        self.measurement = self.controller.measurement
         self.sampleSelectorWindow = None
         self.initUI()
 
     def initUI(self):
         self.setWindowTitle(f"{self.window_type.upper()} Channel correlation analysis ({
-                            self.dataMixin.measurement_label})")
+                            self.measurement.measurement_label})")
 
         self.setGeometry(100, 100, 700, 950)
 

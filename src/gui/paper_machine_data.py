@@ -1,8 +1,7 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QCheckBox, QHBoxLayout, QToolButton, QScrollArea, QSizePolicy, QFrame, QLabel
 from PyQt6.QtCore import pyqtSignal, Qt, pyqtSlot
 import numpy as np
-
-from utils.data_loader import DataMixin
+from utils.measurement import Measurement
 
 COLLAPSE_BY_DEFAULT = True
 
@@ -80,9 +79,9 @@ class PaperMachineDataWindow(QWidget):
 
     closed = pyqtSignal()
 
-    def __init__(self, change_handler, window_type, checked_elements):
+    def __init__(self, change_handler, window_type, checked_elements, measurement: Measurement):
         super().__init__()
-        self.dataMixin = DataMixin.getInstance()
+        self.measurement = measurement
         self.change_handler = change_handler
         self.checked_elements = checked_elements
         self.checkboxes = []
@@ -109,7 +108,7 @@ class PaperMachineDataWindow(QWidget):
         layout.addWidget(self.scroll_area)
         self.setLayout(layout)
 
-        self.pm_data = self.dataMixin.pm_data[self.window_type]
+        self.pm_data = self.measurement.pm_data[self.window_type]
 
     def clearLayout(self, layout):
         if layout is None:

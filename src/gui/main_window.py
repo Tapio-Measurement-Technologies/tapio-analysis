@@ -17,16 +17,15 @@ from gui.find_samples import FindSamplesWindow
 from gui.report import ReportWindow
 from gui.log_window import LogWindow
 from gui.setting_input_dialog import open_setting_input_dialog
-from utils.data_loader import DataMixin
-from utils.types import MeasurementFileType, MainWindowSectionModule, MainWindowSection, Exporter, Loader
+from utils.types import MainWindowSectionModule, MainWindowSection, Exporter, Loader
+from utils.measurement import Measurement, MeasurementFileType
 from utils import store
 import settings
 
-class MainWindow(QMainWindow, DataMixin):
+class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        self.dataMixin = DataMixin.getInstance()
         self.windows = []
         self.findSamplesWindow = None
         self.logWindow = None
@@ -163,9 +162,9 @@ class MainWindow(QMainWindow, DataMixin):
 
             self.closeAll()
             try:
-                loader_module.load_data(fileNames)
+                store.loaded_measurement = loader_module.load_data(fileNames)
             except Exception as e:
-                self.dataMixin.reset()
+                store.loaded_measurement = None
                 QMessageBox.critical(self, "Error", f"Error loading data: {e}")
             self.refresh()
 
@@ -185,19 +184,24 @@ class MainWindow(QMainWindow, DataMixin):
 
     def refresh(self):
         main_window_modules = [module for section in settings.ANALYSIS_SECTIONS for module in section.modules]
-        # Disable the buttons and file entries which will be enabled if the correct data are found in the datamixin
+        measurement_loaded = store.loaded_measurement is not None
+        # Disable the buttons and file entries which will be enabled if the correct data are found in the measurement
         md_functions = [self.closeAction]
         md_functions += self.md_export_actions
         md_functions += [module.button for module in main_window_modules if module.type == "MD"]
         cd_functions = [module.button for module in main_window_modules if module.type == "CD"]
+        other_functions = [module.button for module in main_window_modules if module.type not in ["MD", "CD"]]
 
         [i.setEnabled(False) for i in md_functions]
         [i.setEnabled(False) for i in cd_functions]
+        [i.setEnabled(False) for i in other_functions]
 
-        if not self.dataMixin.channel_df.empty:
+        if measurement_loaded and not store.loaded_measurement.channel_df.empty:
             [i.setEnabled(True) for i in md_functions]
-        if self.dataMixin.segments:
+        if measurement_loaded and store.loaded_measurement.segments:
             [i.setEnabled(True) for i in cd_functions]
+        if measurement_loaded:
+            [i.setEnabled(True) for i in other_functions]
 
         self.updateFileLabels()
 
@@ -212,12 +216,12 @@ class MainWindow(QMainWindow, DataMixin):
 
     def updateFileLabels(self):
         for fileType, label in self.fileLabels.items():
-            file_path = self.dataMixin.get_file_path(fileType)
+            file_path = (store.loaded_measurement or Measurement()).get_file_path(fileType)
             label_text = os.path.basename(file_path) if file_path else "No file selected"
             label.setText(label_text)
 
     def closeAll(self):
-        self.dataMixin.reset()
+        store.loaded_measurement = None
         for window in self.windows:
             window.close()
         self.refresh()
@@ -230,7 +234,7 @@ class MainWindow(QMainWindow, DataMixin):
 
             self.findSamplesWindow.activateWindow()
         else:
-            self.findSamplesWindow = FindSamplesWindow()
+            self.findSamplesWindow = FindSamplesWindow(measurement=store.loaded_measurement)
             self.findSamplesWindow.controller.updated.connect(self.refresh)
             self.findSamplesWindow.isClosed = False
             self.findSamplesWindow.show()
@@ -241,7 +245,7 @@ class MainWindow(QMainWindow, DataMixin):
         self.updateWindowsList()
 
     def openReport(self, window_type="MD"):
-        newWindow = ReportWindow(self, window_type)
+        newWindow = ReportWindow(self, store.loaded_measurement, window_type)
         self.add_window(newWindow)
 
     def updateWindowsList(self):
@@ -262,7 +266,7 @@ class MainWindow(QMainWindow, DataMixin):
         if not analysis:
             print(f"Error: Analysis '{analysis_name}' not found")
             return
-        newWindow = analysis["window"](window_type=window_type)
+        newWindow = analysis["window"](measurement=store.loaded_measurement, window_type=window_type)
         self.add_window(newWindow)
 
     # Used to insert custom buttons that have dependencies on main window
@@ -272,7 +276,7 @@ class MainWindow(QMainWindow, DataMixin):
                 find_samples_module = MainWindowSectionModule(
                     name="Find samples",
                     callback=self.openFindSamples,
-                    type="MD"
+                    arguments={}
                 )
                 section.modules.insert(0, find_samples_module)
 

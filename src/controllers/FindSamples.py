@@ -1,4 +1,4 @@
-from utils.data_loader import DataMixin
+from utils.measurement import Measurement
 from gui.components import PlotMixin
 from PyQt6.QtCore import QObject, pyqtSignal
 import settings
@@ -8,19 +8,19 @@ from utils.filters import bandpass_filter
 class FindSamplesController(QObject, PlotMixin):
     updated = pyqtSignal()
 
-    def __init__(self):
+    def __init__(self, measurement: Measurement):
         super().__init__()
-        self.dataMixin = DataMixin.getInstance()
+        self.measurement = measurement
 
-        self.threshold = self.dataMixin.threshold
-        self.peaks = self.dataMixin.peak_locations
-        self.channel = self.dataMixin.peak_channel or self.dataMixin.channels[0]
-        self.selected_samples = self.dataMixin.selected_samples
+        self.threshold = self.measurement.threshold
+        self.peaks = self.measurement.peak_locations
+        self.channel = self.measurement.peak_channel or self.measurement.channels[0]
+        self.selected_samples = self.measurement.selected_samples
         self.threshold_line = None
         self.peak_lines = []
         self.band_pass_low = settings.FIND_SAMPLES_BAND_PASS_LOW_DEFAULT_1M
         self.band_pass_high = settings.FIND_SAMPLES_BAND_PASS_HIGH_DEFAULT_1M
-        self.fs = 1 / self.dataMixin.sample_step
+        self.fs = 1 / self.measurement.sample_step
         self.highlighted_intervals = []
         self.zoomed_in = False
         self.min_length = settings.CD_SAMPLE_MIN_LENGTH_M
@@ -30,19 +30,19 @@ class FindSamplesController(QObject, PlotMixin):
         self.figure.clear()
         ax = self.figure.add_subplot(111)
 
-        self.distances = self.dataMixin.distances
-        self.data = self.dataMixin.channel_df[self.channel]
+        self.distances = self.measurement.distances
+        self.data = self.measurement.channel_df[self.channel]
 
         self.filtered_data = bandpass_filter(
             self.data, self.band_pass_low, self.band_pass_high, self.fs)
 
-        alpha = 0.4 if len(self.dataMixin.selected_samples) else 1
+        alpha = 0.4 if len(self.measurement.selected_samples) else 1
         # Draw the entire data line with lower alpha
         ax.plot(self.distances, self.filtered_data,
                 color='tab:blue', alpha=alpha)
 
         # Highlight the selected samples
-        for i in self.dataMixin.selected_samples:
+        for i in self.measurement.selected_samples:
             if i < len(self.peaks) - 1:
                 start = self.peaks[i]
                 end = self.peaks[i + 1]
@@ -50,12 +50,12 @@ class FindSamplesController(QObject, PlotMixin):
                 ax.plot(
                     self.distances[mask], self.filtered_data[mask], color='tab:blue', alpha=1.0)
 
-        ax.set_title(f"{self.dataMixin.measurement_label} ({self.channel})")
+        ax.set_title(f"{self.measurement.measurement_label} ({self.channel})")
         ax.set_xlabel("Distance [m]")
-        ax.set_ylabel(f"{self.channel} [{self.dataMixin.units[self.channel]}]")
+        ax.set_ylabel(f"{self.channel} [{self.measurement.units[self.channel]}]")
 
         self.draw_peaks()
-        if self.channel == self.dataMixin.peak_channel:
+        if self.channel == self.measurement.peak_channel:
             self.draw_threshold()
 
         # Highlight selected intervals
@@ -103,8 +103,8 @@ class FindSamplesController(QObject, PlotMixin):
             self.peak_lines.append(vl)
 
     def detect_peaks(self, channel):
-        x = self.dataMixin.distances
-        y = self.dataMixin.channel_df[channel]
+        x = self.measurement.distances
+        y = self.measurement.channel_df[channel]
 
         # TODO: already use the filtered data in the plot method
         y = bandpass_filter(y, self.band_pass_low,
@@ -138,9 +138,9 @@ class FindSamplesController(QObject, PlotMixin):
                     start = None
 
         self.peaks = peaks
-        self.dataMixin.peak_locations = self.peaks
-        self.dataMixin.threshold = self.threshold
-        self.dataMixin.peak_channel = channel
+        self.measurement.peak_locations = self.peaks
+        self.measurement.threshold = self.threshold
+        self.measurement.peak_channel = channel
 
         return peaks
 

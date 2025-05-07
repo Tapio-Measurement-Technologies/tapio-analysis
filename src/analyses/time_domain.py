@@ -1,6 +1,6 @@
 from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QMenuBar
-from utils.data_loader import DataMixin
+from utils.measurement import Measurement
 from utils.filters import bandpass_filter
 from matplotlib.ticker import AutoMinorLocator
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -27,18 +27,18 @@ analysis_types = ["MD"]
 class AnalysisController(QObject, PlotMixin, ExportMixin):
     updated = pyqtSignal()
 
-    def __init__(self, window_type="MD"):
+    def __init__(self, measurement: Measurement, window_type="MD"):
         super().__init__()
-        self.dataMixin = DataMixin.getInstance()
+        self.measurement = measurement
 
-        self.max_dist = np.max(self.dataMixin.distances)
-        self.fs = 1 / self.dataMixin.sample_step
+        self.max_dist = np.max(self.measurement.distances)
+        self.fs = 1 / self.measurement.sample_step
 
         self.analysis_range_low = settings.TIME_DOMAIN_ANALYSIS_RANGE_LOW_DEFAULT * self.max_dist
         self.analysis_range_high = settings.TIME_DOMAIN_ANALYSIS_RANGE_HIGH_DEFAULT * self.max_dist
         self.band_pass_low = settings.TIME_DOMAIN_BAND_PASS_LOW_DEFAULT_1M
         self.band_pass_high = settings.TIME_DOMAIN_BAND_PASS_HIGH_DEFAULT_1M
-        self.channel = self.dataMixin.channels[0]
+        self.channel = self.measurement.channels[0]
         self.machine_speed = settings.PAPER_MACHINE_SPEED_DEFAULT
         self.show_unfiltered_data = settings.TIME_DOMAIN_SHOW_UNFILTERED_DATA_DEFAULT
         self.show_time_labels = settings.TIME_DOMAIN_SHOW_TIME_LABELS_DEFAULT
@@ -53,18 +53,18 @@ class AnalysisController(QObject, PlotMixin, ExportMixin):
         self.figure.clear()
         ax = self.figure.add_subplot(111)
 
-        # Todo: These are in meters, like distances array. Convert these to indices and have them have an effect on the displayed slice of the datamixin
+        # Todo: These are in meters, like distances array. Convert these to indices and have them have an effect on the displayed slice of the measurement
 
         low_index = np.searchsorted(
-            self.dataMixin.distances, self.analysis_range_low)
+            self.measurement.distances, self.analysis_range_low)
         high_index = np.searchsorted(
-            self.dataMixin.distances, self.analysis_range_high, side='right')
+            self.measurement.distances, self.analysis_range_high, side='right')
 
-        self.distances = self.dataMixin.distances[low_index:high_index]
+        self.distances = self.measurement.distances[low_index:high_index]
         if len(self.distances) <= 1:
             raise ValueError("Not enough data to plot")
 
-        unfiltered_data = self.dataMixin.channel_df[self.channel][low_index:high_index]
+        unfiltered_data = self.measurement.channel_df[self.channel][low_index:high_index]
         self.data = bandpass_filter(
             unfiltered_data, self.band_pass_low, self.band_pass_high, self.fs)
         self.constrain_values()
@@ -79,7 +79,7 @@ class AnalysisController(QObject, PlotMixin, ExportMixin):
 
         if settings.TIME_DOMAIN_FIXED_YLIM_ALL_DATA:
             # fixed y limits based on full unfiltered dataset
-            full_data = self.dataMixin.channel_df[self.channel]
+            full_data = self.measurement.channel_df[self.channel]
             y_min, y_max = full_data.min(), full_data.max()  # Get min and max values
             margin = 0.1 * (y_max - y_min)
             y_min -= margin
@@ -88,7 +88,7 @@ class AnalysisController(QObject, PlotMixin, ExportMixin):
 
         if settings.TIME_DOMAIN_TITLE_SHOW:
             ax.set_title(
-                f"{self.dataMixin.measurement_label} ({self.channel})")
+                f"{self.measurement.measurement_label} ({self.channel})")
         if settings.TIME_DOMAIN_MINOR_GRID:
             ax.grid(True, which='both')
             ax.minorticks_on()
@@ -104,7 +104,7 @@ class AnalysisController(QObject, PlotMixin, ExportMixin):
 
         ax.set_xlabel(
             f"Distance [{settings.TIME_DOMAIN_ANALYSIS_DISPLAY_UNIT}]")
-        ax.set_ylabel(f"{self.channel} [{self.dataMixin.units[self.channel]}]")
+        ax.set_ylabel(f"{self.channel} [{self.measurement.units[self.channel]}]")
 
         if settings.TIME_DOMAIN_FIXED_XTICKS:
             fixed_tick_positions = np.linspace(self.analysis_range_low, self.analysis_range_high,
@@ -140,7 +140,7 @@ class AnalysisController(QObject, PlotMixin, ExportMixin):
             range_val = max_val - min_val
             std_percent = (std / mean) * 100 if mean != 0 else 0
             range_percent = (range_val / mean) * 100 if mean != 0 else 0
-            units = self.dataMixin.units[self.channel]
+            units = self.measurement.units[self.channel]
 
             # Define the statistics data structure
             stat_data = [
@@ -168,7 +168,7 @@ class AnalysisController(QObject, PlotMixin, ExportMixin):
 
     def getExportData(self):
         data = {"Distance [m]": self.distances, f"{
-            self.channel} [{self.dataMixin.units[self.channel]}]": self.data}
+            self.channel} [{self.measurement.units[self.channel]}]": self.data}
 
         return pd.DataFrame(data)
 
@@ -176,10 +176,11 @@ class AnalysisController(QObject, PlotMixin, ExportMixin):
 class AnalysisWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin,
                        ShowUnfilteredMixin, ShowTimeLabelsMixin, MachineSpeedMixin, CopyPlotMixin, ChildWindowCloseMixin):
 
-    def __init__(self, window_type="MD", controller: AnalysisController | None = None):
+    def __init__(self, window_type="MD", controller: AnalysisController | None = None, measurement: Measurement | None = None):
         super().__init__()
-        self.dataMixin = DataMixin.getInstance()
-        self.controller = controller if controller else AnalysisController()
+        self.controller = controller if controller else AnalysisController(
+            measurement, window_type)
+        self.measurement = self.controller.measurement
         self.initUI()
 
     def initMenuBar(self, layout):
@@ -192,7 +193,7 @@ class AnalysisWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilterMi
         fileMenu.addAction(exportAction)
 
     def initUI(self):
-        self.setWindowTitle(f"Time domain analysis ({self.controller.dataMixin.measurement_label})")
+        self.setWindowTitle(f"Time domain analysis ({self.measurement.measurement_label})")
         self.setGeometry(*settings.TIME_DOMAIN_WINDOW_GEOMETRY)
 
         mainLayout = QVBoxLayout()
@@ -233,7 +234,7 @@ class AnalysisWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilterMi
         self.updateStatistics(self.controller.data)
 
     def updateStatistics(self, profile_data):
-        unit = self.dataMixin.units[self.controller.channel]
+        unit = self.measurement.units[self.controller.channel]
         self.stats_widget.update_statistics(profile_data, unit)
 
 

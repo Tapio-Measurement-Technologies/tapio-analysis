@@ -1,17 +1,17 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QCheckBox, QScrollArea, QWidget
 from PyQt6.QtCore import pyqtSignal, Qt
-from utils.data_loader import DataMixin
+from utils.measurement import Measurement
 
 
-class SampleSelectorWindow(QWidget, DataMixin):
+class SampleSelectorWindow(QWidget):
 
     closed = pyqtSignal()
 
-    def __init__(self, samples, change_handler):
+    def __init__(self, samples, change_handler, measurement: Measurement):
         super().__init__()
         # This should be a list of dictionaries, with each dict representing a sample
 
-        self.dataMixin = DataMixin.getInstance()
+        self.measurement = measurement
         self.samples = samples
         self.change_handler = change_handler
         self.initUI()
@@ -34,7 +34,7 @@ class SampleSelectorWindow(QWidget, DataMixin):
         scrollLayout = QVBoxLayout(scrollContent)
         scrollContent.setLayout(scrollLayout)
 
-        for sample_index in range(len(next(iter(self.dataMixin.segments.values())))):
+        for sample_index in range(len(next(iter(self.measurement.segments.values())))):
             checkbox = QCheckBox(f"{1+sample_index}")
             checkbox.setChecked(sample_index in self.samples)
             checkbox.stateChanged.connect(

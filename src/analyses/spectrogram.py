@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QMenuBar, QPushButton
 from PyQt6.QtGui import QAction
 from PyQt6.QtCore import QObject, pyqtSignal
-from utils.data_loader import DataMixin
+from utils.measurement import Measurement
 from utils.signal_processing import hs_units
 import matplotlib.pyplot as plt
 import matplotlib
@@ -29,9 +29,9 @@ analysis_types = ["MD", "CD"]
 class AnalysisController(QObject, PlotMixin):
     updated = pyqtSignal()
 
-    def __init__(self, window_type="MD"):
+    def __init__(self, measurement: Measurement, window_type="MD"):
         super().__init__()
-        self.dataMixin = DataMixin.getInstance()
+        self.measurement = measurement
 
         self.window_type = window_type
         self.ax = None
@@ -60,7 +60,7 @@ class AnalysisController(QObject, PlotMixin):
             }
         }
 
-        self.fs = 1 / self.dataMixin.sample_step
+        self.fs = 1 / self.measurement.sample_step
         config = spectrum_defaults[self.window_type]
         self.nperseg = config["nperseg"]
         self.overlap = config["overlap"]
@@ -71,17 +71,17 @@ class AnalysisController(QObject, PlotMixin):
         self.spectrum_length_slider_max = config["spectrum_length_slider_max"]
 
         self.max_dist = np.max(
-            self.dataMixin.cd_distances if self.window_type == "CD" else self.dataMixin.distances)
+            self.measurement.cd_distances if self.window_type == "CD" else self.measurement.distances)
 
         self.analysis_range_low = config["analysis_range_low"] * self.max_dist
         self.analysis_range_high = config["analysis_range_high"] * \
             self.max_dist
 
-        self.channel = self.dataMixin.channels[0]
+        self.channel = self.measurement.channels[0]
         self.machine_speed = settings.PAPER_MACHINE_SPEED_DEFAULT
 
         self.selected_elements = []
-        self.selected_samples = self.dataMixin.selected_samples.copy()
+        self.selected_samples = self.measurement.selected_samples.copy()
         self.selected_freqs = []
         self.show_wavelength = False
 
@@ -100,10 +100,10 @@ class AnalysisController(QObject, PlotMixin):
         # Extract the segment of data for analysis
         if self.window_type == "MD":
             self.low_index = np.searchsorted(
-                self.dataMixin.distances, self.analysis_range_low)
+                self.measurement.distances, self.analysis_range_low)
             self.high_index = np.searchsorted(
-                self.dataMixin.distances, self.analysis_range_high, side='right')
-            self.data = self.dataMixin.channel_df[self.channel][self.low_index:self.high_index]
+                self.measurement.distances, self.analysis_range_high, side='right')
+            self.data = self.measurement.channel_df[self.channel][self.low_index:self.high_index]
 
             if self.nperseg >= (self.high_index-self.low_index):
                 self.canvas.draw()
@@ -119,18 +119,18 @@ class AnalysisController(QObject, PlotMixin):
 
         elif self.window_type == "CD":
             self.low_index = np.searchsorted(
-                self.dataMixin.cd_distances, self.analysis_range_low)
+                self.measurement.cd_distances, self.analysis_range_low)
             self.high_index = np.searchsorted(
-                self.dataMixin.cd_distances, self.analysis_range_high, side='right')
+                self.measurement.cd_distances, self.analysis_range_high, side='right')
 
             if self.nperseg >= (self.high_index-self.low_index):
                 self.canvas.draw()
                 self.updated.emit()
                 return
 
-            x = self.dataMixin.cd_distances[self.low_index:self.high_index]
+            x = self.measurement.cd_distances[self.low_index:self.high_index]
 
-            unfiltered_data = [self.dataMixin.segments[self.channel][sample_idx]
+            unfiltered_data = [self.measurement.segments[self.channel][sample_idx]
                                [self.low_index:self.high_index] for sample_idx in self.selected_samples]
             mean_profile = np.mean(unfiltered_data, axis=0)
             mean_profile = mean_profile - np.mean(mean_profile)
@@ -154,11 +154,11 @@ class AnalysisController(QObject, PlotMixin):
                        norm=matplotlib.colors.Normalize(vmin=0, vmax=3*np.mean(amplitudes_cut)), cmap=settings.SPECTROGRAM_COLORMAP)
 
         # Set the axis labels, title, and colorbar
-        ax.set_title(f"{self.dataMixin.measurement_label} ({self.channel})")
+        ax.set_title(f"{self.measurement.measurement_label} ({self.channel})")
         ax.set_xlabel("Distance [m]")
         ax.set_ylabel("Frequency [1/m]")
         cbar = self.figure.colorbar(im, ax=ax, pad=0.2)
-        cbar.set_label(f"Amplitude [{self.dataMixin.units[self.channel]}]")
+        cbar.set_label(f"Amplitude [{self.measurement.units[self.channel]}]")
 
         secax = ax.twinx()
 
@@ -256,15 +256,15 @@ class AnalysisController(QObject, PlotMixin):
         return stats
 
 
-class AnalysisWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, FrequencyRangeMixin, MachineSpeedMixin, SampleSelectMixin, SpectrumLengthMixin, ShowWavelengthMixin, CopyPlotMixin, ChildWindowCloseMixin):
+class AnalysisWindow(QWidget, AnalysisRangeMixin, ChannelMixin, FrequencyRangeMixin, MachineSpeedMixin, SampleSelectMixin, SpectrumLengthMixin, ShowWavelengthMixin, CopyPlotMixin, ChildWindowCloseMixin):
 
-    def __init__(self, window_type="MD", controller: AnalysisController | None = None):
+    def __init__(self, window_type="MD", controller: AnalysisController | None = None, measurement: Measurement | None = None):
         super().__init__()
-        self.dataMixin = DataMixin.getInstance()
 
         self.window_type = window_type
         self.controller = controller if controller else AnalysisController(
-            window_type)
+            measurement, window_type)
+        self.measurement = self.controller.measurement
 
         self.window_type = window_type
         self.paperMachineDataWindow = None
@@ -285,7 +285,7 @@ class AnalysisWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
         if 'sos' not in store.analyses:
             self.sosAnalysisAction.setDisabled(True)
 
-        disable_pm_action = not hasattr(self.dataMixin, 'pm_data')
+        disable_pm_action = not hasattr(self.measurement, 'pm_data')
         self.paperMachineDataAction.setDisabled(disable_pm_action)
         viewMenu.addAction(self.paperMachineDataAction)
 
@@ -307,7 +307,7 @@ class AnalysisWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
     def togglePaperMachineData(self, checked):
         if self.paperMachineDataWindow is None:
             self.paperMachineDataWindow = PaperMachineDataWindow(
-                self.updateElements, self.window_type, self.checked_elements)
+                self.updateElements, self.window_type, self.checked_elements, self.measurement)
             self.paperMachineDataWindow.show()
 
             selected_freq = self.controller.selected_freqs[-1] if self.controller.selected_freqs else None
@@ -351,7 +351,7 @@ class AnalysisWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
     def initUI(self):
 
         self.setWindowTitle(
-            f"{self.window_type} spectrogram ({self.dataMixin.measurement_label})")
+            f"{self.window_type} spectrogram ({self.measurement.measurement_label})")
         self.setGeometry(200, 200, 950, 950)
 
         mainLayout = QVBoxLayout()
@@ -405,7 +405,7 @@ class AnalysisWindow(QWidget, DataMixin, AnalysisRangeMixin, ChannelMixin, Frequ
             return
 
         print("Original frequency: ", self.controller.selected_freqs[-1])
-        d = self.dataMixin.channel_df[self.controller.channel][self.controller.low_index:self.controller.high_index]
+        d = self.measurement.channel_df[self.controller.channel][self.controller.low_index:self.controller.high_index]
         import time
         start_time = time.time()  # Capture start time
 

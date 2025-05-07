@@ -3,7 +3,6 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBo
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QStandardItemModel, QStandardItem, QAction
-from utils.data_loader import DataMixin
 import settings
 from utils.report_generator import create_report_generator
 import os
@@ -11,6 +10,7 @@ from customizations import apply_plot_customizations
 import traceback
 import importlib.util
 from utils import store
+from utils.measurement import Measurement
 
 analysis_name_mapping = {
     analysis["name"]: module_name
@@ -33,12 +33,12 @@ class Editor(QTextEdit):
         self.autoResize()
 
 
-class ReportWindow(QWidget, DataMixin):
-    def __init__(self, main_window, window_type="MD"):
+class ReportWindow(QWidget):
+    def __init__(self, main_window, measurement: Measurement, window_type="MD"):
         super().__init__()
-        self.dataMixin = DataMixin.getInstance()
+        self.measurement = measurement
         self.setWindowTitle(f"Generate {window_type} Report ({
-                            self.dataMixin.measurement_label})")
+                            self.measurement.measurement_label})")
         self.setGeometry(100, 100, 700, 700)
         self.main_window = main_window
         self.window_type = window_type
@@ -179,7 +179,7 @@ class ReportWindow(QWidget, DataMixin):
 
     def add_section(self, section_name="Section"):
         section_widget = ReportSectionWidget(
-            self.main_window, section_name, self.window_type)
+            self.main_window, self.measurement, section_name, self.window_type)
         self.section_widgets.append(section_widget)
         section_widget.destroyed.connect(
             lambda: self.section_widgets.remove(section_widget))
@@ -306,7 +306,7 @@ class ReportWindow(QWidget, DataMixin):
                         channel2 = analysis.get("channel2", "")
 
                         invalid_channel = any(
-                            c and c not in self.dataMixin.channels for c in [channel, channel1, channel2]
+                            c and c not in self.measurement.channels for c in [channel, channel1, channel2]
                         )
 
                         if invalid_channel:
@@ -315,7 +315,7 @@ class ReportWindow(QWidget, DataMixin):
                             continue
 
                         widget = AnalysisWidget(
-                            self.main_window, analysis_name, self.window_type, analysis_title=analysis.get("analysis_title"), info_string=analysis.get("info_string"), report_layout=analysis.get("report_layout"), image_width_mm=analysis.get("image_width_mm"))
+                            self.main_window, analysis_name, self.measurement, self.window_type, analysis_title=analysis.get("analysis_title"), info_string=analysis.get("info_string"), report_layout=analysis.get("report_layout"), image_width_mm=analysis.get("image_width_mm"))
 
                         # Assign attributes if they exist, note the naming must be same as class attribute
                         for attr in [
@@ -347,11 +347,12 @@ class ReportWindow(QWidget, DataMixin):
 
 
 class ReportSectionWidget(QFrame):
-    def __init__(self, main_window, section_name="Section", window_type="MD"):
+    def __init__(self, main_window, measurement: Measurement, section_name="Section", window_type="MD"):
         super().__init__()
         self.main_window = main_window
         self.section_name = section_name
         self.window_type = window_type
+        self.measurement = measurement
         self.analysis_widgets = []
 
         self.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Plain)
@@ -425,7 +426,7 @@ class ReportSectionWidget(QFrame):
         analysis_name = self.analysis_combobox.currentText()
         if analysis_name:  # Ensure a valid analysis is selected
             analysis_widget = AnalysisWidget(
-                self.main_window, analysis_name, self.window_type)
+                self.main_window, analysis_name, self.measurement, self.window_type)
             self.analysis_widgets.append(analysis_widget)
             analysis_widget.destroyed.connect(
                 lambda: self.analysis_widgets.remove(analysis_widget))
@@ -447,19 +448,19 @@ class ReportSectionWidget(QFrame):
 
 
 class AnalysisWidget(QWidget):
-    def __init__(self, main_window, analysis_name, window_type="MD", analysis_title=None, info_string=None, report_layout=None, image_width_mm=None):
+    def __init__(self, main_window, analysis_name, measurement, window_type="MD", analysis_title=None, info_string=None, report_layout=None, image_width_mm=None):
         super().__init__()
         self.analysis_name = analysis_name
         self.window_type = window_type
         self.main_window = main_window
+        self.measurement = measurement
         self.analysis_title = analysis_title
         self.info_string = info_string
         self.report_layout = report_layout
         self.image_width_mm = image_width_mm
 
-        self.controller = store.analyses[analysis_name_mapping[analysis_name]]["controller"](self.window_type)
+        self.controller = store.analyses[analysis_name_mapping[analysis_name]]["controller"](self.measurement, self.window_type)
         self.preview_window = store.analyses[analysis_name_mapping[analysis_name]]["window"](self.window_type, self.controller)
-        print(self.preview_window)
 
         if self.controller:
             self.controller.updated.connect(self.update_analysis_label)

@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTableWidget,
                              QLabel)
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import settings
-from utils.data_loader import DataMixin
+from utils.measurement import Measurement
 from gui.components import ChannelMixin, BandPassFilterMixin, ExtraQLabeledDoubleRangeSlider
 from controllers import FindSamplesController
 
@@ -21,13 +21,13 @@ class CustomNavigationToolbar(NavigationToolbar):
         self.parent.refresh()
 
 
-class FindSamplesWindow(QWidget, DataMixin, ChannelMixin, BandPassFilterMixin):
+class FindSamplesWindow(QWidget, ChannelMixin, BandPassFilterMixin):
     closed = pyqtSignal()
 
-    def __init__(self, controller: FindSamplesController | None = None):
+    def __init__(self, controller: FindSamplesController | None = None, measurement: Measurement | None = None):
         super().__init__()
-        self.dataMixin = DataMixin.getInstance()
-        self.controller = controller if controller else FindSamplesController()
+        self.controller = controller if controller else FindSamplesController(measurement)
+        self.measurement = self.controller.measurement
         self.isClosed = False
         self.initUI()
 
@@ -38,7 +38,7 @@ class FindSamplesWindow(QWidget, DataMixin, ChannelMixin, BandPassFilterMixin):
 
     def initUI(self):
         self.setWindowTitle(
-            f"Find CD Samples ({self.dataMixin.measurement_label})")
+            f"Find CD Samples ({self.measurement.measurement_label})")
 
         self.setGeometry(100, 100, 1000, 800)
 
@@ -125,7 +125,7 @@ class FindSamplesWindow(QWidget, DataMixin, ChannelMixin, BandPassFilterMixin):
         # Perform action only for checkbox state changes, if necessary
         if item.column() == 0:  # Assuming checkboxes are in the first column
             include_samples = self.get_selected_samples()
-            self.dataMixin.selected_samples = include_samples
+            self.measurement.selected_samples = include_samples
             self.refresh()
 
     def get_selected_samples(self):
@@ -144,11 +144,11 @@ class FindSamplesWindow(QWidget, DataMixin, ChannelMixin, BandPassFilterMixin):
             if event.ydata is not None:
                 self.controller.highlighted_intervals = []
                 self.controller.threshold = event.ydata
-                self.dataMixin.peak_channel = self.controller.channel
+                self.measurement.peak_channel = self.controller.channel
                 self.controller.detect_peaks(self.controller.channel)
                 self.update_table(select_all=True)
-                self.dataMixin.selected_samples = self.get_selected_samples()
-                self.dataMixin.split_data_to_segments()
+                self.measurement.selected_samples = self.get_selected_samples()
+                self.measurement.split_data_to_segments()
                 self.refresh()
 
     def update_table(self, select_all=False):
@@ -181,11 +181,10 @@ class FindSamplesWindow(QWidget, DataMixin, ChannelMixin, BandPassFilterMixin):
         fileName, _ = QFileDialog.getSaveFileName(self, "Save File", "",
                                                   "Sample JSON Files (*.samples.json);;All Files (*)", options=options)
         if fileName:
-
-            samples_data = {"peak_locations": self.dataMixin.peak_locations,
-                            "peak_channel": self.dataMixin.peak_channel,
-                            "threshold": self.dataMixin.threshold,
-                            "selected_samples": self.dataMixin.selected_samples
+            samples_data = {"peak_locations": self.measurement.peak_locations,
+                            "peak_channel": self.measurement.peak_channel,
+                            "threshold": self.measurement.threshold,
+                            "selected_samples": self.measurement.selected_samples
                             }
             with open(fileName, 'w') as file:
                 json.dump(samples_data, file, indent=4)

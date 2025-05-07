@@ -1,9 +1,8 @@
-from enum import Enum
 from dataclasses import dataclass, field
 from typing import Optional, Callable, Literal, Protocol, ClassVar
 from abc import abstractmethod
 from PyQt6.QtWidgets import QPushButton
-import pandas as pd
+from utils.measurement import Measurement
 
 AnalysisType = Literal["MD", "CD"]
 ModuleName = str
@@ -49,7 +48,7 @@ class Loader(Protocol):
 
     @staticmethod
     @abstractmethod
-    def load_data(fileNames: list[str]) -> None:
+    def load_data(fileNames: list[str]) -> Measurement | None:
         """
         Load data from the specified files.
 
@@ -74,11 +73,3 @@ class Exporter(Protocol):
             fileName: Path to the file where data should be exported
         """
         pass
-
-class MeasurementFileType(Enum):
-    HEADER = "Header"
-    CALIBRATION = "Calibration"
-    DATA = "Data"
-    PM = "Paper machine"
-    SAMPLES = "CD Sample locations"
-
