@@ -18,7 +18,7 @@ from gui.report import ReportWindow
 from gui.log_window import LogWindow
 from gui.setting_input_dialog import open_setting_input_dialog
 from utils.data_loader import DataMixin
-from utils.types import MeasurementFileType, MainWindowSectionModule, MainWindowSection
+from utils.types import MeasurementFileType, MainWindowSectionModule, MainWindowSection, Exporter
 from utils import store
 import settings
 
@@ -169,7 +169,7 @@ class MainWindow(QMainWindow, DataMixin):
                 QMessageBox.critical(self, "Error", f"Error loading data: {e}")
             self.refresh()
 
-    def exportData(self, export_module):
+    def exportData(self, export_module: Exporter):
         file_types = getattr(export_module, 'file_types', 'All Files (*)')
         dialog = QFileDialog()
         options = QFileDialog.options(dialog)
@@ -180,7 +180,8 @@ class MainWindow(QMainWindow, DataMixin):
             file_types,
             options=options
         )
-        export_module.export_data(self, fileName)
+        if fileName:
+            export_module.export_data(fileName)
 
     def refresh(self):
         main_window_modules = [module for section in settings.ANALYSIS_SECTIONS for module in section.modules]

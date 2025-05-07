@@ -1,9 +1,12 @@
 from enum import Enum
 from dataclasses import dataclass, field
-from typing import Optional, Callable, Literal
+from typing import Optional, Callable, Literal, Protocol, ClassVar
+from abc import abstractmethod
 from PyQt6.QtWidgets import QPushButton
+import pandas as pd
 
 AnalysisType = Literal["MD", "CD"]
+ModuleName = str
 
 @dataclass
 class MainWindowSectionModule:
@@ -37,6 +40,23 @@ class MainWindowSection:
     """
     name: str
     modules: list[MainWindowSectionModule]
+
+class Exporter(Protocol):
+    """Protocol defining the interface for exporter modules."""
+
+    menu_text: ClassVar[str]
+    file_types: ClassVar[str]
+
+    @staticmethod
+    @abstractmethod
+    def export_data(fileName: str) -> None:
+        """
+        Export data to the specified file.
+
+        Args:
+            fileName: Path to the file where data should be exported
+        """
+        pass
 
 class MeasurementFileType(Enum):
     HEADER = "Header"

@@ -6,7 +6,13 @@ file_types = "CSV Files (*.md.csv)"
 
 dataMixin = DataMixin.getInstance()
 
-def export_data(main_window, fileName: str):
+def export_data(fileName: str) -> None:
+    """
+    Export data to a CSV file.
+
+    Args:
+        fileName: Path to the file where data should be exported
+    """
     if fileName:
         combined_df = combineData()
         combined_df.to_csv(fileName, index=False)
