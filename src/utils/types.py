@@ -41,6 +41,23 @@ class MainWindowSection:
     name: str
     modules: list[MainWindowSectionModule]
 
+class Loader(Protocol):
+    """Protocol defining the interface for loader modules."""
+
+    menu_text: ClassVar[str]
+    file_types: ClassVar[str]
+
+    @staticmethod
+    @abstractmethod
+    def load_data(fileNames: list[str]) -> None:
+        """
+        Load data from the specified files.
+
+        Args:
+            fileNames: List of file paths to load data from
+        """
+        pass
+
 class Exporter(Protocol):
     """Protocol defining the interface for exporter modules."""
 

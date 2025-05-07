@@ -18,7 +18,7 @@ from gui.report import ReportWindow
 from gui.log_window import LogWindow
 from gui.setting_input_dialog import open_setting_input_dialog
 from utils.data_loader import DataMixin
-from utils.types import MeasurementFileType, MainWindowSectionModule, MainWindowSection, Exporter
+from utils.types import MeasurementFileType, MainWindowSectionModule, MainWindowSection, Exporter, Loader
 from utils import store
 import settings
 
@@ -142,7 +142,7 @@ class MainWindow(QMainWindow, DataMixin):
         self.setupAnalysisButtons(layout)
         self.refresh()
 
-    def loadFiles(self, loader_module):
+    def loadFiles(self, loader_module: Loader):
         file_types = getattr(loader_module, 'file_types', "All Files (*)")
         dialog = QFileDialog()
         options = QFileDialog.options(dialog)
