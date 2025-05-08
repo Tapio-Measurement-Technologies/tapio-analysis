@@ -25,37 +25,37 @@ ANALYSIS_SECTIONS = [
     MainWindowSection(
         name="MD Analysis",
         modules=[
-            MainWindowSectionModule(name="time_domain",         type="MD"),
-            MainWindowSectionModule(name="spectrum",            type="MD"),
-            MainWindowSectionModule(name="spectrogram",         type="MD"),
-            MainWindowSectionModule(name="channel_correlation", type="MD"),
-            MainWindowSectionModule(name="correlation_matrix",  type="MD"),
-            MainWindowSectionModule(name="formation",           type="MD"),
-            MainWindowSectionModule(name="coherence",           type="MD"),
-            MainWindowSectionModule(name="cepstrum",            type="MD")
+            MainWindowSectionModule(module_name="time_domain",         type="MD"),
+            MainWindowSectionModule(module_name="spectrum",            type="MD"),
+            MainWindowSectionModule(module_name="spectrogram",         type="MD"),
+            MainWindowSectionModule(module_name="channel_correlation", type="MD"),
+            MainWindowSectionModule(module_name="correlation_matrix",  type="MD"),
+            MainWindowSectionModule(module_name="formation",           type="MD"),
+            MainWindowSectionModule(module_name="coherence",           type="MD"),
+            MainWindowSectionModule(module_name="cepstrum",            type="MD")
         ]
     ),
     MainWindowSection(
         name="CD Analysis",
         modules=[
-            MainWindowSectionModule(name="find_samples", callback_name="openFindSamples"),
-            MainWindowSectionModule(name="cd_profile",              type="CD"),
-            MainWindowSectionModule(name="cd_profile_waterfall",    type="CD"),
-            MainWindowSectionModule(name="spectrum",                type="CD"),
-            MainWindowSectionModule(name="spectrogram",             type="CD"),
-            MainWindowSectionModule(name="channel_correlation",     type="CD"),
-            MainWindowSectionModule(name="correlation_matrix",      type="CD"),
-            MainWindowSectionModule(name="vca",                     type="CD"),
-            MainWindowSectionModule(name="formation",               type="CD"),
-            MainWindowSectionModule(name="coherence",               type="CD"),
-            MainWindowSectionModule(name="cepstrum",                type="CD")
+            MainWindowSectionModule(module_name="find_samples", analysis_name="Find samples", callback_name="openFindSamples"),
+            MainWindowSectionModule(module_name="cd_profile",           type="CD"),
+            MainWindowSectionModule(module_name="cd_profile_waterfall", type="CD"),
+            MainWindowSectionModule(module_name="spectrum",             type="CD"),
+            MainWindowSectionModule(module_name="spectrogram",          type="CD"),
+            MainWindowSectionModule(module_name="channel_correlation",  type="CD"),
+            MainWindowSectionModule(module_name="correlation_matrix",   type="CD"),
+            MainWindowSectionModule(module_name="vca",                  type="CD"),
+            MainWindowSectionModule(module_name="formation",            type="CD"),
+            MainWindowSectionModule(module_name="coherence",            type="CD"),
+            MainWindowSectionModule(module_name="cepstrum",             type="CD")
         ]
     ),
     MainWindowSection(
         name="Reports",
         modules=[
-            MainWindowSectionModule(name="report", type="MD", callback_name="openReport"),
-            MainWindowSectionModule(name="report", type="CD", callback_name="openReport")
+            MainWindowSectionModule(module_name="report", analysis_name="MD Report", type="MD", callback_name="openReport"),
+            MainWindowSectionModule(module_name="report", analysis_name="CD Report", type="CD", callback_name="openReport")
         ]
     )
 ]

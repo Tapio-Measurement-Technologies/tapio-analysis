@@ -277,8 +277,14 @@ class MainWindow(QMainWindow):
             section_layout.addWidget(section_label)
 
             for module in section.modules:
-                analysis = store.analyses.get(module.name, None)
-                button_title = analysis.analysis_name if analysis else module.name
+                analysis = store.analyses.get(module.module_name, None)
+
+                # Use the override analysis_name if provided, otherwise use the one from the module
+                if module.analysis_name:
+                    button_title = module.analysis_name
+                else:
+                    button_title = analysis.analysis_name if analysis else module.module_name
+
                 button = QPushButton(button_title, self)
 
                 # Create a function that captures the current module value
@@ -289,7 +295,7 @@ class MainWindow(QMainWindow):
                         # Call the method on self using the callback_name with arguments
                         return lambda _: getattr(self, mod.callback_name)(**(mod.arguments or {}))
                     else:
-                        return lambda _: self.open_analysis_window(mod.name, mod.type)
+                        return lambda _: self.open_analysis_window(mod.module_name, mod.type)
 
                 button.clicked.connect(create_callback())
                 section_layout.addWidget(button)

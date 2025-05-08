@@ -14,7 +14,8 @@ class MainWindowSectionModule:
     Module to be added to a main window section
 
     Arguments:
-        name: str - The name of the module to load
+        module_name: str - The name of the module to load
+        analysis_name: Optional[str] - Optional, overrides the analysis name from the module (used e.g. in button titles)
         type: Optional[AnalysisType] - The type of analysis to load
         callback: Optional[Callable] - Optional, overrides callback to be called when the button is pressed
         arguments: Optional[dict] - Optional, arguments to pass to the callback or callback_name method
@@ -22,7 +23,8 @@ class MainWindowSectionModule:
                       the button is pressed. This allows referencing MainWindow methods without creating
                       circular imports. The method will be called with the arguments specified in the arguments field.
     """
-    name: str
+    module_name: str
+    analysis_name: Optional[str] = None
     type: Optional[AnalysisType] = None
     callback: Optional[Callable] = None
     arguments: dict = field(default_factory=dict)
