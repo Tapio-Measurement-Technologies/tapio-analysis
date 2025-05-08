@@ -16,8 +16,9 @@ import os
 from gui.report import ReportWindow
 from gui.log_window import LogWindow
 from gui.setting_input_dialog import open_setting_input_dialog
+from gui.loader_selection_dialog import select_loader_dialog
+from gui.drop_zone import DropZoneWidget
 from utils.types import LoaderModule, ExporterModule
-from utils.measurement import Measurement, MeasurementFileType
 from utils import store
 import settings
 
@@ -116,7 +117,6 @@ class MainWindow(QMainWindow):
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         # Load and display logo
-
         logoLayout = QHBoxLayout()  # Create a new QHBoxLayout for logo and file pickers
         self.logoLabel = QLabel(self)
         pixmap = QPixmap(os.path.join(
@@ -127,11 +127,14 @@ class MainWindow(QMainWindow):
         self.logoLabel.setPixmap(scaledPixmap)
         logoLayout.addWidget(self.logoLabel)
 
-        # File Pickers
+        # Create the drop zone widget that handles both states
+        self.fileDropWidget = DropZoneWidget()
+        self.fileDropWidget.setMaximumHeight(150)  # Limit the height
+        self.fileDropWidget.filesDropped.connect(self.handleDroppedFiles)
+        self.fileDropWidget.clicked.connect(self.handleDropZoneClick)
 
-        self.fileLabels = {}
-        for fileType in MeasurementFileType:
-            self.addFilePicker(logoLayout, fileType)
+        # Add logo and file widget to the layout
+        logoLayout.addWidget(self.fileDropWidget)
 
         # Add the logo and file pickers layout to the main layout
         layout.addLayout(logoLayout)
@@ -140,32 +143,111 @@ class MainWindow(QMainWindow):
         self.setupAnalysisButtons(layout)
         self.refresh()
 
-    def loadFiles(self, loader_module: LoaderModule):
-        file_types = getattr(loader_module, 'file_types', "All Files (*)")
-        dialog = QFileDialog()
-        options = QFileDialog.options(dialog)
-        fileNames, _ = QFileDialog.getOpenFileNames(
-            self,
-            "Open File",
-            "",
-            file_types,
-            options=options)
+    def loadFiles(self, loader_module: LoaderModule, file_paths=None):
+        """Load files using the specified loader module.
 
-        if fileNames:
-            if len(self.windows) > 0:
-                response = QMessageBox.question(self, 'Confirm open new file',
-                                                'This will close all current analysis windows. Do you want to proceed?',
-                                                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
-                if response == QMessageBox.StandardButton.No:
-                    return
+        Args:
+            loader_module: The loader module to use
+            file_paths: Optional list of file paths. If None, will open a file dialog.
+        """
+        if file_paths is None:
+            # Open file dialog to get paths
+            file_types = getattr(loader_module, 'file_types', "All Files (*)")
+            dialog = QFileDialog()
+            options = QFileDialog.options(dialog)
+            file_paths, _ = QFileDialog.getOpenFileNames(
+                self,
+                "Open File",
+                "",
+                file_types,
+                options=options)
 
-            self.closeAll()
-            try:
-                store.loaded_measurement = loader_module.load_data(fileNames)
-            except Exception as e:
-                store.loaded_measurement = None
-                QMessageBox.critical(self, "Error", f"Error loading data: {e}")
-            self.refresh()
+            if not file_paths:  # User canceled
+                return
+
+        # Confirm if there are open windows
+        if len(self.windows) > 0:
+            response = QMessageBox.question(self, 'Confirm open new file',
+                                        'This will close all current analysis windows. Do you want to proceed?',
+                                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                                        QMessageBox.StandardButton.No)
+            if response == QMessageBox.StandardButton.No:
+                return
+
+        # Load the files
+        self.closeAll()
+        try:
+            measurement = loader_module.load_data(file_paths)
+
+            # Check if the loader returned None or an invalid measurement
+            if measurement is None:
+                QMessageBox.critical(self, "Error", "Loader failed to load the measurement file(s).")
+                return
+
+            store.loaded_measurement = measurement
+        except Exception as e:
+            store.loaded_measurement = None
+            QMessageBox.critical(self, "Error", f"Error loading data: {e}")
+            return
+
+        self.refresh()
+
+    def handleDroppedFiles(self, file_paths):
+        """Handle files dropped onto the drop zone."""
+        if not file_paths:
+            return
+
+        # Find appropriate loader based on file extension
+        file_extension = os.path.splitext(file_paths[0])[1].lower()
+
+        # Find a suitable loader and load the files
+        self.findLoaderAndLoad(file_extension, file_paths)
+
+    def handleDropZoneClick(self):
+        """Handle clicks on the drop zone by opening a file picker."""
+        # When clicking, we don't have files yet, so use a generic approach
+        self.findLoaderAndLoad("all")
+
+    def findLoaderAndLoad(self, file_extension, file_paths=None):
+        """Find an appropriate loader and load files with it.
+
+        Args:
+            file_extension: The file extension to match, or "all" for any loader
+            file_paths: Optional list of file paths. If None, will open a file dialog.
+        """
+        # If auto_loader is available, use it directly
+        if 'auto_loader' in store.loaders:
+            self.loadFiles(store.loaders['auto_loader'], file_paths)
+            return
+
+        # Find matching loaders
+        matching_loaders = []
+
+        # If we're looking for a specific file type
+        if file_extension != "all":
+            for module_name, module in store.loaders.items():
+                file_types = getattr(module, 'file_types', "")
+                if file_extension and file_extension[1:] in file_types.lower():
+                    matching_loaders.append((module_name, module))
+        else:
+            # For "all" case, include all loaders
+            matching_loaders = [(name, module) for name, module in store.loaders.items()]
+
+        # If no loaders available
+        if not matching_loaders:
+            if file_extension != "all":
+                QMessageBox.warning(self, "Unsupported File Type",
+                                  f"No loader available for files with extension {file_extension}")
+            else:
+                QMessageBox.warning(self, "No Loaders Available",
+                                  "No file loaders are available in the system.")
+            return
+
+        # Use the selection dialog to get the appropriate loader
+        selected_loader = select_loader_dialog(self, file_extension, matching_loaders)
+
+        if selected_loader:
+            self.loadFiles(selected_loader, file_paths)
 
     def exportData(self, export_module: ExporterModule):
         file_types = getattr(export_module, 'file_types', 'All Files (*)')
@@ -202,22 +284,11 @@ class MainWindow(QMainWindow):
         if measurement_loaded:
             [i.setEnabled(True) for i in other_functions]
 
-        self.updateFileLabels()
-
-    def addFilePicker(self, layout, fileType: MeasurementFileType):
-        # Create file picker layout
-        fileLayout = QVBoxLayout()
-        fileLabel = QLabel(f"{fileType.value} file:")
-        self.fileLabels[fileType] = QLabel("No file selected")
-        fileLayout.addWidget(fileLabel)
-        fileLayout.addWidget(self.fileLabels[fileType])
-        layout.addLayout(fileLayout)
-
-    def updateFileLabels(self):
-        for fileType, label in self.fileLabels.items():
-            file_path = (store.loaded_measurement or Measurement()).get_file_path(fileType)
-            label_text = os.path.basename(file_path) if file_path else "No file selected"
-            label.setText(label_text)
+        # Update the file drop widget based on whether files are loaded
+        if measurement_loaded:
+            self.fileDropWidget.showFileLabels(store.loaded_measurement)
+        else:
+            self.fileDropWidget.showDropZone()
 
     def closeAll(self):
         store.loaded_measurement = None
