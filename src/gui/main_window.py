@@ -348,6 +348,8 @@ class MainWindow(QMainWindow):
         # Update main window when find samples analysis is updated
         if analysis_name == "find_samples":
             newWindow.controller.updated.connect(self.refresh)
+            # TODO: fix this for all other windows
+            newWindow.closed.connect(lambda: self.windows.remove(newWindow))
 
     def setupAnalysisButtons(self, layout):
         columnsLayout = QHBoxLayout()
