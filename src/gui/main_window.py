@@ -17,7 +17,7 @@ from gui.find_samples import FindSamplesWindow
 from gui.report import ReportWindow
 from gui.log_window import LogWindow
 from gui.setting_input_dialog import open_setting_input_dialog
-from utils.types import MainWindowSectionModule, MainWindowSection, Exporter, Loader
+from utils.types import MainWindowSectionModule, MainWindowSection, LoaderModule, ExporterModule
 from utils.measurement import Measurement, MeasurementFileType
 from utils import store
 import settings
@@ -141,7 +141,7 @@ class MainWindow(QMainWindow):
         self.setupAnalysisButtons(layout)
         self.refresh()
 
-    def loadFiles(self, loader_module: Loader):
+    def loadFiles(self, loader_module: LoaderModule):
         file_types = getattr(loader_module, 'file_types', "All Files (*)")
         dialog = QFileDialog()
         options = QFileDialog.options(dialog)
@@ -168,7 +168,7 @@ class MainWindow(QMainWindow):
                 QMessageBox.critical(self, "Error", f"Error loading data: {e}")
             self.refresh()
 
-    def exportData(self, export_module: Exporter):
+    def exportData(self, export_module: ExporterModule):
         file_types = getattr(export_module, 'file_types', 'All Files (*)')
         dialog = QFileDialog()
         options = QFileDialog.options(dialog)

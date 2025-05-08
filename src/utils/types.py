@@ -41,7 +41,7 @@ class MainWindowSection:
     name: str
     modules: list[MainWindowSectionModule]
 
-class Loader(Protocol):
+class LoaderModule(Protocol):
     """Protocol defining the interface for loader modules."""
 
     menu_text: ClassVar[str]
@@ -58,7 +58,7 @@ class Loader(Protocol):
         """
         pass
 
-class Exporter(Protocol):
+class ExporterModule(Protocol):
     """Protocol defining the interface for exporter modules."""
 
     menu_text: ClassVar[str]
