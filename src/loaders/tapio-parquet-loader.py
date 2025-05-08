@@ -14,7 +14,7 @@ from io import BytesIO
 menu_text = "Load Tapio Parquet data"
 menu_priority = 3
 
-file_types = "All Files (*);;Parquet files (*.parquet);;Calibration files (*.tcal);;Paper machine files (*.pmdata.json)"
+file_types = "All Files (*);;ZIP files (*.zip);;Parquet files (*.parquet);;Calibration files (*.tcal);;Paper machine files (*.pmdata.json)"
 
 RESAMPLE_STEP_DEFAULT_MM = 1
 GENERATE_DISTANCES = False
@@ -40,26 +40,37 @@ def get_sample_step():
 def load_data(fileNames: list[str]) -> Measurement | None:
     calibrations = {}
     measurement = Measurement()
+    valid_files_processed = False
 
     for fn in fileNames:
         if fn.endswith('.zip'):
             # Open the ZIP file
-            with zipfile.ZipFile(fn, 'r') as zip_ref:
-                # List files in the zip archive
-                file_list = zip_ref.namelist()
+            try:
+                with zipfile.ZipFile(fn, 'r') as zip_ref:
+                    # List files in the zip archive
+                    file_list = zip_ref.namelist()
 
-                # Extract parquet and tcal files
-                parquet_file = next(
-                    (f for f in file_list if f.endswith('.parquet')), None)
-                tcal_file = next((f for f in file_list if f.endswith(
-                    '.json') and "-calibration" in f), None)
+                    # Extract parquet and tcal files
+                    parquet_file = next(
+                        (f for f in file_list if f.endswith('.parquet')), None)
+                    tcal_file = next((f for f in file_list if f.endswith(
+                        '.json') and "-calibration" in f), None)
 
-                if parquet_file:
+                    if not parquet_file:
+                        print(f"No parquet file found in {fn}")
+                        continue
+
+                    valid_files_processed = True
+
                     with zip_ref.open(parquet_file) as parquet_data:
                         # Read parquet file as bytes
                         parquet_bytes = BytesIO(parquet_data.read())
                         # Load Parquet data into a DataFrame
-                        data_df = pd.read_parquet(parquet_bytes)
+                        try:
+                            data_df = pd.read_parquet(parquet_bytes)
+                        except Exception as e:
+                            print(f"Error reading parquet data: {e}")
+                            continue
 
                         # Add file name labels
                         basename = os.path.basename(parquet_file)
@@ -125,61 +136,82 @@ def load_data(fileNames: list[str]) -> Measurement | None:
                         measurement.measurement_label = os.path.splitext(
                             os.path.basename(fn))[0]
 
-                if tcal_file:
-                    with zip_ref.open(tcal_file) as tcal_data:
-                        basename = os.path.basename(tcal_file)
-                        measurement.calibration_file_path = basename
-                        tcal_content = tcal_data.read().decode("utf-8")
-                        tcal_json = json.loads(tcal_content)
+                    if tcal_file:
+                        with zip_ref.open(tcal_file) as tcal_data:
+                            basename = os.path.basename(tcal_file)
+                            measurement.calibration_file_path = basename
+                            tcal_content = tcal_data.read().decode("utf-8")
+                            tcal_json = json.loads(tcal_content)
 
-                        units_dict = {}
-                        calibration_data = {}
+                            units_dict = {}
+                            calibration_data = {}
 
-                        for channel_name in measurement.channel_df.columns:
-                            cal_data = tcal_json.get(channel_name)
-                            if cal_data:
-                                calibration_data[channel_name] = cal_data
-                                units_dict[channel_name] = cal_data.get(
-                                    "unit", "Unknown")
-                            else:
-                                units_dict[channel_name] = "V"
-
-                        measurement.units = units_dict
-
-                        # First apply calibrations
-                        apply_calibration_with_uniform_trimming(
-                            measurement, calibration_data)
-
-                        # Then add calculated channels
-                        for channel in settings.CALCULATED_CHANNELS:
-                            name = channel['name']
-                            unit = channel['unit']
-                            function = channel['function']
-                            try:
-                                result = function(measurement.channel_df)
-                                if result is not None:
-                                    measurement.channel_df[name] = result
-                                    measurement.units[name] = unit
-                                    print(
-                                        f"Successfully added calculated channel {name}")
+                            for channel_name in measurement.channel_df.columns:
+                                cal_data = tcal_json.get(channel_name)
+                                if cal_data:
+                                    calibration_data[channel_name] = cal_data
+                                    units_dict[channel_name] = cal_data.get(
+                                        "unit", "Unknown")
                                 else:
+                                    units_dict[channel_name] = "V"
+
+                            measurement.units = units_dict
+
+                            # First apply calibrations
+                            apply_calibration_with_uniform_trimming(
+                                measurement, calibration_data)
+
+                            # Then add calculated channels
+                            for channel in settings.CALCULATED_CHANNELS:
+                                name = channel['name']
+                                unit = channel['unit']
+                                function = channel['function']
+                                try:
+                                    result = function(measurement.channel_df)
+                                    if result is not None:
+                                        measurement.channel_df[name] = result
+                                        measurement.units[name] = unit
+                                        print(
+                                            f"Successfully added calculated channel {name}")
+                                    else:
+                                        print(
+                                            f"Calculation returned None for channel {name}")
+                                except Exception as e:
                                     print(
-                                        f"Calculation returned None for channel {name}")
-                            except Exception as e:
-                                print(
-                                    f"Failed to calculate channel {name}: {e}")
-                                traceback.print_exc()
+                                        f"Failed to calculate channel {name}: {e}")
+                                    traceback.print_exc()
 
-                        measurement.channel_df = measurement.channel_df.drop(
-                            columns=settings.IGNORE_CHANNELS, errors='ignore')
+                            measurement.channel_df = measurement.channel_df.drop(
+                                columns=settings.IGNORE_CHANNELS, errors='ignore')
 
-                        measurement.channels = measurement.channel_df.columns
+                            measurement.channels = measurement.channel_df.columns
+            except zipfile.BadZipFile:
+                print(f"Error: {fn} is not a valid ZIP file")
+                continue
+            except Exception as e:
+                print(f"Error processing ZIP file {fn}: {e}")
+                traceback.print_exc()
+                continue
+
         elif fn.endswith('.pmdata.json'):
-            measurement.pm_file_path = fn
-            basename = os.path.basename(fn)
-            measurement.load_pm_file()
+            try:
+                measurement.pm_file_path = fn
+                basename = os.path.basename(fn)
+                measurement.load_pm_file()
+                valid_files_processed = True
+            except Exception as e:
+                print(f"Error loading PM data file {fn}: {e}")
+                traceback.print_exc()
+                continue
+        else:
+            print(f"Unsupported file format: {fn}")
 
-    return measurement
+    # Return the measurement only if we successfully processed at least one valid file
+    if valid_files_processed and measurement.channel_df is not None and not measurement.channel_df.empty:
+        return measurement
+    else:
+        print("No valid data was loaded")
+        return None
 
 
 def logarithmic_fit(V, k, a, b):
