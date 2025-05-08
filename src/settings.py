@@ -38,6 +38,7 @@ ANALYSIS_SECTIONS = [
     MainWindowSection(
         name="CD Analysis",
         modules=[
+            MainWindowSectionModule(name="find_samples", callback_name="openFindSamples"),
             MainWindowSectionModule(name="cd_profile",              type="CD"),
             MainWindowSectionModule(name="cd_profile_waterfall",    type="CD"),
             MainWindowSectionModule(name="spectrum",                type="CD"),
@@ -50,6 +51,13 @@ ANALYSIS_SECTIONS = [
             MainWindowSectionModule(name="cepstrum",                type="CD")
         ]
     ),
+    MainWindowSection(
+        name="Reports",
+        modules=[
+            MainWindowSectionModule(name="report", type="MD", callback_name="openReport"),
+            MainWindowSectionModule(name="report", type="CD", callback_name="openReport")
+        ]
+    )
 ]
 ANALYSES_EXCLUDED_FROM_REPORT = ["sos"]
 

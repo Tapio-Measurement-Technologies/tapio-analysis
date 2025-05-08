@@ -17,7 +17,7 @@ from gui.find_samples import FindSamplesWindow
 from gui.report import ReportWindow
 from gui.log_window import LogWindow
 from gui.setting_input_dialog import open_setting_input_dialog
-from utils.types import MainWindowSectionModule, MainWindowSection, LoaderModule, ExporterModule
+from utils.types import LoaderModule, ExporterModule
 from utils.measurement import Measurement, MeasurementFileType
 from utils import store
 import settings
@@ -269,30 +269,7 @@ class MainWindow(QMainWindow):
         newWindow = analysis.AnalysisWindow(measurement=store.loaded_measurement, window_type=window_type)
         self.add_window(newWindow)
 
-    # Used to insert custom buttons that have dependencies on main window
-    def add_custom_buttons(self):
-        for section in settings.ANALYSIS_SECTIONS:
-            if "CD" in section.name:
-                find_samples_module = MainWindowSectionModule(
-                    name="Find samples",
-                    callback=self.openFindSamples,
-                    arguments={}
-                )
-                section.modules.insert(0, find_samples_module)
-
-        report_section = MainWindowSection(
-            name="Reports",
-            modules=[
-                MainWindowSectionModule(name="MD report", callback=self.openReport, type="MD"),
-                MainWindowSectionModule(name="CD report", callback=self.openReport, type="CD"),
-            ]
-        )
-        settings.ANALYSIS_SECTIONS.append(report_section)
-
     def setupAnalysisButtons(self, layout):
-        # Add custom buttons not included in the settings template
-        self.add_custom_buttons()
-
         columnsLayout = QHBoxLayout()
         for section in settings.ANALYSIS_SECTIONS:
             section_layout = QVBoxLayout()
@@ -308,6 +285,9 @@ class MainWindow(QMainWindow):
                 def create_callback(mod=module):
                     if mod.callback:
                         return lambda _: mod.callback(**(mod.arguments or {}))
+                    elif mod.callback_name and hasattr(self, mod.callback_name):
+                        # Call the method on self using the callback_name with arguments
+                        return lambda _: getattr(self, mod.callback_name)(**(mod.arguments or {}))
                     else:
                         return lambda _: self.open_analysis_window(mod.name, mod.type)
 

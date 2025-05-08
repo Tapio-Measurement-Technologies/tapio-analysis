@@ -17,12 +17,16 @@ class MainWindowSectionModule:
         name: str - The name of the module to load
         type: Optional[AnalysisType] - The type of analysis to load
         callback: Optional[Callable] - Optional, overrides callback to be called when the button is pressed
-        arguments: Optional[dict] - Optional, overrides the section arguments
+        arguments: Optional[dict] - Optional, arguments to pass to the callback or callback_name method
+        callback_name: Optional[str] - Optional, name of a method in the MainWindow class to be called when
+                      the button is pressed. This allows referencing MainWindow methods without creating
+                      circular imports. The method will be called with the arguments specified in the arguments field.
     """
     name: str
     type: Optional[AnalysisType] = None
     callback: Optional[Callable] = None
     arguments: dict = field(default_factory=dict)
+    callback_name: Optional[str] = None
     button: Optional[QPushButton] = None
 
     def __post_init__(self):
