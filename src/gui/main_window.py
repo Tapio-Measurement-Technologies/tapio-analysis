@@ -253,6 +253,10 @@ class MainWindow(QMainWindow):
             window for window in self.windows if window.isVisible()]
 
     def add_window(self, newWindow):
+        # Store the window type if it's an analysis window
+        if hasattr(newWindow, 'controller') and hasattr(newWindow.controller, '__module__'):
+            newWindow.controller_module = newWindow.controller.__module__
+
         newWindow.show()
         self.windows.append(newWindow)
         self.updateWindowsList()
@@ -266,6 +270,26 @@ class MainWindow(QMainWindow):
         if not analysis:
             print(f"Error: Analysis '{analysis_name}' not found")
             return
+
+        # Check if this analysis allows multiple instances
+        allow_multiple = getattr(analysis, 'allow_multiple_instances', True)
+
+        if not allow_multiple:
+            # Look for existing window of this type
+            for window in self.windows:
+                if (hasattr(window, 'controller') and
+                    hasattr(window.controller, '__module__') and
+                    window.controller.__module__ == analysis.__name__ and
+                    getattr(window, 'window_type', None) == window_type):
+
+                    # Found existing window, bring it to front
+                    window.raise_()
+                    window.setWindowState(
+                        window.windowState() & ~Qt.WindowState.WindowMinimized | Qt.WindowState.WindowActive)
+                    window.activateWindow()
+                    return
+
+        # Create new window
         newWindow = analysis.AnalysisWindow(measurement=store.loaded_measurement, window_type=window_type)
         self.add_window(newWindow)
 

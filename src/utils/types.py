@@ -111,5 +111,6 @@ class AnalysisModule(Protocol):
     """Protocol defining the interface for analysis modules"""
     analysis_name: str
     analysis_types: List[AnalysisType]
+    allow_multiple_instances: Optional[bool] = True # Flag to control if multiple windows of this analysis can be opened
     AnalysisController: Type[AnalysisController]
     AnalysisWindow: Type[AnalysisWindow]
