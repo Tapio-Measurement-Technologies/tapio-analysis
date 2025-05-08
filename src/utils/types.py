@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import Optional, Callable, Literal, Protocol, ClassVar, List, Type
 from abc import abstractmethod
 from PyQt6.QtWidgets import QPushButton
-from PyQt6.QtCore import QObject
+from PyQt6.QtCore import pyqtBoundSignal
 from utils.measurement import Measurement
 
 AnalysisType = Literal["MD", "CD"]
@@ -84,7 +84,7 @@ class ExporterModule(Protocol):
 class AnalysisController(Protocol):
     """Protocol defining the interface for analysis controllers"""
     measurement: Measurement
-    updated: QObject  # This will be a pyqtSignal in implementations
+    updated: pyqtBoundSignal
 
     def __init__(self, measurement: Measurement, window_type: AnalysisType = "MD") -> None: ...
     def plot(self): ...

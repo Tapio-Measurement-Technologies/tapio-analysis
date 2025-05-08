@@ -38,7 +38,7 @@ ANALYSIS_SECTIONS = [
     MainWindowSection(
         name="CD Analysis",
         modules=[
-            MainWindowSectionModule(module_name="find_samples", analysis_name="Find samples", callback_name="openFindSamples"),
+            MainWindowSectionModule(module_name="find_samples"),
             MainWindowSectionModule(module_name="cd_profile",           type="CD"),
             MainWindowSectionModule(module_name="cd_profile_waterfall", type="CD"),
             MainWindowSectionModule(module_name="spectrum",             type="CD"),
@@ -59,7 +59,7 @@ ANALYSIS_SECTIONS = [
         ]
     )
 ]
-ANALYSES_EXCLUDED_FROM_REPORT = ["sos"]
+ANALYSES_EXCLUDED_FROM_REPORT = ["sos", "find_samples"]
 
 UPDATE_ON_SLIDE = False
 IGNORE_CHANNELS = ["Density"]

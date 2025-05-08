@@ -13,7 +13,6 @@ from PyQt6.QtGui import QPixmap, QAction
 from PyQt6.QtCore import Qt
 import os
 
-from gui.find_samples import FindSamplesWindow
 from gui.report import ReportWindow
 from gui.log_window import LogWindow
 from gui.setting_input_dialog import open_setting_input_dialog
@@ -226,24 +225,6 @@ class MainWindow(QMainWindow):
             window.close()
         self.refresh()
 
-    def openFindSamples(self):
-        if self.findSamplesWindow is not None and not self.findSamplesWindow.isClosed:
-            self.findSamplesWindow.raise_()
-            self.findSamplesWindow.setWindowState(
-                self.findSamplesWindow.windowState() & ~Qt.WindowState.WindowMinimized | Qt.WindowState.WindowActive)
-
-            self.findSamplesWindow.activateWindow()
-        else:
-            self.findSamplesWindow = FindSamplesWindow(measurement=store.loaded_measurement)
-            self.findSamplesWindow.controller.updated.connect(self.refresh)
-            self.findSamplesWindow.isClosed = False
-            self.findSamplesWindow.show()
-            self.findSamplesWindow.closed.connect(
-                lambda: setattr(self.findSamplesWindow, 'isClosed', True))
-            self.windows.append(self.findSamplesWindow)
-
-        self.updateWindowsList()
-
     def openReport(self, window_type="MD"):
         newWindow = ReportWindow(self, store.loaded_measurement, window_type)
         self.add_window(newWindow)
@@ -292,6 +273,10 @@ class MainWindow(QMainWindow):
         # Create new window
         newWindow = analysis.AnalysisWindow(measurement=store.loaded_measurement, window_type=window_type)
         self.add_window(newWindow)
+
+        # Update main window when find samples analysis is updated
+        if analysis_name == "find_samples":
+            newWindow.controller.updated.connect(self.refresh)
 
     def setupAnalysisButtons(self, layout):
         columnsLayout = QHBoxLayout()
