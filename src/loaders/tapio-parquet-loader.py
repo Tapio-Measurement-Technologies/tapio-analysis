@@ -63,7 +63,7 @@ def load_data(fileNames: list[str]) -> Measurement | None:
 
                         # Add file name labels
                         basename = os.path.basename(parquet_file)
-                        measurement.data_file_path = fn
+                        measurement.data_file_path = basename
 
                         if len(data_df) > 1000:
                             data_df = data_df.iloc[1000:]
@@ -128,7 +128,7 @@ def load_data(fileNames: list[str]) -> Measurement | None:
                 if tcal_file:
                     with zip_ref.open(tcal_file) as tcal_data:
                         basename = os.path.basename(tcal_file)
-                        measurement.calibration_file_path = fn
+                        measurement.calibration_file_path = basename
                         tcal_content = tcal_data.read().decode("utf-8")
                         tcal_json = json.loads(tcal_content)
 
