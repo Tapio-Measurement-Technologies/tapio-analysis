@@ -13,7 +13,7 @@ from utils import store
 from utils.measurement import Measurement
 
 analysis_name_mapping = {
-    analysis["name"]: module_name
+    analysis.analysis_name: module_name
     for module_name, analysis in store.analyses.items()
 }
 
@@ -299,7 +299,7 @@ class ReportWindow(QWidget):
                     analyses = section.get("analyses", [])
 
                     for analysis in analyses:
-                        analysis_name = store.analyses[analysis_name_mapping[analysis.get("analysis")]].get("name", "Unknown")
+                        analysis_name = store.analyses[analysis_name_mapping[analysis.get("analysis")]].analysis_name
 
                         channel = analysis.get("channel", "")
                         channel1 = analysis.get("channel1", "")
@@ -393,10 +393,10 @@ class ReportSectionWidget(QFrame):
         self.analysis_combobox = QComboBox()
         self.analyses = {
             module_name: {
-                "label": analysis["name"]
+                "label": analysis.analysis_name
             }
             for module_name, analysis in store.analyses.items()
-            if window_type in analysis["types"] and module_name not in settings.ANALYSES_EXCLUDED_FROM_REPORT
+            if window_type in analysis.analysis_types and module_name not in settings.ANALYSES_EXCLUDED_FROM_REPORT
         }
         labels = [analysis["label"] for analysis in self.analyses.values()]
         self.setup_combobox(self.analysis_combobox, labels)
@@ -459,8 +459,8 @@ class AnalysisWidget(QWidget):
         self.report_layout = report_layout
         self.image_width_mm = image_width_mm
 
-        self.controller = store.analyses[analysis_name_mapping[analysis_name]]["controller"](self.measurement, self.window_type)
-        self.preview_window = store.analyses[analysis_name_mapping[analysis_name]]["window"](self.window_type, self.controller)
+        self.controller = store.analyses[analysis_name_mapping[analysis_name]].AnalysisController(self.measurement, self.window_type)
+        self.preview_window = store.analyses[analysis_name_mapping[analysis_name]].AnalysisWindow(self.window_type, self.controller)
 
         if self.controller:
             self.controller.updated.connect(self.update_analysis_label)

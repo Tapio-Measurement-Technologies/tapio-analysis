@@ -266,7 +266,7 @@ class MainWindow(QMainWindow):
         if not analysis:
             print(f"Error: Analysis '{analysis_name}' not found")
             return
-        newWindow = analysis["window"](measurement=store.loaded_measurement, window_type=window_type)
+        newWindow = analysis.AnalysisWindow(measurement=store.loaded_measurement, window_type=window_type)
         self.add_window(newWindow)
 
     # Used to insert custom buttons that have dependencies on main window
@@ -301,7 +301,7 @@ class MainWindow(QMainWindow):
 
             for module in section.modules:
                 analysis = store.analyses.get(module.name, None)
-                button_title = analysis["name"] if analysis else module.name
+                button_title = analysis.analysis_name if analysis else module.name
                 button = QPushButton(button_title, self)
 
                 # Create a function that captures the current module value

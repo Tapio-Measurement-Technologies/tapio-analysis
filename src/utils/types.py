@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field
-from typing import Optional, Callable, Literal, Protocol, ClassVar
+from typing import Optional, Callable, Literal, Protocol, ClassVar, List, Type
 from abc import abstractmethod
 from PyQt6.QtWidgets import QPushButton
+from PyQt6.QtCore import QObject
 from utils.measurement import Measurement
 
 AnalysisType = Literal["MD", "CD"]
@@ -73,3 +74,36 @@ class Exporter(Protocol):
             fileName: Path to the file where data should be exported
         """
         pass
+
+class AnalysisController(Protocol):
+    """Protocol defining the interface for analysis controllers"""
+    measurement: Measurement
+    updated: QObject  # This will be a pyqtSignal in implementations
+
+    def __init__(self, measurement: Measurement, window_type: AnalysisType = "MD") -> None: ...
+    def plot(self): ...
+    def getStatsTableData(self): ...
+    def getExportData(self): ...
+
+class AnalysisWindow(Protocol):
+    """Protocol defining the interface for analysis windows
+
+    When both measurement and controller arguments are supplied during initialization,
+    the measurement argument is ignored since the controller already contains a reference
+    to the measurement.
+    """
+    controller: AnalysisController
+    measurement: Measurement
+
+    def __init__(self,
+                 window_type: AnalysisType = "MD",
+                 controller: Optional[AnalysisController] = None,
+                 measurement: Optional[Measurement] = None) -> None: ...
+    def refresh(self) -> None: ...
+
+class AnalysisModule(Protocol):
+    """Protocol defining the interface for analysis modules"""
+    analysis_name: str
+    analysis_types: List[AnalysisType]
+    AnalysisController: Type[AnalysisController]
+    AnalysisWindow: Type[AnalysisWindow]
