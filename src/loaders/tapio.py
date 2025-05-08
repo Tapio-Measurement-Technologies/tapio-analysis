@@ -9,7 +9,7 @@ import struct
 from utils.measurement import Measurement
 
 menu_text = "Load Tapio data"
-menu_priority = 1
+menu_priority = 2
 
 file_types = "All Files (*);;Calibration files (*.ca2);;Data files (*.da2);;Header files (*.pk2);;Paper machine files (*.pmdata.json);;CD Sample location files (*.samples.json)"
 

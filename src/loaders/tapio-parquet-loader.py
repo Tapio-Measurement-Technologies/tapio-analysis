@@ -12,7 +12,7 @@ import zipfile
 from io import BytesIO
 
 menu_text = "Load Tapio Parquet data"
-menu_priority = 2
+menu_priority = 3
 
 file_types = "All Files (*);;Parquet files (*.parquet);;Calibration files (*.tcal);;Paper machine files (*.pmdata.json)"
 

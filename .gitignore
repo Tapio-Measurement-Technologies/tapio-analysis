@@ -169,6 +169,7 @@ src/loaders/*
 !src/loaders/tapio.py
 !src/loaders/__init__.py
 !src/loaders/tapio-parquet-loader.py
+!src/loaders/auto_loader.py
 
 
 
