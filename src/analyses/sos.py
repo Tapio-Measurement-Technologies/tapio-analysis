@@ -24,6 +24,9 @@ class AnalysisController(QObject, PlotMixin):
         channel = self.spectrumController.channel
 
         if not selected_freq:
+            self.figure.text(0.5, 0.5, "No selected frequency",
+                             fontsize=14, ha='center', va='center')
+            self.canvas.draw()
             return self.canvas
 
         self.figure.clear()
@@ -76,6 +79,7 @@ class AnalysisWindow(QWidget):
         # Optional: Adding Matplotlib Navigation Toolbar
         self.toolbar = NavigationToolbar(self.plot, self)
         mainLayout.addWidget(self.toolbar)
+        self.refresh()
 
     def refresh(self):
         self.controller.updatePlot()
