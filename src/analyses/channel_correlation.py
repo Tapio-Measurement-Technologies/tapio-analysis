@@ -1,5 +1,5 @@
 from PyQt6.QtCore import QObject, pyqtSignal
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QMenuBar
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QMenuBar, QHBoxLayout, QGroupBox
 from PyQt6.QtGui import QAction
 from scipy.stats import pearsonr
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -183,30 +183,59 @@ class AnalysisWindow(QWidget, AnalysisRangeMixin, BandPassFilterMixin, SampleSel
     def initUI(self):
         self.setWindowTitle(f"{self.window_type.upper()} Channel correlation analysis ({
                             self.measurement.measurement_label})")
+        self.setGeometry(100, 100, 1000, 600)
 
-        self.setGeometry(100, 100, 700, 950)
-
-        mainLayout = QVBoxLayout()
-        self.setLayout(mainLayout)
+        # Top-level layout for menu bar and main content
+        topLevelLayout = QVBoxLayout()
+        self.setLayout(topLevelLayout)
 
         if self.window_type == "CD":
-            self.initMenuBar(mainLayout)
+            self.initMenuBar(topLevelLayout)
 
-        # Channel selectors
-        self.addChannelSelectors(mainLayout)
+        # Main horizontal layout for controls and plot
+        mainHorizontalLayout = QHBoxLayout()
+        topLevelLayout.addLayout(mainHorizontalLayout)
 
-        # Analysis range slider
-        self.addAnalysisRangeSlider(mainLayout)
-        self.addBandPassRangeSlider(mainLayout)
+        # Left panel for controls
+        controlsPanelLayout = QVBoxLayout()
+        controlsWidget = QWidget()
+        controlsWidget.setMinimumWidth(settings.ANALYSIS_CONTROLS_PANEL_MIN_WIDTH)
+        controlsWidget.setLayout(controlsPanelLayout)
+        mainHorizontalLayout.addWidget(controlsWidget, 0)
 
-        # Show unfiltered data checkbox
-        self.addShowUnfilteredCheckbox(mainLayout)
+        # Data Selection Group
+        dataSelectionGroup = QGroupBox("Data Selection")
+        dataSelectionLayout = QVBoxLayout()
+        dataSelectionGroup.setLayout(dataSelectionLayout)
+        controlsPanelLayout.addWidget(dataSelectionGroup)
+        self.addChannelSelectors(dataSelectionLayout)
+
+        # Analysis Parameters Group
+        analysisParamsGroup = QGroupBox("Analysis Parameters")
+        analysisParamsLayout = QVBoxLayout()
+        analysisParamsGroup.setLayout(analysisParamsLayout)
+        controlsPanelLayout.addWidget(analysisParamsGroup)
+        self.addAnalysisRangeSlider(analysisParamsLayout)
+        self.addBandPassRangeSlider(analysisParamsLayout)
+
+        # Display Options Group
+        displayOptionsGroup = QGroupBox("Display Options")
+        displayOptionsLayout = QVBoxLayout()
+        displayOptionsGroup.setLayout(displayOptionsLayout)
+        controlsPanelLayout.addWidget(displayOptionsGroup)
+        self.addShowUnfilteredCheckbox(displayOptionsLayout)
+
+        controlsPanelLayout.addStretch()
+
+        # Right panel for plot
+        plotLayout = QVBoxLayout()
+        mainHorizontalLayout.addLayout(plotLayout, 1)
 
         # Matplotlib figure and canvas
         self.plot = self.controller.getCanvas()
-        mainLayout.addWidget(self.plot, 1)
+        plotLayout.addWidget(self.plot, 1)
         self.toolbar = NavigationToolbar(self.plot, self)
-        mainLayout.addWidget(self.toolbar)
+        plotLayout.addWidget(self.toolbar)
 
         self.refresh()
 

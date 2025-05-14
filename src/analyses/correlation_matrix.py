@@ -1,5 +1,5 @@
 from PyQt6.QtCore import QObject, pyqtSignal
-from PyQt6.QtWidgets import QWidget, QVBoxLayout
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGroupBox
 from utils.measurement import Measurement
 from utils.filters import bandpass_filter
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -161,19 +161,33 @@ class AnalysisWindow(QWidget, AnalysisRangeMixin, BandPassFilterMixin, CopyPlotM
     def initUI(self):
         self.setWindowTitle(
             f"Correlation matrix ({self.measurement.measurement_label})")
-        self.setGeometry(100, 100, 750, 750)
+        self.setGeometry(100, 100, 1000, 600)
 
-        mainLayout = QVBoxLayout()
-        self.setLayout(mainLayout)
+        mainHorizontalLayout = QHBoxLayout()
+        self.setLayout(mainHorizontalLayout)
 
-        self.addAnalysisRangeSlider(mainLayout)
+        controlsPanelLayout = QVBoxLayout()
+        controlsWidget = QWidget()
+        controlsWidget.setMinimumWidth(settings.ANALYSIS_CONTROLS_PANEL_MIN_WIDTH)
+        controlsWidget.setLayout(controlsPanelLayout)
+        mainHorizontalLayout.addWidget(controlsWidget, 0)
 
-        self.addBandPassRangeSlider(mainLayout)
+        analysisParamsGroup = QGroupBox("Analysis Parameters")
+        analysisParamsLayout = QVBoxLayout()
+        analysisParamsGroup.setLayout(analysisParamsLayout)
+        controlsPanelLayout.addWidget(analysisParamsGroup)
+        self.addAnalysisRangeSlider(analysisParamsLayout)
+        self.addBandPassRangeSlider(analysisParamsLayout)
+
+        controlsPanelLayout.addStretch()
+
+        plotLayout = QVBoxLayout()
+        mainHorizontalLayout.addLayout(plotLayout, 1)
+
         self.plot = self.controller.getCanvas()
-        # Add with stretch factor to allow expansion
-        mainLayout.addWidget(self.plot, 1)
+        plotLayout.addWidget(self.plot, 1)
         self.toolbar = NavigationToolbar(self.plot, self)
-        mainLayout.addWidget(self.toolbar)
+        plotLayout.addWidget(self.toolbar)
 
         self.refresh()
 

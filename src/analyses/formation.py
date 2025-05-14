@@ -1,5 +1,5 @@
 from PyQt6.QtCore import QObject, pyqtSignal
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QMenuBar, QMessageBox
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QMenuBar, QMessageBox, QHBoxLayout, QGroupBox
 from PyQt6.QtGui import QAction
 from qtpy.QtCore import Qt
 from matplotlib import pyplot as plt
@@ -30,6 +30,7 @@ class AnalysisController(QObject, PlotMixin):
         self.window_type = window_type
         self.warning_message = None
         self.can_calculate = self.check_required_channels()
+        self.sampleSelectorWindow = None
 
         if self.window_type == "MD":
             self.max_dist = np.max(self.measurement.distances)
@@ -44,7 +45,6 @@ class AnalysisController(QObject, PlotMixin):
             self.analysis_range_high = settings.CD_FORMATION_RANGE_HIGH_DEFAULT * self.max_dist
 
             self.selected_samples = self.measurement.selected_samples.copy()
-            self.sampleSelectorWindow = None
 
         self.show_profiles = False
 
@@ -217,6 +217,7 @@ class AnalysisWindow(QWidget, AnalysisRangeMixin, SampleSelectMixin, ShowProfile
         self.controller = controller if controller else AnalysisController(
             measurement, window_type)
         self.measurement = self.controller.measurement
+        self.sampleSelectorWindow = None
         if not self.controller.can_calculate:
             self.close()
             return
@@ -236,41 +237,56 @@ class AnalysisWindow(QWidget, AnalysisRangeMixin, SampleSelectMixin, ShowProfile
         if settings.FORMATION_TITLE_SHOW:
             self.setWindowTitle(
                 f"Formation analysis ({self.measurement.measurement_label})")
-        self.setGeometry(100, 100, 700, 800)
+        self.setGeometry(100, 100, 1000, 600)
 
-        mainLayout = QVBoxLayout()
-        self.setLayout(mainLayout)
-        if self.window_type == "CD":
-            self.initMenuBar(mainLayout)
-
-        # Analysis range slider
-        self.addAnalysisRangeSlider(mainLayout)
+        # Top-level layout for menu bar and main content
+        topLevelLayout = QVBoxLayout()
+        self.setLayout(topLevelLayout)
 
         if self.window_type == "CD":
-            self.addShowProfilesCheckbox(mainLayout)
+            self.initMenuBar(topLevelLayout)
 
-        # Add description label
-        self.textLabel = QLabel(
-            "Formation index (calculated from transmission correlated to BW)")
-        self.textLabel.setTextInteractionFlags(
-            Qt.TextInteractionFlag.TextSelectableByMouse)
-        mainLayout.addWidget(self.textLabel)
+        # Main horizontal layout for controls and plot/stats
+        mainHorizontalLayout = QHBoxLayout()
+        topLevelLayout.addLayout(mainHorizontalLayout)
 
-        # Add correlation coefficient label
-        self.correlationLabel = QLabel("Correlation coefficient: ")
-        self.correlationLabel.setTextInteractionFlags(
-            Qt.TextInteractionFlag.TextSelectableByMouse)
-        mainLayout.addWidget(self.correlationLabel)
+        # Left panel for controls
+        controlsPanelLayout = QVBoxLayout()
+        controlsWidget = QWidget()
+        controlsWidget.setMinimumWidth(settings.ANALYSIS_CONTROLS_PANEL_MIN_WIDTH)
+        controlsWidget.setLayout(controlsPanelLayout)
+        mainHorizontalLayout.addWidget(controlsWidget, 0)
+
+        # Analysis Parameters Group
+        analysisParamsGroup = QGroupBox("Analysis Parameters")
+        analysisParamsLayout = QVBoxLayout()
+        analysisParamsGroup.setLayout(analysisParamsLayout)
+        controlsPanelLayout.addWidget(analysisParamsGroup)
+        self.addAnalysisRangeSlider(analysisParamsLayout)
+
+        if self.window_type == "CD":
+            # Display Options Group (CD only)
+            displayOptionsGroup = QGroupBox("Display Options")
+            displayOptionsLayout = QVBoxLayout()
+            displayOptionsGroup.setLayout(displayOptionsLayout)
+            controlsPanelLayout.addWidget(displayOptionsGroup)
+            self.addShowProfilesCheckbox(displayOptionsLayout)
+
+        controlsPanelLayout.addStretch()
+
+        # Right panel for plot and stats
+        plotStatsLayout = QVBoxLayout()
+        mainHorizontalLayout.addLayout(plotStatsLayout, 1)
 
         # Add statistics widget
         self.stats_widget = StatsWidget()
-        mainLayout.addWidget(self.stats_widget)
+        plotStatsLayout.addWidget(self.stats_widget)
 
         # Matplotlib figure and canvas
         self.plot = self.controller.getCanvas()
-        mainLayout.addWidget(self.plot, 1)
+        plotStatsLayout.addWidget(self.plot, 1)
         self.toolbar = NavigationToolbar(self.plot, self)
-        mainLayout.addWidget(self.toolbar)
+        plotStatsLayout.addWidget(self.toolbar)
 
         self.refresh()
 
@@ -281,7 +297,5 @@ class AnalysisWindow(QWidget, AnalysisRangeMixin, SampleSelectMixin, ShowProfile
 
     def refresh(self):
         self.controller.updatePlot()
-        self.refresh_widgets()
-        self.correlationLabel.setText(
-            f"Correlation coefficient: {self.controller.correlation_coefficient:.2f}")
         self.stats_widget.update_statistics(self.controller.stats, "")
+        self.refresh_widgets()

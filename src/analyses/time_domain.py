@@ -1,5 +1,5 @@
 from PyQt6.QtCore import QObject, pyqtSignal
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QMenuBar
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QMenuBar, QHBoxLayout, QGroupBox
 from utils.measurement import Measurement
 from utils.filters import bandpass_filter
 from matplotlib.ticker import AutoMinorLocator
@@ -98,10 +98,6 @@ class AnalysisController(QObject, PlotMixin, ExportMixin):
         else:
             ax.grid()
 
-
-
-
-
         ax.set_xlabel(
             f"Distance [{settings.TIME_DOMAIN_ANALYSIS_DISPLAY_UNIT}]")
         ax.set_ylabel(f"{self.channel} [{self.measurement.units[self.channel]}]")
@@ -196,29 +192,62 @@ class AnalysisWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilterMi
         self.setWindowTitle(f"Time domain analysis ({self.measurement.measurement_label})")
         self.setGeometry(*settings.TIME_DOMAIN_WINDOW_GEOMETRY)
 
-        mainLayout = QVBoxLayout()
-        self.setLayout(mainLayout)
-        self.initMenuBar(mainLayout)
+        # Main vertical layout for menu bar and the rest of the UI
+        topLevelLayout = QVBoxLayout()
+        self.setLayout(topLevelLayout)
 
-        # Add the channel selector
-        self.addChannelSelector(mainLayout)
+        self.initMenuBar(topLevelLayout) # Menu bar at the top
 
-        # Analysis range slider
-        self.addAnalysisRangeSlider(mainLayout)
-        self.addBandPassRangeSlider(mainLayout)
-        self.addMachineSpeedSpinner(mainLayout)
-        self.addShowTimeLabelsCheckbox(mainLayout)
-        self.addShowUnfilteredCheckbox(mainLayout)
+        # Main horizontal layout for controls and plot/stats
+        mainHorizontalLayout = QHBoxLayout()
+        topLevelLayout.addLayout(mainHorizontalLayout)
+
+        # Left panel for controls
+        controlsPanelLayout = QVBoxLayout()
+        controlsWidget = QWidget()
+        controlsWidget.setMinimumWidth(settings.ANALYSIS_CONTROLS_PANEL_MIN_WIDTH)
+        controlsWidget.setLayout(controlsPanelLayout)
+        mainHorizontalLayout.addWidget(controlsWidget)
+
+        # Data Selection Group
+        dataSelectionGroup = QGroupBox("Channel Selection")
+        dataSelectionLayout = QVBoxLayout()
+        dataSelectionGroup.setLayout(dataSelectionLayout)
+        controlsPanelLayout.addWidget(dataSelectionGroup)
+        self.addChannelSelector(dataSelectionLayout)
+
+        # Analysis Parameters Group
+        analysisParamsGroup = QGroupBox("Analysis Parameters")
+        analysisParamsLayout = QVBoxLayout()
+        analysisParamsGroup.setLayout(analysisParamsLayout)
+        controlsPanelLayout.addWidget(analysisParamsGroup)
+        self.addAnalysisRangeSlider(analysisParamsLayout)
+        self.addBandPassRangeSlider(analysisParamsLayout)
+        self.addMachineSpeedSpinner(analysisParamsLayout)
+
+        # Display Options Group
+        displayOptionsGroup = QGroupBox("Display Options")
+        displayOptionsLayout = QVBoxLayout()
+        displayOptionsGroup.setLayout(displayOptionsLayout)
+        controlsPanelLayout.addWidget(displayOptionsGroup)
+        self.addShowTimeLabelsCheckbox(displayOptionsLayout)
+        self.addShowUnfilteredCheckbox(displayOptionsLayout)
+
+        controlsPanelLayout.addStretch() # Add stretch to push control groups to the top
+
+        # Right panel for plot and stats
+        plotStatsLayout = QVBoxLayout()
+        mainHorizontalLayout.addLayout(plotStatsLayout, 1) # Give more stretch to the plot/stats side
 
         # Add statistics widget
         self.stats_widget = StatsWidget()
-        mainLayout.addWidget(self.stats_widget)
+        plotStatsLayout.addWidget(self.stats_widget)
 
         # Matplotlib figure and canvas
         self.plot = self.controller.getCanvas()
-        mainLayout.addWidget(self.plot, 1)
+        plotStatsLayout.addWidget(self.plot, 1) # Plot takes most of the vertical space
         self.toolbar = NavigationToolbar(self.plot, self)
-        mainLayout.addWidget(self.toolbar)
+        plotStatsLayout.addWidget(self.toolbar)
 
         self.refresh()
 

@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QMenuBar, QPushButton
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QMenuBar, QPushButton, QHBoxLayout, QGroupBox
 from PyQt6.QtGui import QAction
 from PyQt6.QtCore import QObject, pyqtSignal
 from utils.measurement import Measurement
@@ -285,8 +285,8 @@ class AnalysisWindow(QWidget, AnalysisRangeMixin, ChannelMixin, FrequencyRangeMi
         if 'sos' not in store.analyses:
             self.sosAnalysisAction.setDisabled(True)
 
-        disable_pm_action = not hasattr(self.measurement, 'pm_data')
-        self.paperMachineDataAction.setDisabled(disable_pm_action)
+        if not self.measurement.pm_data:
+            self.paperMachineDataAction.setDisabled(True)
         viewMenu.addAction(self.paperMachineDataAction)
 
         if self.window_type == "MD":
@@ -316,6 +316,7 @@ class AnalysisWindow(QWidget, AnalysisRangeMixin, ChannelMixin, FrequencyRangeMi
             self.paperMachineDataWindow.closed.connect(
                 self.onPaperMachineDataClosed)
             self.paperMachineDataAction.setChecked(True)
+            self.pmdButton.setChecked(True)
         else:
             self.paperMachineDataWindow.close()
 
@@ -327,13 +328,14 @@ class AnalysisWindow(QWidget, AnalysisRangeMixin, ChannelMixin, FrequencyRangeMi
     def onPaperMachineDataClosed(self):
         self.paperMachineDataWindow = None
         self.paperMachineDataAction.setChecked(False)
+        self.pmdButton.setChecked(False)
 
     def refreshSOS(self):
         pass
 
     def toggleSOSAnalysis(self, checked):
         if self.sosAnalysisWindow is None:
-            self.sosAnalysisWindow = store.analyses['sos']['window'](self.controller)
+            self.sosAnalysisWindow = store.analyses['sos'].AnalysisWindow(self.controller)
             self.sosAnalysisWindow.show()
             self.sosAnalysisWindow.closed.connect(self.onSOSAnalysisClosed)
             self.sosAnalysisAction.setChecked(True)
@@ -349,47 +351,84 @@ class AnalysisWindow(QWidget, AnalysisRangeMixin, ChannelMixin, FrequencyRangeMi
         self.refresh()  # Refresh the plot with the new spectrum length
 
     def initUI(self):
+        self.setWindowTitle(f"{analysis_name} ({self.controller.window_type}) - {self.measurement.measurement_label}")
+        self.setGeometry(150, 150, 1000, 600) # Default geometry, consider adding to settings.py
 
-        self.setWindowTitle(
-            f"{self.window_type} spectrogram ({self.measurement.measurement_label})")
-        self.setGeometry(200, 200, 950, 950)
+        # Top-level layout for menu bar and main content
+        topLevelLayout = QVBoxLayout()
+        self.setLayout(topLevelLayout)
 
-        mainLayout = QVBoxLayout()
-        self.setLayout(mainLayout)
-        self.initMenuBar(mainLayout)
-        self.addChannelSelector(mainLayout)
+        self.initMenuBar(topLevelLayout)
 
-        self.addAnalysisRangeSlider(mainLayout)
-        if self.window_type == "MD":
-            self.addMachineSpeedSpinner(mainLayout)
+        # Main horizontal layout for controls and plot/stats
+        mainHorizontalLayout = QHBoxLayout()
+        topLevelLayout.addLayout(mainHorizontalLayout)
 
-        self.spectrumLengthLabel = QLabel("Window length")
-        mainLayout.addWidget(self.spectrumLengthLabel)
+        # Left panel for controls
+        controlsPanelLayout = QVBoxLayout()
+        controlsWidget = QWidget()
+        controlsWidget.setMinimumWidth(settings.ANALYSIS_CONTROLS_PANEL_MIN_WIDTH)
+        controlsWidget.setLayout(controlsPanelLayout)
+        mainHorizontalLayout.addWidget(controlsWidget, 0)
 
-        self.addSpectrumLengthSlider(mainLayout)
-        self.addFrequencyRangeSlider(mainLayout)
+        # Data Selection Group
+        dataSelectionGroup = QGroupBox("Data Selection")
+        dataSelectionLayout = QVBoxLayout()
+        dataSelectionGroup.setLayout(dataSelectionLayout)
+        controlsPanelLayout.addWidget(dataSelectionGroup)
+        self.addChannelSelector(dataSelectionLayout)
 
-        if self.window_type == "MD":
-            self.addShowWavelengthCheckbox(mainLayout)
+        # Analysis Parameters Group
+        analysisParamsGroup = QGroupBox("Analysis Parameters")
+        analysisParamsLayout = QVBoxLayout()
+        analysisParamsGroup.setLayout(analysisParamsLayout)
+        controlsPanelLayout.addWidget(analysisParamsGroup)
+        self.addAnalysisRangeSlider(analysisParamsLayout)
+        self.addFrequencyRangeSlider(analysisParamsLayout)
+        self.addSpectrumLengthSlider(analysisParamsLayout)
+        if self.controller.window_type == "MD":
+            self.addMachineSpeedSpinner(analysisParamsLayout)
 
-        self.selectedFrequencyLabel = QLabel("Selected frequency: None")
-        mainLayout.addWidget(self.selectedFrequencyLabel)
+        # Display Options Group
+        displayOptionsGroup = QGroupBox("Display Options")
+        displayOptionsLayout = QVBoxLayout()
+        displayOptionsGroup.setLayout(displayOptionsLayout)
+        controlsPanelLayout.addWidget(displayOptionsGroup)
+        if self.controller.window_type == "MD":
+            self.addShowWavelengthCheckbox(displayOptionsLayout)
 
-        self.refineButton = QPushButton("Refine")
-        self.refineButton.clicked.connect(self.refineFrequency)
-        mainLayout.addWidget(self.refineButton)
+        self.selectedFrequencyLabel = QLabel("Selected frequency: None") # Keep this label as it's updated in onclick
+        displayOptionsLayout.addWidget(self.selectedFrequencyLabel)
 
-        self.clearButton = QPushButton("Clear")
+        self.clearButton = QPushButton("Clear Frequency Selection")
         self.clearButton.clicked.connect(self.clearFrequency)
-        mainLayout.addWidget(self.clearButton)
+        displayOptionsLayout.addWidget(self.clearButton)
 
+        if self.controller.window_type == "MD":
+            otherTogglesGroup = QGroupBox("Other Analyses")
+            otherTogglesLayout = QVBoxLayout()
+            otherTogglesGroup.setLayout(otherTogglesLayout)
+            controlsPanelLayout.addWidget(otherTogglesGroup)
+
+            self.pmdButton = QPushButton("Paper Machine Data")
+            self.pmdButton.setCheckable(True)
+            self.pmdButton.clicked.connect(self.togglePaperMachineData)
+            if not self.measurement.pm_data:
+                self.pmdButton.setDisabled(True)
+            otherTogglesLayout.addWidget(self.pmdButton)
+
+        controlsPanelLayout.addStretch()
+
+        # Right panel for plot and stats
+        plotStatsLayout = QVBoxLayout()
+        mainHorizontalLayout.addLayout(plotStatsLayout, 1)
+
+        # Matplotlib figure and canvas
         self.plot = self.controller.getCanvas()
-        # Add with stretch factor to allow expansion
-        mainLayout.addWidget(self.plot, 1)
-        self.toolbar = NavigationToolbar(self.plot, self)
-        mainLayout.addWidget(self.toolbar)
-
         self.plot.mpl_connect('button_press_event', self.onclick)
+        plotStatsLayout.addWidget(self.plot, 1)
+        self.toolbar = NavigationToolbar(self.plot, self)
+        plotStatsLayout.addWidget(self.toolbar)
 
         self.refresh()
 

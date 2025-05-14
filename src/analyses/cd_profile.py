@@ -1,5 +1,5 @@
 from PyQt6.QtCore import QObject, pyqtSignal
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QMenuBar
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QMenuBar, QHBoxLayout, QGroupBox
 from PyQt6.QtGui import QAction
 from utils.filters import bandpass_filter
 from utils.measurement import Measurement
@@ -295,39 +295,76 @@ class AnalysisWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilterMi
     def initUI(self):
         self.setWindowTitle(
             f"CD Profile ({self.measurement.measurement_label})")
-        self.setGeometry(*settings.CD_PROFILE_WINDOW_GEOMETRY)
+        # Geometry will be set from settings CD_PROFILE_WINDOW_GEOMETRY
 
-        mainLayout = QVBoxLayout()
-        self.setLayout(mainLayout)
-        self.initMenuBar(mainLayout)
-        # Add the channel selector
-        self.addChannelSelector(mainLayout)
+        # Top-level layout for menu bar and main content
+        topLevelLayout = QVBoxLayout()
+        self.setLayout(topLevelLayout)
 
-        # Extra data controls, hidden until extra data is loaded
-        self.addExtraDataWidget(mainLayout)
+        self.initMenuBar(topLevelLayout)
 
-        # Analysis range slider
-        self.addAnalysisRangeSlider(mainLayout)
+        # Main horizontal layout for controls and plot/stats
+        mainHorizontalLayout = QHBoxLayout()
+        topLevelLayout.addLayout(mainHorizontalLayout)
 
-        self.addBandPassRangeSlider(mainLayout)
+        # Left panel for controls
+        controlsPanelLayout = QVBoxLayout()
+        controlsWidget = QWidget()
+        controlsWidget.setMinimumWidth(settings.ANALYSIS_CONTROLS_PANEL_MIN_WIDTH)
+        controlsWidget.setLayout(controlsPanelLayout)
+        mainHorizontalLayout.addWidget(controlsWidget, 0) # Controls take less space
 
-        self.addShowProfilesCheckbox(mainLayout)
-        self.addShowConfidenceIntervalCheckbox(
-            mainLayout, settings.CD_PROFILE_CONFIDENCE_INTERVAL)
-        self.addShowMinMaxCheckbox(mainLayout)
-        self.addShowLegendCheckbox(mainLayout)
+        # Data Selection Group
+        dataSelectionGroup = QGroupBox("Data Selection")
+        dataSelectionLayout = QVBoxLayout()
+        dataSelectionGroup.setLayout(dataSelectionLayout)
+        controlsPanelLayout.addWidget(dataSelectionGroup)
+        self.addChannelSelector(dataSelectionLayout)
+        # SampleSelector is handled by menu bar action
+
+        # Analysis Parameters Group
+        analysisParamsGroup = QGroupBox("Analysis Parameters")
+        analysisParamsLayout = QVBoxLayout()
+        analysisParamsGroup.setLayout(analysisParamsLayout)
+        controlsPanelLayout.addWidget(analysisParamsGroup)
+        self.addAnalysisRangeSlider(analysisParamsLayout)
+        self.addBandPassRangeSlider(analysisParamsLayout)
+        # No WaterfallOffsetSlider for the non-waterfall CD profile
+
+        # Display Options Group
+        displayOptionsGroup = QGroupBox("Display Options")
+        displayOptionsLayout = QVBoxLayout()
+        displayOptionsGroup.setLayout(displayOptionsLayout)
+        controlsPanelLayout.addWidget(displayOptionsGroup)
+        self.addShowProfilesCheckbox(displayOptionsLayout)
+        self.addShowMinMaxCheckbox(displayOptionsLayout)
+        self.addShowLegendCheckbox(displayOptionsLayout)
+        self.addShowConfidenceIntervalCheckbox(displayOptionsLayout, settings.CD_PROFILE_CONFIDENCE_INTERVAL)
+
+        # Extra Data Group
+        extraDataGroup = QGroupBox("Overlay External Data")
+        extraDataLayout = QVBoxLayout()
+        extraDataGroup.setLayout(extraDataLayout)
+        controlsPanelLayout.addWidget(extraDataGroup)
+        self.addExtraDataWidget(extraDataLayout)
+
+        controlsPanelLayout.addStretch()
+
+        # Right panel for plot and stats
+        plotStatsLayout = QVBoxLayout()
+        mainHorizontalLayout.addLayout(plotStatsLayout, 1) # Plot/stats take more space
 
         # Add statistics widget
         self.stats_widget = StatsWidget()
-        mainLayout.addWidget(self.stats_widget)
+        plotStatsLayout.addWidget(self.stats_widget)
 
         # Matplotlib figure and canvas
         self.plot = self.controller.getCanvas()
-        # Add with stretch factor to allow expansion
-        mainLayout.addWidget(self.plot, 1)
+        plotStatsLayout.addWidget(self.plot, 1)
         self.toolbar = NavigationToolbar(self.plot, self)
-        mainLayout.addWidget(self.toolbar)
+        plotStatsLayout.addWidget(self.toolbar)
 
+        self.setGeometry(*settings.CD_PROFILE_WINDOW_GEOMETRY)
         self.refresh()
 
     def refresh_widgets(self):

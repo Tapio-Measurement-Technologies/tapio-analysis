@@ -223,6 +223,8 @@ class SpectrumLengthMixin:
         self.spectrumLengthSlider.blockSignals(False)
 
     def addSpectrumLengthSlider(self, layout, live_update=settings.UPDATE_ON_SLIDE):
+        self.spectrumLengthLabel = QLabel("Window length [m]")
+        layout.addWidget(self.spectrumLengthLabel)
         self.spectrumLengthSlider = ExtraQLabeledSlider(
             Qt.Orientation.Horizontal)
         self.initSpectrumLengthSlider()

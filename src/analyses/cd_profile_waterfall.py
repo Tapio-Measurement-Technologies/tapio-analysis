@@ -1,9 +1,8 @@
 from PyQt6.QtCore import QObject, pyqtSignal
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QMenuBar
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QMenuBar, QHBoxLayout, QGroupBox
 from PyQt6.QtGui import QAction
 from utils.filters import bandpass_filter
 from utils.measurement import Measurement
-from scipy.stats import norm
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import matplotlib.pyplot as plt
 from gui.components import (
@@ -17,7 +16,6 @@ from gui.components import (
     ShowConfidenceIntervalMixin,
     ShowMinMaxMixin,
     WaterfallOffsetMixin,
-    ExtraDataMixin,
     CopyPlotMixin,
     ChildWindowCloseMixin,
     StatsWidget,
@@ -49,19 +47,6 @@ class AnalysisController(QObject, PlotMixin, ExportMixin):
         self.analysis_range_low = settings.CD_PROFILE_RANGE_LOW_DEFAULT * self.max_dist
         self.analysis_range_high = settings.CD_PROFILE_RANGE_HIGH_DEFAULT * self.max_dist
         self.waterfall_offset = settings.CD_PROFILE_WATERFALL_OFFSET_DEFAULT
-        self.confidence_interval = None
-        self.show_profiles = False
-        self.show_min_max = False
-        self.show_legend = False
-
-        # Extra data
-        self.extra_data = None
-        self.extra_data_units = {}
-        self.selected_sheet = None
-        self.show_extra_data = False
-        self.use_same_scale = False
-        self.extra_data_adjust_start = 0
-        self.extra_data_adjust_end = 0
 
     def plot(self):
         # logging.info("Refresh")
@@ -71,7 +56,6 @@ class AnalysisController(QObject, PlotMixin, ExportMixin):
             self.canvas.draw()
             return
 
-        # Todo: These are in meters, li
         # Todo: These are in meters, like distances array. Convert these to indices and have them have an effect on the displayed slice of the measurement
 
         low_index = np.searchsorted(
@@ -90,73 +74,66 @@ class AnalysisController(QObject, PlotMixin, ExportMixin):
             i, self.band_pass_low, self.band_pass_high, self.fs) for i in unfiltered_data]
 
         self.mean_profile = np.mean(filtered_data, axis=0)
-        std_error = np.std(filtered_data, axis=0) / np.sqrt(len(filtered_data))
 
-        # Calculate the z-score for the given confidence level
-        if self.confidence_interval is not None:
-            z_score = norm.ppf(1 - (1 - self.confidence_interval) / 2)
-            confidence_interval = z_score * std_error
+        tableau_color_cycle = plt.get_cmap('tab10')
 
-        if True:
-            tableau_color_cycle = plt.get_cmap('tab10')
+        y_offset = self.waterfall_offset
+        ax = self.figure.add_subplot(111)
 
-            y_offset = self.waterfall_offset
-            ax = self.figure.add_subplot(111)
+        y_ticks = []
+        y_tick_labels = []
 
-            y_ticks = []
-            y_tick_labels = []
+        ax.set_yticks(y_ticks)
+        ax.set_yticklabels(y_tick_labels)
 
-            ax.set_yticks(y_ticks)
-            ax.set_yticklabels(y_tick_labels)
+        for offset_index, sample_idx in enumerate(self.selected_samples):
+            unfiltered_data = self.measurement.segments[self.channel][sample_idx][low_index:high_index]
+            filtered_data = bandpass_filter(
+                unfiltered_data, self.band_pass_low, self.band_pass_high, self.fs)
 
-            for offset_index, sample_idx in enumerate(self.selected_samples):
-                unfiltered_data = self.measurement.segments[self.channel][sample_idx][low_index:high_index]
-                filtered_data = bandpass_filter(
-                    unfiltered_data, self.band_pass_low, self.band_pass_high, self.fs)
+            color = tableau_color_cycle(sample_idx % 10)
+            ax.plot(x * settings.CD_PROFILE_DISPLAY_UNIT_MULTIPLIER,
+                    filtered_data - offset_index * y_offset,
+                    lw=1,
+                    alpha=0.9,
+                    color=color)
 
-                color = tableau_color_cycle(sample_idx % 10)
-                ax.plot(x * settings.CD_PROFILE_DISPLAY_UNIT_MULTIPLIER,
-                        filtered_data - offset_index * y_offset,
-                        lw=1,
-                        alpha=0.9,
-                        color=color)
+            # Calculate mean and add horizontal line
+            mean_value = np.mean(filtered_data) - offset_index * y_offset
+            ax.axhline(mean_value, color='gray',
+                        linestyle='-', linewidth=1)
 
-                # Calculate mean and add horizontal line
-                mean_value = np.mean(filtered_data) - offset_index * y_offset
-                ax.axhline(mean_value, color='gray',
-                           linestyle='-', linewidth=1)
-
-                if offset_index == 0:
-                    ax.text(
-                        0.10, 1.05,
-                        f"Sample spacing\n{y_offset:.2f} {
-                            self.measurement.units[self.channel]}",
-                        ha='center',
-                        va='center',
-                        fontsize=8,
-                        color="tab:gray",
-                        transform=ax.transAxes
-                    )
-
+            if offset_index == 0:
                 ax.text(
-                    x[0] - 0.06 * (x[-1] - x[0]),
-                    mean_value,
-                    f"{offset_index + 1}",
+                    0.10, 1.05,
+                    f"Sample spacing\n{y_offset:.2f} {
+                        self.measurement.units[self.channel]}",
                     ha='center',
                     va='center',
-                    fontsize=10,
-                    color="black"
+                    fontsize=8,
+                    color="tab:gray",
+                    transform=ax.transAxes
                 )
 
-            if settings.CD_PROFILE_TITLE_SHOW:
-                ax.set_title(
-                    f"{self.measurement.measurement_label} ({self.channel})")
-            ax.set_xlabel("Distance [m]")
-            # ax.set_ylabel("Sample Index")
-            # ax.set_zlabel(
-            #     f"{self.channel} [{self.measurement.units[self.channel]}]")
+            ax.text(
+                x[0] - 0.06 * (x[-1] - x[0]),
+                mean_value,
+                f"{offset_index + 1}",
+                ha='center',
+                va='center',
+                fontsize=10,
+                color="black"
+            )
 
-            # ax.view_init(25, -130)
+        if settings.CD_PROFILE_TITLE_SHOW:
+            ax.set_title(
+                f"{self.measurement.measurement_label} ({self.channel})")
+        ax.set_xlabel("Distance [m]")
+        # ax.set_ylabel("Sample Index")
+        # ax.set_zlabel(
+        #     f"{self.channel} [{self.measurement.units[self.channel]}]")
+
+        # ax.view_init(25, -130)
 
         ax.figure.set_constrained_layout(True)
         self.canvas.draw()
@@ -208,7 +185,7 @@ class AnalysisController(QObject, PlotMixin, ExportMixin):
         return pd.DataFrame(data)
 
 
-class AnalysisWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowLegendMixin, ShowConfidenceIntervalMixin, ShowMinMaxMixin, WaterfallOffsetMixin, ExtraDataMixin, CopyPlotMixin, ChildWindowCloseMixin):
+class AnalysisWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowLegendMixin, ShowConfidenceIntervalMixin, ShowMinMaxMixin, WaterfallOffsetMixin, CopyPlotMixin, ChildWindowCloseMixin):
     def __init__(self, window_type="CD", controller: AnalysisController | None = None, measurement: Measurement | None = None):
         super().__init__()
         self.controller = controller if controller else AnalysisController(
@@ -235,33 +212,60 @@ class AnalysisWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilterMi
 
     def initUI(self):
         self.setWindowTitle(
-            f"CD Profile ({self.measurement.measurement_label})")
-        self.setGeometry(*settings.CD_PROFILE_WINDOW_GEOMETRY)
+            f"CD Profile (Waterfall) ({self.measurement.measurement_label})")
+        # Geometry will be set from settings
 
-        mainLayout = QVBoxLayout()
-        self.setLayout(mainLayout)
-        self.initMenuBar(mainLayout)
-        # Add the channel selector
-        self.addChannelSelector(mainLayout)
+        # Top-level layout for menu bar and main content
+        topLevelLayout = QVBoxLayout()
+        self.setLayout(topLevelLayout)
 
-        # Analysis range slider
-        self.addAnalysisRangeSlider(mainLayout)
+        self.initMenuBar(topLevelLayout)
 
-        self.addBandPassRangeSlider(mainLayout)
+        # Main horizontal layout for controls and plot/stats
+        mainHorizontalLayout = QHBoxLayout()
+        topLevelLayout.addLayout(mainHorizontalLayout)
 
-        self.addWaterfallOffsetSlider(mainLayout)
+        # Left panel for controls
+        controlsPanelLayout = QVBoxLayout()
+        controlsWidget = QWidget()
+        controlsWidget.setMinimumWidth(settings.ANALYSIS_CONTROLS_PANEL_MIN_WIDTH)
+        controlsWidget.setLayout(controlsPanelLayout)
+        mainHorizontalLayout.addWidget(controlsWidget, 0) # Controls take less space
+
+        # Data Selection Group
+        dataSelectionGroup = QGroupBox("Data Selection")
+        dataSelectionLayout = QVBoxLayout()
+        dataSelectionGroup.setLayout(dataSelectionLayout)
+        controlsPanelLayout.addWidget(dataSelectionGroup)
+        self.addChannelSelector(dataSelectionLayout)
+        # SampleSelector is handled by menu bar action
+
+        # Analysis Parameters Group
+        analysisParamsGroup = QGroupBox("Analysis Parameters")
+        analysisParamsLayout = QVBoxLayout()
+        analysisParamsGroup.setLayout(analysisParamsLayout)
+        controlsPanelLayout.addWidget(analysisParamsGroup)
+        self.addAnalysisRangeSlider(analysisParamsLayout)
+        self.addBandPassRangeSlider(analysisParamsLayout)
+        self.addWaterfallOffsetSlider(analysisParamsLayout)
+
+        controlsPanelLayout.addStretch()
+
+        # Right panel for plot and stats
+        plotStatsLayout = QVBoxLayout()
+        mainHorizontalLayout.addLayout(plotStatsLayout, 1) # Plot/stats take more space
 
         # Add statistics widget
         self.stats_widget = StatsWidget()
-        mainLayout.addWidget(self.stats_widget)
+        plotStatsLayout.addWidget(self.stats_widget)
 
         # Matplotlib figure and canvas
         self.plot = self.controller.getCanvas()
-        # Add with stretch factor to allow expansion
-        mainLayout.addWidget(self.plot, 1)
+        plotStatsLayout.addWidget(self.plot, 1)
         self.toolbar = NavigationToolbar(self.plot, self)
-        mainLayout.addWidget(self.toolbar)
+        plotStatsLayout.addWidget(self.toolbar)
 
+        self.setGeometry(*settings.CD_PROFILE_WINDOW_GEOMETRY) # Uses same as cd_profile
         self.refresh()
 
     def refresh_widgets(self):

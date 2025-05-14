@@ -1,7 +1,6 @@
 from PyQt6.QtCore import QObject, pyqtSignal
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QMenuBar, QGridLayout, QHBoxLayout, QCheckBox
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QMenuBar, QHBoxLayout, QGroupBox, QCheckBox, QLabel
 from PyQt6.QtGui import QAction
-from qtpy.QtCore import Qt
 from utils.filters import bandpass_filter
 from utils.measurement import Measurement
 from matplotlib.ticker import MaxNLocator
@@ -14,7 +13,7 @@ from gui.components import (
     SampleSelectMixin,
     CopyPlotMixin,
     ChildWindowCloseMixin,
-    PlotMixin
+    PlotMixin,
 )
 import settings
 import numpy as np
@@ -134,6 +133,53 @@ class AnalysisController(QObject, PlotMixin):
 
         return self.canvas
 
+    def calculate_variances(self, segments):
+        k, p = segments.shape  # Number of samples in MD and CD, respectively
+
+        if k == 0 or p == 0:
+            return 0, 0, 0, 0
+
+        overall_mean = np.mean(segments)
+
+        md_means = np.mean(segments, axis=1)
+        cd_means = np.mean(segments, axis=0)
+
+        # Sum of squares for MD (between samples)
+        ss_md = p * np.sum((md_means - overall_mean)**2)
+        # Sum of squares for CD (between positions within samples)
+        ss_cd = k * np.sum((cd_means - overall_mean)**2)
+        # Total sum of squares
+        ss_total = np.sum((segments - overall_mean)**2)
+        # Sum of squares for residuals (interaction)
+        ss_residual = ss_total - ss_md - ss_cd
+
+        # Degrees of freedom
+        df_md = k - 1
+        df_cd = p - 1
+        df_residual = (k - 1) * (p - 1)
+        df_total = k * p - 1
+
+        # Mean squares (variances)
+        ms_md = ss_md / df_md if df_md > 0 else 0
+        ms_cd = ss_cd / df_cd if df_cd > 0 else 0
+        ms_residual = ss_residual / df_residual if df_residual > 0 else 0
+
+        # Variance components (as per ANSI/TAPPI T 545 om-08)
+        # Note: These are estimates of variances, not mean squares directly.
+        var_cd = (ms_cd - ms_residual) / k if k > 0 else 0
+        var_md = (ms_md - ms_residual) / p if p > 0 else 0
+        var_residual = ms_residual
+        var_total = var_md + var_cd + var_residual
+
+        # Ensure variances are not negative (can happen due to sampling variability)
+        var_md = max(0, var_md)
+        var_cd = max(0, var_cd)
+
+        # Recalculate total based on potentially adjusted components
+        var_total = var_md + var_cd + var_residual
+
+        return var_total, var_md, var_cd, var_residual
+
     def calculate_residuals_and_variance(self, segments, md_variance, cd_variance):
         residuals = segments - np.mean(segments, axis=1, keepdims=True) - np.mean(segments, axis=0,
                                                                                   keepdims=True) + np.mean(segments)
@@ -239,30 +285,6 @@ class AnalysisController(QObject, PlotMixin):
 
         return stats
 
-    def calculate_variances(self, segments):
-        k, p = segments.shape  # Number of samples in MD and CD, respectively
-
-        if k == 0 or p == 0:
-            return 0, 0, 0, 0
-
-        overall_mean = np.mean(segments)
-
-        md_means = np.mean(segments, axis=1)
-        cd_means = np.mean(segments, axis=0)
-
-        Sa2 = np.sum((md_means - overall_mean)**2) / (k - 1)
-        Sb2 = np.sum((cd_means - overall_mean)**2) / (p - 1)
-
-        total_variance = np.sum((segments - overall_mean)**2) / (k * p - 1)
-
-        residuals = segments - md_means[:, None] - cd_means + overall_mean
-        residual_variance = np.sum(residuals**2) / ((k - 1) * (p - 1))
-
-        md_variance = Sa2 - (1 / p) * residual_variance
-        cd_variance = Sb2 - (1 / k) * residual_variance
-
-        return total_variance, md_variance, cd_variance, residual_variance
-
 
 class AnalysisWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, CopyPlotMixin, ChildWindowCloseMixin):
     def __init__(self, window_type="CD", controller: AnalysisController | None = None, measurement: Measurement | None = None):
@@ -270,6 +292,7 @@ class AnalysisWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilterMi
         self.controller = controller if controller else AnalysisController(
             measurement, window_type)
         self.measurement = self.controller.measurement
+        self.sampleSelectorWindow = None
         self.initUI()
 
     def initMenuBar(self, layout):
@@ -284,90 +307,104 @@ class AnalysisWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilterMi
         self.selectSamplesAction.triggered.connect(self.toggleSelectSamples)
 
     def update_remove_md_variations(self):
-        state = self.md_checkbox.isChecked()
+        state = self.removeMDVariationsCheckbox.isChecked()
         self.controller.remove_md_variations = state
         self.refresh()
 
     def update_remove_cd_variations(self):
-        state = self.cd_checkbox.isChecked()
+        state = self.removeCDVariationsCheckbox.isChecked()
         self.controller.remove_cd_variations = state
         self.refresh()
 
     def initUI(self):
-        self.setWindowTitle(
-            f"Variance component analysis ({self.measurement.measurement_label})")
-        self.setGeometry(*settings.VCA_WINDOW_GEOMETRY)
+        self.setWindowTitle(f"{analysis_name} ({self.measurement.measurement_label})")
+        # Geometry will be set by VCA_WINDOW_GEOMETRY from settings
 
-        mainLayout = QVBoxLayout()
-        self.setLayout(mainLayout)
-        self.initMenuBar(mainLayout)
-        # Add the channel selector
-        self.addChannelSelector(mainLayout)
+        # Top-level layout for menu bar and main content
+        topLevelLayout = QVBoxLayout()
+        self.setLayout(topLevelLayout)
 
-        # Analysis range slider
-        self.addAnalysisRangeSlider(mainLayout)
+        self.initMenuBar(topLevelLayout)
 
-        self.addBandPassRangeSlider(mainLayout)
-        # Add statistics labels
-        statsLayout = QGridLayout()
-        self.total_std_dev_text = QLabel("Total standard deviation")
-        self.md_std_dev_text = QLabel("MD standard deviation")
-        self.cd_std_dev_text = QLabel("CD Standard deviation ")
-        self.residual_std_dev_text = QLabel("Residual standard deviation")
-        self.unit_label = QLabel("Unit")
-        self.p_label = QLabel("% of mean")
+        # Main horizontal layout for controls and plot/stats
+        mainHorizontalLayout = QHBoxLayout()
+        topLevelLayout.addLayout(mainHorizontalLayout)
 
-        self.total_std_dev_label = QLabel("1")
-        self.md_std_dev_label = QLabel("2")
-        self.cd_std_dev_label = QLabel("3")
-        self.residual_std_dev_label = QLabel("4")
+        # Left panel for controls
+        controlsPanelLayout = QVBoxLayout()
+        controlsWidget = QWidget()
+        controlsWidget.setMinimumWidth(settings.ANALYSIS_CONTROLS_PANEL_MIN_WIDTH)
+        controlsWidget.setLayout(controlsPanelLayout)
+        mainHorizontalLayout.addWidget(controlsWidget, 0)
 
-        self.total_std_dev_p_label = QLabel("5")
-        self.md_std_dev_p_label = QLabel("6")
-        self.cd_std_dev_p_label = QLabel("7")
-        self.residual_std_dev_p_label = QLabel("8")
+        # Data Selection Group
+        dataSelectionGroup = QGroupBox("Data Selection")
+        dataSelectionLayout = QVBoxLayout()
+        dataSelectionGroup.setLayout(dataSelectionLayout)
+        controlsPanelLayout.addWidget(dataSelectionGroup)
+        self.addChannelSelector(dataSelectionLayout)
 
-        statsLayout.addWidget(self.unit_label, 0, 1)
-        statsLayout.addWidget(self.p_label, 0, 2)
+        # Analysis Parameters Group
+        analysisParamsGroup = QGroupBox("Analysis Parameters")
+        analysisParamsLayout = QVBoxLayout()
+        analysisParamsGroup.setLayout(analysisParamsLayout)
+        controlsPanelLayout.addWidget(analysisParamsGroup)
+        self.addAnalysisRangeSlider(analysisParamsLayout)
+        self.addBandPassRangeSlider(analysisParamsLayout)
 
-        statsLayout.addWidget(self.total_std_dev_text, 1, 0)
-        statsLayout.addWidget(self.md_std_dev_text, 2, 0)
-        statsLayout.addWidget(self.cd_std_dev_text, 3, 0)
-        statsLayout.addWidget(self.residual_std_dev_text, 4, 0)
+        # VCA Specific Options Group
+        vcaOptionsGroup = QGroupBox("VCA Options")
+        vcaOptionsLayout = QVBoxLayout()
+        vcaOptionsGroup.setLayout(vcaOptionsLayout)
+        controlsPanelLayout.addWidget(vcaOptionsGroup)
 
-        statsLayout.addWidget(self.total_std_dev_label, 1, 1)
-        statsLayout.addWidget(self.md_std_dev_label, 2, 1)
-        statsLayout.addWidget(self.cd_std_dev_label, 3, 1)
-        statsLayout.addWidget(self.residual_std_dev_label, 4, 1)
+        self.removeMDVariationsCheckbox = QCheckBox("Remove MD variations")
+        self.removeMDVariationsCheckbox.setChecked(self.controller.remove_md_variations)
+        self.removeMDVariationsCheckbox.toggled.connect(self.update_remove_md_variations)
+        vcaOptionsLayout.addWidget(self.removeMDVariationsCheckbox)
 
-        statsLayout.addWidget(self.total_std_dev_p_label, 1, 2)
-        statsLayout.addWidget(self.md_std_dev_p_label, 2, 2)
-        statsLayout.addWidget(self.cd_std_dev_p_label, 3, 2)
-        statsLayout.addWidget(self.residual_std_dev_p_label, 4, 2)
+        self.removeCDVariationsCheckbox = QCheckBox("Remove CD variations")
+        self.removeCDVariationsCheckbox.setChecked(self.controller.remove_cd_variations)
+        self.removeCDVariationsCheckbox.toggled.connect(self.update_remove_cd_variations)
+        vcaOptionsLayout.addWidget(self.removeCDVariationsCheckbox)
 
-        mainLayout.addLayout(statsLayout)
+        controlsPanelLayout.addStretch()
 
-        for label in [self.total_std_dev_label, self.md_std_dev_label, self.cd_std_dev_label, self.residual_std_dev_label]:
-            label.setTextInteractionFlags(
-                Qt.TextInteractionFlag.TextSelectableByMouse)
+        # VCA Statistics Group
+        vcaStatsGroup = QGroupBox("VCA Statistics")
+        vcaStatsLayout = QVBoxLayout()
+        vcaStatsGroup.setLayout(vcaStatsLayout)
+        controlsPanelLayout.addWidget(vcaStatsGroup)
 
-        checkboxLayout = QHBoxLayout()
-        self.md_checkbox = QCheckBox("Remove MD variations")
-        self.md_checkbox.setChecked(False)
-        self.md_checkbox.stateChanged.connect(self.update_remove_md_variations)
-        checkboxLayout.addWidget(self.md_checkbox)
-        self.cd_checkbox = QCheckBox("Remove CD variations")
-        self.cd_checkbox.setChecked(False)
-        self.cd_checkbox.stateChanged.connect(self.update_remove_cd_variations)
-        checkboxLayout.addWidget(self.cd_checkbox)
-        mainLayout.addLayout(checkboxLayout)
+        self.vcaChannelInfoLabel = QLabel("Channel: N/A") # Placeholder
+        vcaStatsLayout.addWidget(self.vcaChannelInfoLabel)
 
+        statsDisplayLayout = QHBoxLayout()
+        self.vcaStatNamesLabel = QLabel("Names")
+        self.vcaStatNamesLabel.setWordWrap(True)
+        statsDisplayLayout.addWidget(self.vcaStatNamesLabel)
+
+        self.vcaStatValuesLabel = QLabel("Values")
+        self.vcaStatValuesLabel.setWordWrap(True)
+        statsDisplayLayout.addWidget(self.vcaStatValuesLabel)
+
+        self.vcaStatPercentagesLabel = QLabel("Percentages")
+        self.vcaStatPercentagesLabel.setWordWrap(True)
+        statsDisplayLayout.addWidget(self.vcaStatPercentagesLabel)
+
+        vcaStatsLayout.addLayout(statsDisplayLayout)
+
+        # Right panel for plot and stats
+        plotStatsLayout = QVBoxLayout() # This layout might now only contain the plot and toolbar
+        mainHorizontalLayout.addLayout(plotStatsLayout, 1)
+
+        # Plotting area setup
         self.plot = self.controller.getCanvas()
-        # Add with stretch factor to allow expansion
-        mainLayout.addWidget(self.plot, 1)
+        plotStatsLayout.addWidget(self.plot, 1)
         self.toolbar = NavigationToolbar(self.plot, self)
-        mainLayout.addWidget(self.toolbar)
+        plotStatsLayout.addWidget(self.toolbar)
 
+        self.setGeometry(*settings.VCA_WINDOW_GEOMETRY)
         self.refresh()
 
     def refresh_widgets(self):
@@ -376,39 +413,34 @@ class AnalysisWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilterMi
         self.initChannelSelector(block_signals=True)
 
     def refresh(self):
-        self.controller.updatePlot()
+        self.controller.updatePlot() # This will prepare self.controller.filtered_data
         self.refresh_widgets()
-        self.updateVCAStatistics(self.controller.filtered_data)
+        self.updateVCAStatistics(self.controller.filtered_data) # Pass raw filtered_data
 
-    def updateVCAStatistics(self, data):
+    def updateVCAStatistics(self, data): # 'data' here is filtered_data
+        # This method should now prepare and display VCA stats using its own UI elements (e.g. QLabels)
+        # For now, it will calculate vca_stats but not use StatsWidget
+        vca_stats = self.controller.getStatsTableData() # This produces the list of lists for VCA's specific table
 
-        vca_stats = {}
-        data = np.array(data)
-        total, md, cd, res = self.controller.calculate_variances(data)
-        vca_stats["md_std_dev"] = np.sqrt(md)
-        vca_stats["cd_std_dev"] = np.sqrt(cd)
-        vca_stats["total_std_dev"] = np.sqrt(total)
-        vca_stats["residual_std_dev"] = np.sqrt(res)
+        if vca_stats:
+            if len(vca_stats) > 0:
+                # Assuming vca_stats[0] is like ["", "Channel [Unit]", "% of mean"]
+                channel_info_text = "Statistics for: "
+                if len(vca_stats[0]) > 1:
+                    channel_info_text += vca_stats[0][1]
+                self.vcaChannelInfoLabel.setText(channel_info_text)
 
-        mean = np.mean(data)
-
-        vca_stats["md_std_dev_p"] = 100 * vca_stats["md_std_dev"] / mean
-        vca_stats["cd_std_dev_p"] = 100 * vca_stats["cd_std_dev"] / mean
-        vca_stats["total_std_dev_p"] = 100 * vca_stats["total_std_dev"] / mean
-        vca_stats["residual_std_dev_p"] = 100 * \
-            vca_stats["residual_std_dev"] / mean
-
-        self.unit_label.setText(
-            f"{self.measurement.units[self.controller.channel]}")
-        self.total_std_dev_label.setText(f"{vca_stats['total_std_dev']:.2f}")
-        self.md_std_dev_label.setText(f"{vca_stats['md_std_dev']:.2f}")
-        self.cd_std_dev_label.setText(f"{vca_stats['cd_std_dev']:.2f}")
-        self.residual_std_dev_label.setText(
-            f"{vca_stats['residual_std_dev']:.2f}")
-
-        self.total_std_dev_p_label.setText(
-            f"{vca_stats['total_std_dev_p']:.2f}")
-        self.md_std_dev_p_label.setText(f"{vca_stats['md_std_dev_p']:.2f}")
-        self.cd_std_dev_p_label.setText(f"{vca_stats['cd_std_dev_p']:.2f}")
-        self.residual_std_dev_p_label.setText(
-            f"{vca_stats['residual_std_dev_p']:.2f}")
+            if len(vca_stats) > 1 and len(vca_stats[1]) == 3:
+                # Assuming vca_stats[1] is [names_str, values_str, percents_str]
+                self.vcaStatNamesLabel.setText(vca_stats[1][0])
+                self.vcaStatValuesLabel.setText(vca_stats[1][1])
+                self.vcaStatPercentagesLabel.setText(vca_stats[1][2])
+            else:
+                self.vcaStatNamesLabel.setText("N/A")
+                self.vcaStatValuesLabel.setText("N/A")
+                self.vcaStatPercentagesLabel.setText("N/A")
+        else:
+            self.vcaChannelInfoLabel.setText("Channel: N/A")
+            self.vcaStatNamesLabel.setText("N/A")
+            self.vcaStatValuesLabel.setText("N/A")
+            self.vcaStatPercentagesLabel.setText("N/A")
