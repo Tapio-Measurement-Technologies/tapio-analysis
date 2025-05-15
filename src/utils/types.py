@@ -1,12 +1,30 @@
 from dataclasses import dataclass, field
-from typing import Optional, Callable, Literal, Protocol, ClassVar, List, Type
+from typing import Optional, Callable, Literal, Protocol, ClassVar
 from abc import abstractmethod
 from PyQt6.QtWidgets import QPushButton
-from PyQt6.QtCore import pyqtBoundSignal
 from utils.measurement import Measurement
 
 AnalysisType = Literal["MD", "CD"]
 ModuleName = str
+
+@dataclass
+class PlotAnnotation:
+    text: str
+    xy: tuple[float, float]
+    xytext: Optional[tuple[float, float]] = None
+    arrowprops: Optional[dict] = field(default_factory=dict)
+    style: Optional[dict] = field(default_factory=dict)
+
+    @staticmethod
+    def from_dict(data: dict) -> "PlotAnnotation":
+        return PlotAnnotation(**data)
+
+@dataclass
+class PreconfiguredAnalysis:
+    analysis_name: str
+    analysis_type: AnalysisType
+    attributes: dict
+    annotations: list[PlotAnnotation]
 
 @dataclass
 class MainWindowSectionModule:
@@ -80,37 +98,3 @@ class ExporterModule(Protocol):
             fileName: Path to the file where data should be exported
         """
         pass
-
-class AnalysisController(Protocol):
-    """Protocol defining the interface for analysis controllers"""
-    measurement: Measurement
-    updated: pyqtBoundSignal
-
-    def __init__(self, measurement: Measurement, window_type: AnalysisType = "MD") -> None: ...
-    def plot(self): ...
-    def getStatsTableData(self): ...
-    def getExportData(self): ...
-
-class AnalysisWindow(Protocol):
-    """Protocol defining the interface for analysis windows
-
-    When both measurement and controller arguments are supplied during initialization,
-    the measurement argument is ignored since the controller already contains a reference
-    to the measurement.
-    """
-    controller: AnalysisController
-    measurement: Measurement
-
-    def __init__(self,
-                 window_type: AnalysisType = "MD",
-                 controller: Optional[AnalysisController] = None,
-                 measurement: Optional[Measurement] = None) -> None: ...
-    def refresh(self) -> None: ...
-
-class AnalysisModule(Protocol):
-    """Protocol defining the interface for analysis modules"""
-    analysis_name: str
-    analysis_types: List[AnalysisType]
-    allow_multiple_instances: Optional[bool] = True # Flag to control if multiple windows of this analysis can be opened
-    AnalysisController: Type[AnalysisController]
-    AnalysisWindow: Type[AnalysisWindow]

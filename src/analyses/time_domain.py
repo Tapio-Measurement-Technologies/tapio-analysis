@@ -1,7 +1,8 @@
-from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QMenuBar, QHBoxLayout, QGroupBox
 from utils.measurement import Measurement
+from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
 from utils.filters import bandpass_filter
+from utils.types import PlotAnnotation
 from matplotlib.ticker import AutoMinorLocator
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from gui.components import (
@@ -15,7 +16,7 @@ from gui.components import (
     ChildWindowCloseMixin,
     StatsWidget,
     ExportMixin,
-    PlotMixin
+    ShowAnnotationsMixin
 )
 import settings
 import numpy as np
@@ -24,12 +25,9 @@ import pandas as pd
 analysis_name = "Time Domain"
 analysis_types = ["MD"]
 
-class AnalysisController(QObject, PlotMixin, ExportMixin):
-    updated = pyqtSignal()
-
-    def __init__(self, measurement: Measurement, window_type="MD"):
-        super().__init__()
-        self.measurement = measurement
+class AnalysisController(AnalysisControllerBase, ExportMixin):
+    def __init__(self, measurement: Measurement, analysis_type="MD", annotations: list[PlotAnnotation] = [], attributes: dict = {}):
+        super().__init__(measurement, analysis_type, annotations, attributes)
 
         self.max_dist = np.max(self.measurement.distances)
         self.fs = 1 / self.measurement.sample_step
@@ -38,7 +36,6 @@ class AnalysisController(QObject, PlotMixin, ExportMixin):
         self.analysis_range_high = settings.TIME_DOMAIN_ANALYSIS_RANGE_HIGH_DEFAULT * self.max_dist
         self.band_pass_low = settings.TIME_DOMAIN_BAND_PASS_LOW_DEFAULT_1M
         self.band_pass_high = settings.TIME_DOMAIN_BAND_PASS_HIGH_DEFAULT_1M
-        self.channel = self.measurement.channels[0]
         self.machine_speed = settings.PAPER_MACHINE_SPEED_DEFAULT
         self.show_unfiltered_data = settings.TIME_DOMAIN_SHOW_UNFILTERED_DATA_DEFAULT
         self.show_time_labels = settings.TIME_DOMAIN_SHOW_TIME_LABELS_DEFAULT
@@ -169,13 +166,11 @@ class AnalysisController(QObject, PlotMixin, ExportMixin):
         return pd.DataFrame(data)
 
 
-class AnalysisWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin,
-                       ShowUnfilteredMixin, ShowTimeLabelsMixin, MachineSpeedMixin, CopyPlotMixin, ChildWindowCloseMixin):
+class AnalysisWindow(AnalysisWindowBase, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin,
+                       ShowUnfilteredMixin, ShowTimeLabelsMixin, MachineSpeedMixin, CopyPlotMixin, ChildWindowCloseMixin, ShowAnnotationsMixin):
 
-    def __init__(self, window_type="MD", controller: AnalysisController | None = None, measurement: Measurement | None = None):
-        super().__init__()
-        self.controller = controller if controller else AnalysisController(
-            measurement, window_type)
+    def __init__(self, controller: AnalysisController, window_type="MD"):
+        super().__init__(controller, window_type)
         self.measurement = self.controller.measurement
         self.initUI()
 
@@ -232,6 +227,8 @@ class AnalysisWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilterMi
         controlsPanelLayout.addWidget(displayOptionsGroup)
         self.addShowTimeLabelsCheckbox(displayOptionsLayout)
         self.addShowUnfilteredCheckbox(displayOptionsLayout)
+        if self.controller.annotations:
+            self.addShowAnnotationsCheckbox(displayOptionsLayout)
 
         controlsPanelLayout.addStretch() # Add stretch to push control groups to the top
 

@@ -3,7 +3,7 @@ from io import BytesIO
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT as NavigationToolbar
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QImage
-from PyQt6.QtWidgets import QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QVBoxLayout, QWidget, QFrame
 from PyQt6.QtWidgets import QComboBox, QLabel, QDoubleSpinBox, QFileDialog, QCheckBox, QHBoxLayout, QMessageBox, QGridLayout, QPushButton
 from PyQt6.QtGui import QAction, QIcon
 from qtpy.QtCore import Qt, Signal
@@ -11,7 +11,7 @@ from superqt import QLabeledDoubleRangeSlider, QLabeledSlider, QLabeledDoubleSli
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
-
+from utils.types import PlotAnnotation
 import logging
 import settings
 import numpy as np
@@ -731,6 +731,26 @@ class StatsMixin:
         self.rangeLabel.setText(
             f"Range: {range_val:.{settings.STATISTICS_DECIMALS}f} {units}")
 
+class ShowAnnotationsMixin:
+    def initShowAnnotationsCheckbox(self, block_signals=False):
+        # Prevent recursive refresh calls when updating values elsewhere
+        self.showAnnotationsCheckBox.blockSignals(block_signals)
+        show_annotations = self.controller.show_annotations
+        self.showAnnotationsCheckBox.setChecked(show_annotations)
+        self.showAnnotationsCheckBox.blockSignals(False)
+
+    def addShowAnnotationsCheckbox(self, layout):
+        self.showAnnotationsCheckBox = QCheckBox("Show annotations")
+        self.initShowAnnotationsCheckbox()
+        self.showAnnotationsCheckBox.stateChanged.connect(
+            self.update_show_annotations)
+        layout.addWidget(self.showAnnotationsCheckBox)
+
+    def update_show_annotations(self):
+        state = self.showAnnotationsCheckBox.isChecked()
+        self.controller.show_annotations = state
+        self.refresh()
+
 
 class PlotMixin:
 
@@ -747,6 +767,8 @@ class PlotMixin:
     def updatePlot(self):
         try:
             self.plot()
+            if self.show_annotations:
+                self.applyAnnotations()
         except Exception as e:
             # Print the exception details with traceback
             print("Exception occurred:")
@@ -754,6 +776,17 @@ class PlotMixin:
             self.figure.text(0.5, 0.5, "Invalid parameters",
                              fontsize=14, ha='center', va='center')
             self.canvas.draw()
+
+    def applyAnnotations(self):
+        for annotation in self.annotations:
+            self.figure.axes[0].annotate(
+                text=annotation.text,
+                xy=annotation.xy,
+                xytext=annotation.xytext,
+                arrowprops=annotation.arrowprops,
+                **annotation.style
+            )
+        self.canvas.draw()
 
     def getPlotImage(self, format="png", dpi=300):
         buf = io.BytesIO()

@@ -1,4 +1,3 @@
-from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QMenuBar, QPushButton, QHBoxLayout, QGroupBox
 from PyQt6.QtGui import QAction
 from gui.components import (
@@ -12,13 +11,12 @@ from gui.components import (
     CopyPlotMixin,
     AutoDetectPeaksMixin,
     ChildWindowCloseMixin,
-    ExportMixin,
-    PlotMixin
+    ExportMixin
 )
 from gui.paper_machine_data import PaperMachineDataWindow
 from utils.measurement import Measurement
-from utils.signal_processing import hs_units
-from utils import store
+from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
+from utils.types import AnalysisType, PlotAnnotation
 import matplotlib.patches as mpatches
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from scipy.signal import welch
@@ -78,14 +76,9 @@ def tabular_legend(ax, col_labels, data, *args, **kwargs):
     return legend
 
 
-class AnalysisController(QObject, PlotMixin, ExportMixin):
-    updated = pyqtSignal()
-
-    def __init__(self, measurement: Measurement, window_type="MD"):
-        super().__init__()
-        self.measurement = measurement
-
-        self.window_type = window_type
+class AnalysisController(AnalysisControllerBase, ExportMixin):
+    def __init__(self, measurement: Measurement, window_type: AnalysisType, annotations: list[PlotAnnotation] = [], attributes: dict = {}):
+        super().__init__(measurement, window_type, annotations, attributes)
         self.ax = None
 
         # Dynamic initialization based on window type
@@ -137,7 +130,6 @@ class AnalysisController(QObject, PlotMixin, ExportMixin):
         self.analysis_range_high = config["analysis_range_high"] * \
             self.max_dist
 
-        self.channel = self.measurement.channels[0]
         self.machine_speed = settings.PAPER_MACHINE_SPEED_DEFAULT
 
         self.selected_elements = []
@@ -288,16 +280,12 @@ class AnalysisController(QObject, PlotMixin, ExportMixin):
         return pd.DataFrame(data)
 
 
-class AnalysisWindow(QWidget, AnalysisRangeMixin, ChannelMixin, FrequencyRangeMixin, MachineSpeedMixin,
+class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin, ChannelMixin, FrequencyRangeMixin, MachineSpeedMixin,
                      SampleSelectMixin, SpectrumLengthMixin, ShowWavelengthMixin, CopyPlotMixin, AutoDetectPeaksMixin,
                      ChildWindowCloseMixin):
 
-    def __init__(self, window_type="MD", controller: AnalysisController | None = None, measurement: Measurement | None = None):
-        super().__init__()
-        self.window_type = window_type
-        self.controller = controller if controller else AnalysisController(
-            measurement, window_type)
-        self.measurement = self.controller.measurement
+    def __init__(self, controller: AnalysisController, window_type: AnalysisType = "MD"):
+        super().__init__(controller, window_type)
         self.paperMachineDataWindow = None
         self.sampleSelectorWindow = None
         self.checked_elements = []

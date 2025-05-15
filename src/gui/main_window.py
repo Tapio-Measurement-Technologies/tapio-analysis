@@ -305,10 +305,6 @@ class MainWindow(QMainWindow):
             window for window in self.windows if window.isVisible()]
 
     def add_window(self, newWindow):
-        # Store the window type if it's an analysis window
-        if hasattr(newWindow, 'controller') and hasattr(newWindow.controller, '__module__'):
-            newWindow.controller_module = newWindow.controller.__module__
-
         newWindow.show()
         self.windows.append(newWindow)
         self.updateWindowsList()
@@ -329,27 +325,24 @@ class MainWindow(QMainWindow):
         if not allow_multiple:
             # Look for existing window of this type
             for window in self.windows:
-                if (hasattr(window, 'controller') and
-                    hasattr(window.controller, '__module__') and
-                    window.controller.__module__ == analysis.__name__ and
-                    getattr(window, 'window_type', None) == window_type):
+                if (getattr(window, 'tapio_analysis_key', None) == analysis_name and
+                    getattr(window, 'window_type', None) == window_type and
+                    getattr(window, 'tapio_measurement', None) == store.loaded_measurement):
 
                     # Found existing window, bring it to front
-                    window.raise_()
-                    window.setWindowState(
-                        window.windowState() & ~Qt.WindowState.WindowMinimized | Qt.WindowState.WindowActive)
-                    window.activateWindow()
+                    window.bring_to_front()
                     return
 
         # Create new window
-        newWindow = analysis.AnalysisWindow(measurement=store.loaded_measurement, window_type=window_type)
+        newWindow = analysis.Analysis(measurement=store.loaded_measurement, window_type=window_type).window
+        newWindow.tapio_analysis_key = analysis_name # Store the analysis key
+        newWindow.tapio_measurement = store.loaded_measurement # Store the measurement
+        newWindow.closed.connect(lambda: self.windows.remove(newWindow))
         self.add_window(newWindow)
 
         # Update main window when find samples analysis is updated
         if analysis_name == "find_samples":
             newWindow.controller.updated.connect(self.refresh)
-            # TODO: fix this for all other windows
-            newWindow.closed.connect(lambda: self.windows.remove(newWindow))
 
     def setupAnalysisButtons(self, layout):
         columnsLayout = QHBoxLayout()

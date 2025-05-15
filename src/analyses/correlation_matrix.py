@@ -1,6 +1,7 @@
-from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGroupBox
 from utils.measurement import Measurement
+from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
+from utils.types import AnalysisType, PlotAnnotation
 from utils.filters import bandpass_filter
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import matplotlib.patheffects as path_effects
@@ -8,8 +9,7 @@ from gui.components import (
     AnalysisRangeMixin,
     BandPassFilterMixin,
     CopyPlotMixin,
-    ChildWindowCloseMixin,
-    PlotMixin
+    ChildWindowCloseMixin
 )
 import settings
 import logging
@@ -19,13 +19,9 @@ import pandas as pd
 analysis_name = "Correlation Matrix"
 analysis_types = ["MD", "CD"]
 
-class AnalysisController(QObject, PlotMixin):
-    updated = pyqtSignal()
-
-    def __init__(self, measurement: Measurement, window_type="MD"):
-        super().__init__()
-        self.measurement = measurement
-        self.window_type = window_type
+class AnalysisController(AnalysisControllerBase):
+    def __init__(self, measurement: Measurement, window_type: AnalysisType, annotations: list[PlotAnnotation] = [], attributes: dict = {}):
+        super().__init__(measurement, window_type, annotations, attributes)
 
         if window_type == "MD":
             self.max_dist = np.max(self.measurement.distances)
@@ -148,19 +144,15 @@ class AnalysisController(QObject, PlotMixin):
         stats = []
         return stats
 
-class AnalysisWindow(QWidget, AnalysisRangeMixin, BandPassFilterMixin, CopyPlotMixin, ChildWindowCloseMixin):
+class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin, BandPassFilterMixin, CopyPlotMixin, ChildWindowCloseMixin):
 
-    def __init__(self, window_type="MD", controller: AnalysisController | None = None, measurement: Measurement | None = None):
-        super().__init__()
-        self.controller = controller if controller else AnalysisController(
-            measurement, window_type)
-        self.measurement = self.controller.measurement
-        self.window_type = window_type
+    def __init__(self, controller: AnalysisController, window_type: AnalysisType = "MD"):
+        super().__init__(controller, window_type)
         self.initUI()
 
     def initUI(self):
         self.setWindowTitle(
-            f"Correlation matrix ({self.measurement.measurement_label})")
+            f"Correlation matrix ({self.controller.measurement.measurement_label})")
         self.setGeometry(100, 100, 1000, 600)
 
         mainHorizontalLayout = QHBoxLayout()

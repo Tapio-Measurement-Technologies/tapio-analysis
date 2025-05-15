@@ -1,7 +1,8 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QMenuBar, QPushButton, QHBoxLayout, QGroupBox
 from PyQt6.QtGui import QAction
-from PyQt6.QtCore import QObject, pyqtSignal
 from utils.measurement import Measurement
+from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
+from utils.types import AnalysisType, PlotAnnotation
 from utils.signal_processing import hs_units
 import matplotlib.pyplot as plt
 import matplotlib
@@ -15,8 +16,7 @@ from gui.components import (
     SpectrumLengthMixin,
     ShowWavelengthMixin,
     CopyPlotMixin,
-    ChildWindowCloseMixin,
-    PlotMixin
+    ChildWindowCloseMixin
 )
 from gui.paper_machine_data import PaperMachineDataWindow
 from utils import store
@@ -26,14 +26,11 @@ import numpy as np
 analysis_name = "Spectrogram"
 analysis_types = ["MD", "CD"]
 
-class AnalysisController(QObject, PlotMixin):
-    updated = pyqtSignal()
+class AnalysisController(AnalysisControllerBase):
 
-    def __init__(self, measurement: Measurement, window_type="MD"):
-        super().__init__()
-        self.measurement = measurement
+    def __init__(self, measurement: Measurement, window_type: AnalysisType = "MD", annotations: list[PlotAnnotation] = [], attributes: dict = {}):
+        super().__init__(measurement, window_type, annotations, attributes)
 
-        self.window_type = window_type
         self.ax = None
 
         # Dynamic initialization based on window type
@@ -77,7 +74,6 @@ class AnalysisController(QObject, PlotMixin):
         self.analysis_range_high = config["analysis_range_high"] * \
             self.max_dist
 
-        self.channel = self.measurement.channels[0]
         self.machine_speed = settings.PAPER_MACHINE_SPEED_DEFAULT
 
         self.selected_elements = []
@@ -256,17 +252,11 @@ class AnalysisController(QObject, PlotMixin):
         return stats
 
 
-class AnalysisWindow(QWidget, AnalysisRangeMixin, ChannelMixin, FrequencyRangeMixin, MachineSpeedMixin, SampleSelectMixin, SpectrumLengthMixin, ShowWavelengthMixin, CopyPlotMixin, ChildWindowCloseMixin):
+class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin, ChannelMixin, FrequencyRangeMixin, MachineSpeedMixin, SampleSelectMixin, SpectrumLengthMixin, ShowWavelengthMixin, CopyPlotMixin, ChildWindowCloseMixin):
 
-    def __init__(self, window_type="MD", controller: AnalysisController | None = None, measurement: Measurement | None = None):
-        super().__init__()
+    def __init__(self, controller: AnalysisController, window_type: AnalysisType = "MD"):
+        super().__init__(controller, window_type)
 
-        self.window_type = window_type
-        self.controller = controller if controller else AnalysisController(
-            measurement, window_type)
-        self.measurement = self.controller.measurement
-
-        self.window_type = window_type
         self.paperMachineDataWindow = None
         self.sampleSelectorWindow = None
         self.sosAnalysisWindow = None
@@ -331,13 +321,21 @@ class AnalysisWindow(QWidget, AnalysisRangeMixin, ChannelMixin, FrequencyRangeMi
         self.pmdButton.setChecked(False)
 
     def refreshSOS(self):
-        pass
+        self.sosAnalysis.controller.data = self.controller.data
+        self.sosAnalysis.controller.fs = self.controller.fs
+        self.sosAnalysis.controller.selected_freqs = self.controller.selected_freqs
+        self.sosAnalysis.controller.channel = self.controller.channel
+        self.sosAnalysis.controller.low_index = self.controller.low_index
+        self.sosAnalysis.controller.high_index = self.controller.high_index
+        self.sosAnalysis.window.refresh()
 
     def toggleSOSAnalysis(self, checked):
         if self.sosAnalysisWindow is None:
-            self.sosAnalysisWindow = store.analyses['sos'].AnalysisWindow(self.controller)
+            self.sosAnalysis = store.analyses['sos'].Analysis(self.measurement, self.window_type)
+            self.sosAnalysisWindow = self.sosAnalysis.window
             self.sosAnalysisWindow.show()
             self.sosAnalysisWindow.closed.connect(self.onSOSAnalysisClosed)
+            self.controller.updated.connect(self.refreshSOS)
             self.sosAnalysisAction.setChecked(True)
         else:
             self.sosAnalysisWindow.close()
@@ -404,11 +402,17 @@ class AnalysisWindow(QWidget, AnalysisRangeMixin, ChannelMixin, FrequencyRangeMi
         self.clearButton.clicked.connect(self.clearFrequency)
         displayOptionsLayout.addWidget(self.clearButton)
 
+
         if self.controller.window_type == "MD":
             otherTogglesGroup = QGroupBox("Other Analyses")
             otherTogglesLayout = QVBoxLayout()
             otherTogglesGroup.setLayout(otherTogglesLayout)
             controlsPanelLayout.addWidget(otherTogglesGroup)
+
+            self.sosButton = QPushButton("SOS Analysis")
+            self.sosButton.setCheckable(True)
+            self.sosButton.clicked.connect(self.toggleSOSAnalysis)
+            otherTogglesLayout.addWidget(self.sosButton)
 
             self.pmdButton = QPushButton("Paper Machine Data")
             self.pmdButton.setCheckable(True)

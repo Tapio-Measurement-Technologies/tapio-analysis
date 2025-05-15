@@ -1,27 +1,29 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout
-from PyQt6.QtCore import QObject, pyqtSignal
+from PyQt6.QtWidgets import QVBoxLayout
 from utils.measurement import Measurement
+from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
+from utils.types import AnalysisType, PlotAnnotation
 from utils.signal_processing import harmonic_fitting_units
-from gui.components import PlotMixin
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import numpy as np
 
 analysis_name = "SOS Analysis"
 analysis_types = ["CD"]
 
-class AnalysisController(QObject, PlotMixin):
-    updated = pyqtSignal()
+class AnalysisController(AnalysisControllerBase):
 
-    def __init__(self, spectrumController):
-        super().__init__()
-        self.spectrumController = spectrumController
-        self.measurement: Measurement = self.spectrumController.measurement
+    def __init__(self, measurement: Measurement, window_type: AnalysisType = "CD", annotations: list[PlotAnnotation] = [], attributes: dict = {}):
+        super().__init__(measurement, window_type, annotations, attributes)
+
+        self.data = None
+        self.fs = None
+        self.selected_freqs = None
+        self.channel = None
 
     def plot(self):
-        data = self.spectrumController.data
-        fs = self.spectrumController.fs
-        selected_freq = self.spectrumController.selected_freqs[-1] if self.spectrumController.selected_freqs else None
-        channel = self.spectrumController.channel
+        data = self.data
+        fs = self.fs
+        selected_freq = self.selected_freqs[-1] if self.selected_freqs else None
+        channel = self.channel
 
         if not selected_freq:
             self.figure.text(0.5, 0.5, "No selected frequency",
@@ -50,19 +52,10 @@ class AnalysisController(QObject, PlotMixin):
         return self.canvas
 
 
-class AnalysisWindow(QWidget):
-
-    closed = pyqtSignal()
-
-    def __init__(self, spectrumController):
-        super().__init__()
-        self.spectrumController = spectrumController
-        self.controller = AnalysisController(self.spectrumController)
+class AnalysisWindow(AnalysisWindowBase[AnalysisController]):
+    def __init__(self, controller: AnalysisController, window_type: AnalysisType = "CD"):
+        super().__init__(controller, window_type)
         self.initUI()
-
-    def closeEvent(self, event):
-        self.closed.emit()
-        super().closeEvent(event)
 
     def initUI(self):
         self.setWindowTitle("SOS analysis")

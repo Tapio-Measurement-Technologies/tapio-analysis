@@ -15,14 +15,34 @@ from utils.logging import LogManager
 from utils.dynamic_loader import load_modules_from_folder
 import os
 from settings import ANALYSIS_DIR, LOADERS_DIR, EXPORTERS_DIR
-from utils.types import ExporterModule, ModuleName, LoaderModule, AnalysisModule
+from utils.types import ExporterModule, ModuleName, LoaderModule
+from utils.analysis import AnalysisModule
 from utils.measurement import Measurement
+from typing import cast
 
 # This will be set in main.py
 log_manager: LogManager | None = None
 base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-loaders: dict[ModuleName, LoaderModule] = load_modules_from_folder(os.path.join(base_path, LOADERS_DIR))
-exporters: dict[ModuleName, ExporterModule] = load_modules_from_folder(os.path.join(base_path, EXPORTERS_DIR))
-analyses: dict[ModuleName, AnalysisModule] = load_modules_from_folder(os.path.join(base_path, ANALYSIS_DIR))
+
+loaders: dict[ModuleName, LoaderModule] = {
+    module_name: cast(LoaderModule, module)
+    for module_name, module in load_modules_from_folder(os.path.join(base_path, LOADERS_DIR)).items()
+}
+
+exporters: dict[ModuleName, ExporterModule] = {
+    module_name: cast(ExporterModule, module)
+    for module_name, module in load_modules_from_folder(os.path.join(base_path, EXPORTERS_DIR)).items()
+}
+
+analyses: dict[ModuleName, AnalysisModule] = {
+    module_name: AnalysisModule(
+        analysis_name=module.analysis_name,
+        analysis_types=module.analysis_types,
+        AnalysisController=module.AnalysisController,
+        AnalysisWindow=module.AnalysisWindow,
+        allow_multiple_instances=getattr(module, "allow_multiple_instances", True)
+    )
+    for module_name, module in load_modules_from_folder(os.path.join(base_path, ANALYSIS_DIR)).items()
+}
 
 loaded_measurement: Measurement | None = None

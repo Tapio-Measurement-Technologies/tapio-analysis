@@ -1,19 +1,18 @@
-from PyQt6.QtCore import QObject, pyqtSignal
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QMenuBar, QMessageBox, QHBoxLayout, QGroupBox
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QMenuBar, QMessageBox, QHBoxLayout, QGroupBox
 from PyQt6.QtGui import QAction
-from qtpy.QtCore import Qt
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from scipy.optimize import curve_fit
 from utils.measurement import Measurement
+from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
+from utils.types import AnalysisType, PlotAnnotation
 from gui.components import (
     AnalysisRangeMixin,
     SampleSelectMixin,
     ShowProfilesMixin,
     CopyPlotMixin,
     ChildWindowCloseMixin,
-    StatsWidget,
-    PlotMixin
+    StatsWidget
 )
 import settings
 import numpy as np
@@ -21,13 +20,9 @@ import numpy as np
 analysis_name = "Formation"
 analysis_types = ["MD", "CD"]
 
-class AnalysisController(QObject, PlotMixin):
-    updated = pyqtSignal()
-
-    def __init__(self, measurement: Measurement, window_type="MD"):
-        super().__init__()
-        self.measurement = measurement
-        self.window_type = window_type
+class AnalysisController(AnalysisControllerBase):
+    def __init__(self, measurement: Measurement, window_type: AnalysisType = "MD", annotations: list[PlotAnnotation] = [], attributes: dict = {}):
+        super().__init__(measurement, window_type, annotations, attributes)
         self.warning_message = None
         self.can_calculate = self.check_required_channels()
         self.sampleSelectorWindow = None
@@ -211,17 +206,13 @@ class AnalysisController(QObject, PlotMixin):
         return result
 
 
-class AnalysisWindow(QWidget, AnalysisRangeMixin, SampleSelectMixin, ShowProfilesMixin, CopyPlotMixin, ChildWindowCloseMixin):
-    def __init__(self, window_type="MD", controller: AnalysisController | None = None, measurement: Measurement | None = None):
-        super().__init__()
-        self.controller = controller if controller else AnalysisController(
-            measurement, window_type)
-        self.measurement = self.controller.measurement
+class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin, SampleSelectMixin, ShowProfilesMixin, CopyPlotMixin, ChildWindowCloseMixin):
+    def __init__(self, controller: AnalysisController, window_type: AnalysisType = "MD"):
+        super().__init__(controller, window_type)
         self.sampleSelectorWindow = None
         if not self.controller.can_calculate:
             self.close()
             return
-        self.window_type = window_type
         self.initUI()
 
     def initMenuBar(self, layout):

@@ -1,8 +1,9 @@
-from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QMenuBar, QHBoxLayout, QGroupBox, QCheckBox, QLabel
 from PyQt6.QtGui import QAction
 from utils.filters import bandpass_filter
 from utils.measurement import Measurement
+from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
+from utils.types import AnalysisType, PlotAnnotation
 from matplotlib.ticker import MaxNLocator
 from matplotlib import colors, cm
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -12,8 +13,7 @@ from gui.components import (
     BandPassFilterMixin,
     SampleSelectMixin,
     CopyPlotMixin,
-    ChildWindowCloseMixin,
-    PlotMixin,
+    ChildWindowCloseMixin
 )
 import settings
 import numpy as np
@@ -21,12 +21,9 @@ import numpy as np
 analysis_name = "Variance Component Analysis"
 analysis_types = ["CD"]
 
-class AnalysisController(QObject, PlotMixin):
-    updated = pyqtSignal()
-
-    def __init__(self, measurement: Measurement, window_type="CD"):
-        super().__init__()
-        self.measurement = measurement
+class AnalysisController(AnalysisControllerBase):
+    def __init__(self, measurement: Measurement, window_type: AnalysisType = "CD", annotations: list[PlotAnnotation] = [], attributes: dict = {}):
+        super().__init__(measurement, window_type, annotations, attributes)
 
         self.selected_samples = self.measurement.selected_samples.copy()
         self.max_dist = np.max(self.measurement.cd_distances)
@@ -34,7 +31,6 @@ class AnalysisController(QObject, PlotMixin):
         self.remove_cd_variations = False
         self.remove_md_variations = False
 
-        self.channel = self.measurement.channels[0]
         self.band_pass_low = settings.VCA_BAND_PASS_LOW_DEFAULT_1M
         self.band_pass_high = settings.VCA_BAND_PASS_HIGH_DEFAULT_1M
         self.analysis_range_low = settings.VCA_RANGE_LOW_DEFAULT * self.max_dist
@@ -286,12 +282,9 @@ class AnalysisController(QObject, PlotMixin):
         return stats
 
 
-class AnalysisWindow(QWidget, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, CopyPlotMixin, ChildWindowCloseMixin):
-    def __init__(self, window_type="CD", controller: AnalysisController | None = None, measurement: Measurement | None = None):
-        super().__init__()
-        self.controller = controller if controller else AnalysisController(
-            measurement, window_type)
-        self.measurement = self.controller.measurement
+class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, CopyPlotMixin, ChildWindowCloseMixin):
+    def __init__(self, controller: AnalysisController, window_type: AnalysisType = "CD"):
+        super().__init__(controller, window_type)
         self.sampleSelectorWindow = None
         self.initUI()
 

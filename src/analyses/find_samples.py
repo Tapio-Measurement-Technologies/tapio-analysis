@@ -1,12 +1,14 @@
 from PyQt6.QtGui import QAction
-from PyQt6.QtCore import pyqtSignal, Qt, QObject, pyqtSignal
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTableWidget,
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QTableWidget,
                              QTableWidgetItem, QSizePolicy, QMenuBar, QFileDialog, QHeaderView,
                              QLabel)
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from utils.measurement import Measurement
+from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
+from utils.types import AnalysisType, PlotAnnotation
 from utils.filters import bandpass_filter
-from gui.components import ChannelMixin, BandPassFilterMixin, ExtraQLabeledDoubleRangeSlider, PlotMixin
+from gui.components import ChannelMixin, BandPassFilterMixin, ExtraQLabeledDoubleRangeSlider
 import settings
 import json
 
@@ -14,12 +16,9 @@ analysis_name = "Find samples"
 analysis_types = ["MD"]
 allow_multiple_instances = False
 
-class AnalysisController(QObject, PlotMixin):
-    updated = pyqtSignal()
-
-    def __init__(self, measurement: Measurement, window_type: str = "MD"):
-        super().__init__()
-        self.measurement = measurement
+class AnalysisController(AnalysisControllerBase):
+    def __init__(self, measurement: Measurement, window_type: AnalysisType = "MD", annotations: list[PlotAnnotation] = [], attributes: dict = {}):
+        super().__init__(measurement, window_type, annotations, attributes)
 
         self.threshold = self.measurement.threshold
         self.peaks = self.measurement.peak_locations
@@ -176,21 +175,10 @@ class CustomNavigationToolbar(NavigationToolbar):
         self.parent.refresh()
 
 
-class AnalysisWindow(QWidget, ChannelMixin, BandPassFilterMixin):
-    closed = pyqtSignal()
-
-    def __init__(self, window_type: str = "MD", controller: AnalysisController | None = None, measurement: Measurement | None = None):
-        super().__init__()
-        self.controller = controller if controller else AnalysisController(
-            measurement)
-        self.measurement = self.controller.measurement
-        self.isClosed = False
+class AnalysisWindow(AnalysisWindowBase[AnalysisController], ChannelMixin, BandPassFilterMixin):
+    def __init__(self, controller: AnalysisController, window_type: AnalysisType = "MD"):
+        super().__init__(controller, window_type)
         self.initUI()
-
-    def closeEvent(self, event):
-        self.isClosed = True
-        self.closed.emit()
-        super().closeEvent(event)
 
     def initUI(self):
         self.setWindowTitle(
@@ -300,7 +288,7 @@ class AnalysisWindow(QWidget, ChannelMixin, BandPassFilterMixin):
             if event.ydata is not None:
                 self.controller.highlighted_intervals = []
                 self.controller.threshold = event.ydata
-                self.controller.peak_channel = self.controller.channel
+                self.measurement.peak_channel = self.controller.channel
                 self.controller.detect_peaks(self.controller.channel)
                 self.update_table(select_all=True)
                 self.measurement.selected_samples = self.get_selected_samples()
