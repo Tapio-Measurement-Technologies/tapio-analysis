@@ -256,8 +256,8 @@ class WaterfallOffsetMixin:
         self.waterfallOffsetSlider.blockSignals(False)
 
     def addWaterfallOffsetSlider(self, layout, live_update=settings.UPDATE_ON_SLIDE):
-        self.bandPassFilterLabel = QLabel("Waterfall y-offset")
-        layout.addWidget(self.bandPassFilterLabel)
+        self.waterfallOffsetLabel = QLabel("Waterfall y-offset")
+        layout.addWidget(self.waterfallOffsetLabel)
         self.waterfallOffsetSlider = QLabeledDoubleSlider(
             Qt.Orientation.Horizontal)
         self.initWaterfallOffsetSlider()
