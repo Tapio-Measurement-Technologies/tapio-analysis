@@ -8,13 +8,11 @@ from scipy.optimize import curve_fit
 import settings
 import traceback
 from utils.measurement import Measurement
-import zipfile
-from io import BytesIO
 
 menu_text = "Load Tapio Parquet data"
 menu_priority = 3
 
-file_types = "All Files (*);;ZIP files (*.zip);;Parquet files (*.parquet);;Calibration files (*.tcal);;Paper machine files (*.pmdata.json)"
+file_types = "All Files (*);;Parquet files (*.parquet);;Calibration files (*.tcal);;Paper machine files (*.pmdata.json)"
 
 RESAMPLE_STEP_DEFAULT_MM = 1
 GENERATE_DISTANCES = False
@@ -38,179 +36,181 @@ def get_sample_step():
 
 
 def load_data(fileNames: list[str]) -> Measurement | None:
-    calibrations = {}
     measurement = Measurement()
+    parquet_file_path = None
+    tcal_file_path = None
+    pmdata_file_path = None
     valid_files_processed = False
 
+    # Find relevant files from the provided list
     for fn in fileNames:
-        if fn.endswith('.zip'):
-            # Open the ZIP file
-            try:
-                with zipfile.ZipFile(fn, 'r') as zip_ref:
-                    # List files in the zip archive
-                    file_list = zip_ref.namelist()
+        if fn.endswith('.parquet') and not parquet_file_path:
+            parquet_file_path = fn
+        elif fn.endswith('.json') and ("-calibration" in fn or fn.endswith(".tcal")) and not tcal_file_path: # Allow .tcal or -calibration.json
+            tcal_file_path = fn
+        elif fn.endswith('.pmdata.json') and not pmdata_file_path:
+            pmdata_file_path = fn
 
-                    # Extract parquet and tcal files
-                    parquet_file = next(
-                        (f for f in file_list if f.endswith('.parquet')), None)
-                    tcal_file = next((f for f in file_list if f.endswith(
-                        '.json') and "-calibration" in f), None)
+    if not parquet_file_path:
+        print("No parquet file found in the provided list of files.")
+        return None
 
-                    if not parquet_file:
-                        print(f"No parquet file found in {fn}")
-                        continue
+    # Process Parquet file
+    try:
+        print(f"Loading Parquet data from: {parquet_file_path}")
+        # Load Parquet data directly from the file path
+        data_df = pd.read_parquet(parquet_file_path)
 
-                    valid_files_processed = True
+        basename = os.path.basename(parquet_file_path)
+        measurement.data_file_path = basename
+        measurement.measurement_label = os.path.splitext(basename)[0] # Label from parquet file
 
-                    with zip_ref.open(parquet_file) as parquet_data:
-                        # Read parquet file as bytes
-                        parquet_bytes = BytesIO(parquet_data.read())
-                        # Load Parquet data into a DataFrame
-                        try:
-                            data_df = pd.read_parquet(parquet_bytes)
-                        except Exception as e:
-                            print(f"Error reading parquet data: {e}")
-                            continue
+        # This logic was previously inside zip processing, ensure it's correctly placed
+        if len(data_df) > 1000:
+            data_df = data_df.iloc[1000:]
 
-                        # Add file name labels
-                        basename = os.path.basename(parquet_file)
-                        measurement.data_file_path = basename
+        distances = data_df.iloc[:, 0].values
+        distances = distances - distances[0]
 
-                        if len(data_df) > 1000:
-                            data_df = data_df.iloc[1000:]
-
-                        distances = data_df.iloc[:, 0].values
-                        distances = distances - distances[0]
-
-                        if GENERATE_DISTANCES:
-                            sample_step = get_sample_step()
-                            if sample_step is None:
-                                return  # User canceled the input
-                            distances = np.arange(len(data_df)) * sample_step
-                            measurement.sample_step = sample_step
-                        else:
-                            delta_distance = np.diff(distances).mean()
-                            sampling_frequency = 1000  # Hz
-                            delta_t = 1 / sampling_frequency
-                            measurement.pm_speed = 60 * \
-                                (delta_distance / delta_t)
-                            print(
-                                f"Average measurement speed [m/min]: {measurement.pm_speed:.2f}")
-
-                            total_samples = len(distances)
-                            total_time_seconds = total_samples / sampling_frequency
-                            total_distance = distances[-1] - distances[0]
-
-                            print(f"Total number of samples: {total_samples}")
-                            print(f"Total length of measurement [seconds]: {
-                                  total_time_seconds:.2f}")
-                            print(f"Total distance of measurement [m]: {
-                                  total_distance:.2f}")
-
-                        raw_data = data_df.iloc[:, 1:].values
-
-                        print("Ensuring unique distance")
-                        unique_distances, first_occurrence_indices = np.unique(
-                            distances, return_index=True)
-                        aggregated_data = raw_data[first_occurrence_indices, :]
-                        print("Resampling")
-
-                        resampled_distances = np.arange(unique_distances[0], unique_distances[-1],
-                                                        (RESAMPLE_STEP_DEFAULT_MM / 1000))
-                        resampled_data = np.zeros(
-                            (len(resampled_distances), aggregated_data.shape[1]))
-
-                        for i in range(aggregated_data.shape[1]):
-                            voltage_interp = interp1d(unique_distances,
-                                                      aggregated_data[:, i],
-                                                      kind='linear',
-                                                      fill_value="extrapolate")
-                            resampled_data[:, i] = voltage_interp(
-                                resampled_distances)
-
-                        measurement.sample_step = RESAMPLE_STEP_DEFAULT_MM / 1000
-                        measurement.channel_df = pd.DataFrame(
-                            resampled_data, columns=data_df.columns[1:])
-                        measurement.distances = resampled_distances
-                        measurement.channels = measurement.channel_df.columns
-                        measurement.measurement_label = os.path.splitext(
-                            os.path.basename(fn))[0]
-
-                    if tcal_file:
-                        with zip_ref.open(tcal_file) as tcal_data:
-                            basename = os.path.basename(tcal_file)
-                            measurement.calibration_file_path = basename
-                            tcal_content = tcal_data.read().decode("utf-8")
-                            tcal_json = json.loads(tcal_content)
-
-                            units_dict = {}
-                            calibration_data = {}
-
-                            for channel_name in measurement.channel_df.columns:
-                                cal_data = tcal_json.get(channel_name)
-                                if cal_data:
-                                    calibration_data[channel_name] = cal_data
-                                    units_dict[channel_name] = cal_data.get(
-                                        "unit", "Unknown")
-                                else:
-                                    units_dict[channel_name] = "V"
-
-                            measurement.units = units_dict
-
-                            # First apply calibrations
-                            apply_calibration_with_uniform_trimming(
-                                measurement, calibration_data)
-
-                            # Then add calculated channels
-                            for channel in settings.CALCULATED_CHANNELS:
-                                name = channel['name']
-                                unit = channel['unit']
-                                function = channel['function']
-                                try:
-                                    result = function(measurement.channel_df)
-                                    if result is not None:
-                                        measurement.channel_df[name] = result
-                                        measurement.units[name] = unit
-                                        print(
-                                            f"Successfully added calculated channel {name}")
-                                    else:
-                                        print(
-                                            f"Calculation returned None for channel {name}")
-                                except Exception as e:
-                                    print(
-                                        f"Failed to calculate channel {name}: {e}")
-                                    traceback.print_exc()
-
-                            measurement.channel_df = measurement.channel_df.drop(
-                                columns=settings.IGNORE_CHANNELS, errors='ignore')
-
-                            measurement.channels = measurement.channel_df.columns
-            except zipfile.BadZipFile:
-                print(f"Error: {fn} is not a valid ZIP file")
-                continue
-            except Exception as e:
-                print(f"Error processing ZIP file {fn}: {e}")
-                traceback.print_exc()
-                continue
-
-        elif fn.endswith('.pmdata.json'):
-            try:
-                measurement.pm_file_path = fn
-                basename = os.path.basename(fn)
-                measurement.load_pm_file()
-                valid_files_processed = True
-            except Exception as e:
-                print(f"Error loading PM data file {fn}: {e}")
-                traceback.print_exc()
-                continue
+        if GENERATE_DISTANCES:
+            sample_step = get_sample_step()
+            if sample_step is None:
+                return None  # User canceled the input
+            distances = np.arange(len(data_df)) * sample_step
+            measurement.sample_step = sample_step
         else:
-            print(f"Unsupported file format: {fn}")
+            if len(distances) > 1:
+                delta_distance = np.diff(distances).mean()
+                sampling_frequency = 1000  # Hz
+                delta_t = 1 / sampling_frequency
+                measurement.pm_speed = 60 * (delta_distance / delta_t)
+                print(f"Average measurement speed [m/min]: {measurement.pm_speed:.2f}")
+            else: # Handle case with single data point or insufficient data for diff
+                print("Not enough data points to calculate speed from distances.")
+                measurement.pm_speed = 0
 
-    # Return the measurement only if we successfully processed at least one valid file
+
+            total_samples = len(distances)
+            sampling_frequency = 1000 # Re-state for clarity if block is separated
+            total_time_seconds = total_samples / sampling_frequency
+            total_distance = distances[-1] - distances[0] if len(distances) > 0 else 0
+
+            print(f"Total number of samples: {total_samples}")
+            print(f"Total length of measurement [seconds]: {total_time_seconds:.2f}")
+            print(f"Total distance of measurement [m]: {total_distance:.2f}")
+
+        raw_data = data_df.iloc[:, 1:].values
+
+        print("Ensuring unique distance")
+        unique_distances, first_occurrence_indices = np.unique(distances, return_index=True)
+        aggregated_data = raw_data[first_occurrence_indices, :]
+
+        print("Resampling")
+        if len(unique_distances) < 2: # Need at least two points to define a range for arange
+            print("Not enough unique distance points to resample. Using original data.")
+            resampled_distances = unique_distances
+            resampled_data = aggregated_data
+            measurement.sample_step = np.diff(unique_distances).mean() if len(unique_distances) > 1 else (RESAMPLE_STEP_DEFAULT_MM / 1000)
+        else:
+            resampled_distances = np.arange(unique_distances[0], unique_distances[-1], (RESAMPLE_STEP_DEFAULT_MM / 1000))
+            if len(resampled_distances) == 0 and len(unique_distances) > 0 : # Handle edge case where arange yields empty due to step size vs range
+                 resampled_distances = unique_distances[:1] # Use first point
+
+            resampled_data = np.zeros((len(resampled_distances), aggregated_data.shape[1]))
+
+            if aggregated_data.shape[1] > 0 and len(unique_distances) >=2 : # Check if there are columns to interpolate and enough points
+                for i in range(aggregated_data.shape[1]):
+                    voltage_interp = interp1d(unique_distances,
+                                              aggregated_data[:, i],
+                                              kind='linear',
+                                              fill_value="extrapolate")
+                    resampled_data[:, i] = voltage_interp(resampled_distances)
+                measurement.sample_step = RESAMPLE_STEP_DEFAULT_MM / 1000
+            elif aggregated_data.shape[1] > 0 and len(unique_distances) == 1: # Single unique point
+                 resampled_data = aggregated_data # Use original aggregated data
+                 measurement.sample_step = (RESAMPLE_STEP_DEFAULT_MM / 1000) # Default step
+            else: # No data columns or not enough points and arange was empty
+                resampled_data = np.array([]).reshape(0, aggregated_data.shape[1]) # Empty data with correct num columns
+                measurement.sample_step = (RESAMPLE_STEP_DEFAULT_MM / 1000)
+
+
+        measurement.channel_df = pd.DataFrame(resampled_data, columns=data_df.columns[1:])
+        measurement.distances = resampled_distances
+        measurement.channels = measurement.channel_df.columns
+        valid_files_processed = True
+
+    except Exception as e:
+        print(f"Error reading or processing parquet file {parquet_file_path}: {e}")
+        traceback.print_exc()
+        return None # Critical error if Parquet loading fails
+
+    # Process TCAL file if found and Parquet was loaded
+    if tcal_file_path and valid_files_processed:
+        try:
+            print(f"Loading TCAL data from: {tcal_file_path}")
+            with open(tcal_file_path, 'r', encoding='utf-8') as tcal_data_file:
+                basename = os.path.basename(tcal_file_path)
+                measurement.calibration_file_path = basename
+                tcal_content = tcal_data_file.read()
+                tcal_json = json.loads(tcal_content)
+
+                units_dict = {}
+                calibration_data = {}
+
+                for channel_name in measurement.channel_df.columns:
+                    cal_data = tcal_json.get(channel_name)
+                    if cal_data:
+                        calibration_data[channel_name] = cal_data
+                        units_dict[channel_name] = cal_data.get("unit", "Unknown")
+                    else:
+                        units_dict[channel_name] = "V" # Default to Volts if no calibration
+
+                measurement.units = units_dict
+
+                # Apply calibrations
+                apply_calibration_with_uniform_trimming(measurement, calibration_data)
+
+                # Add calculated channels
+                for channel_config in settings.CALCULATED_CHANNELS:
+                    name = channel_config['name']
+                    unit = channel_config['unit']
+                    function = channel_config['function']
+                    try:
+                        result = function(measurement.channel_df)
+                        if result is not None:
+                            measurement.channel_df[name] = result
+                            measurement.units[name] = unit
+                            print(f"Successfully added calculated channel {name}")
+                        else:
+                            print(f"Calculation returned None for channel {name}")
+                    except Exception as e_calc:
+                        print(f"Failed to calculate channel {name}: {e_calc}")
+                        traceback.print_exc()
+
+                measurement.channel_df = measurement.channel_df.drop(
+                    columns=settings.IGNORE_CHANNELS, errors='ignore')
+                measurement.channels = measurement.channel_df.columns
+        except Exception as e:
+            print(f"Error processing TCAL file {tcal_file_path}: {e}")
+            traceback.print_exc() # TCAL processing error is not fatal for measurement object
+
+    # Process PMDATA file if found
+    if pmdata_file_path and valid_files_processed:
+        try:
+            print(f"Loading PMDATA from: {pmdata_file_path}")
+            measurement.pm_file_path = pmdata_file_path
+            measurement.load_pm_file() # This method uses measurement.pm_file_path
+        except Exception as e:
+            print(f"Error loading PM data file {pmdata_file_path}: {e}")
+            traceback.print_exc() # PMDATA error is not fatal
+
     if valid_files_processed and measurement.channel_df is not None and not measurement.channel_df.empty:
         return measurement
     else:
-        print("No valid data was loaded")
+        if not valid_files_processed:
+             print("Parquet file processing failed or was skipped.")
+        elif measurement.channel_df is None or measurement.channel_df.empty:
+             print("Data processing resulted in an empty dataset.")
         return None
 
 
