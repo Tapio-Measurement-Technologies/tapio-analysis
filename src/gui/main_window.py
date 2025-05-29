@@ -21,6 +21,7 @@ from gui.drop_zone import DropZoneWidget
 from utils.types import LoaderModule, ExporterModule
 from utils import store
 import settings
+from gui.download_handler import prompt_for_url, download_and_process_zip
 
 class MainWindow(QMainWindow):
 
@@ -74,6 +75,11 @@ class MainWindow(QMainWindow):
             if first:
                 action.setShortcut('Ctrl+O')
                 first = False
+
+        # Add Download from URL option
+        downloadAction = QAction('Download from URL...', self)
+        downloadAction.triggered.connect(self.downloadFromUrl)
+        fileMenu.addAction(downloadAction)
 
         # Create menu items for export module
         for module_name, module in store.exporters.items():
@@ -380,3 +386,12 @@ class MainWindow(QMainWindow):
             columnsLayout.addLayout(section_layout)
 
         layout.addLayout(columnsLayout)
+
+    def downloadFromUrl(self):
+        """Handles the 'Download from URL' menu action."""
+        url = prompt_for_url(self)
+        if url:
+            # Pass self (MainWindow instance) as parent_widget for dialogs
+            _, extracted_paths = download_and_process_zip(url, self)
+            if extracted_paths: # Check if paths were returned (i.e., no major error)
+                self.findLoaderAndLoad("all", extracted_paths)
