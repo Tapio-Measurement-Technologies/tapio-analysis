@@ -32,7 +32,7 @@ ANALYSIS_SECTIONS = [
             MainWindowSectionModule(module_name="correlation_matrix",  type="MD"),
             MainWindowSectionModule(module_name="formation",           type="MD"),
             MainWindowSectionModule(module_name="coherence",           type="MD"),
-            MainWindowSectionModule(module_name="cepstrum",            type="MD")
+            # MainWindowSectionModule(module_name="cepstrum",            type="MD")
         ]
     ),
     MainWindowSection(
@@ -48,7 +48,7 @@ ANALYSIS_SECTIONS = [
             MainWindowSectionModule(module_name="vca",                  type="CD"),
             MainWindowSectionModule(module_name="formation",            type="CD"),
             MainWindowSectionModule(module_name="coherence",            type="CD"),
-            MainWindowSectionModule(module_name="cepstrum",             type="CD")
+            # MainWindowSectionModule(module_name="cepstrum",             type="CD")
         ]
     ),
     MainWindowSection(
