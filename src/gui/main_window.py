@@ -22,6 +22,8 @@ from utils.types import LoaderModule, ExporterModule
 from utils import store
 import settings
 from gui.download_handler import prompt_for_url, download_and_process_zip
+from utils.zip_utils import unpack_zip_to_temp_with_password_prompt
+import shutil
 
 class MainWindow(QMainWindow):
 
@@ -30,9 +32,15 @@ class MainWindow(QMainWindow):
         self.windows = []
         self.findSamplesWindow = None
         self.logWindow = None
+        self._temp_extraction_dirs = []
 
         self.md_export_actions = []
         self.initUI()
+
+        # Connect cleanup to application quit signal
+        app = QApplication.instance()
+        if app: # Ensure QApplication instance exists
+            app.aboutToQuit.connect(self._cleanup_temp_dirs)
 
     def initUI(self):
         self.setWindowTitle('Tapio Analysis')
@@ -149,6 +157,38 @@ class MainWindow(QMainWindow):
         self.setupAnalysisButtons(layout)
         self.refresh()
 
+    def _cleanup_temp_dirs(self):
+        """Cleans up any temporary directories created during ZIP extraction."""
+        for temp_dir in self._temp_extraction_dirs:
+            if os.path.exists(temp_dir):
+                try:
+                    shutil.rmtree(temp_dir)
+                    print(f"Cleaned up temporary directory: {temp_dir}")
+                except Exception as e:
+                    print(f"Error cleaning up temporary directory {temp_dir}: {e}")
+        self._temp_extraction_dirs = []
+
+    def _preprocess_file_paths(self, file_paths: list[str]) -> list[str]:
+        """Processes a list of file paths. If a ZIP file is found, it's unpacked
+        to a temporary directory, and its contents are added to the list.
+        Non-ZIP files are added directly.
+        Keeps track of temporary directories for later cleanup.
+        """
+        processed_paths = []
+
+        for file_path in file_paths:
+            if file_path.lower().endswith('.zip'):
+                print(f"Unpacking ZIP file: {file_path}")
+                extracted_files, temp_dir_path = unpack_zip_to_temp_with_password_prompt(file_path, self)
+                if extracted_files:
+                    processed_paths.extend(extracted_files)
+                    if temp_dir_path and temp_dir_path not in self._temp_extraction_dirs:
+                        self._temp_extraction_dirs.append(temp_dir_path) # Track for cleanup
+            else:
+                processed_paths.append(file_path)
+
+        return processed_paths
+
     def loadFiles(self, loader_module: LoaderModule, file_paths=None):
         """Load files using the specified loader module.
 
@@ -171,6 +211,12 @@ class MainWindow(QMainWindow):
             if not file_paths:  # User canceled
                 return
 
+        processed_file_paths = self._preprocess_file_paths(file_paths)
+
+        if not processed_file_paths:
+            QMessageBox.information(self, "No Files", "No files were found after processing (e.g., empty ZIP or unpacking error).")
+            return
+
         # Confirm if there are open windows
         if len(self.windows) > 0:
             response = QMessageBox.question(self, 'Confirm open new file',
@@ -183,7 +229,7 @@ class MainWindow(QMainWindow):
         # Load the files
         self.closeAll()
         try:
-            measurement = loader_module.load_data(file_paths)
+            measurement = loader_module.load_data(processed_file_paths)
 
             # Check if the loader returned None or an invalid measurement
             if measurement is None:
@@ -203,11 +249,18 @@ class MainWindow(QMainWindow):
         if not file_paths:
             return
 
-        # Find appropriate loader based on file extension
-        file_extension = os.path.splitext(file_paths[0])[1].lower()
+        processed_file_paths = self._preprocess_file_paths(file_paths)
+
+        if not processed_file_paths:
+            QMessageBox.information(self, "No Files", "No files were found after processing dropped files (e.g., empty ZIP or unpacking error).")
+            return
+
+        # Find appropriate loader based on file extension of the *first processed file*
+        # Note: if a ZIP was dropped, this will be the first file *from* the ZIP.
+        file_extension = os.path.splitext(processed_file_paths[0])[1].lower()
 
         # Find a suitable loader and load the files
-        self.findLoaderAndLoad(file_extension, file_paths)
+        self.findLoaderAndLoad(file_extension, processed_file_paths)
 
     def handleDropZoneClick(self):
         """Handle clicks on the drop zone by opening a file picker."""
@@ -221,9 +274,27 @@ class MainWindow(QMainWindow):
             file_extension: The file extension to match, or "all" for any loader
             file_paths: Optional list of file paths. If None, will open a file dialog.
         """
+        actual_file_paths = file_paths
+        if actual_file_paths is None:
+            # This path is tricky because we need to select a loader *before* knowing the files
+            # if we are to preprocess. Standard dialogs don't give us this luxury.
+            # The original logic was to open a dialog based on loader_module in loadFiles.
+            # If file_paths is None here, it means we clicked the drop zone empty or a menu item
+            # that doesn't pre-supply paths.
+            # For now, if file_paths is None, we defer preprocessing until loadFiles.
+            pass # Preprocessing will be handled in loadFiles if paths are obtained via dialog there
+        else:
+            # If file_paths are provided (e.g. from drop, download, or direct call with paths),
+            # they should already be preprocessed by the caller.
+            # However, to be safe, let's ensure it if this function is called directly with zips.
+            # self._cleanup_temp_dirs() # Potentially redundant if called by loadFiles/handleDroppedFiles
+            # actual_file_paths = self._preprocess_file_paths(file_paths) #This might be too broad here
+            # The intent is that `file_paths` given to this function are ALREADY processed.
+            pass # Callers should ensure preprocessing.
+
         # If auto_loader is available, use it directly
         if 'auto_loader' in store.loaders:
-            self.loadFiles(store.loaders['auto_loader'], file_paths)
+            self.loadFiles(store.loaders['auto_loader'], actual_file_paths)
             return
 
         # Find matching loaders
@@ -253,7 +324,7 @@ class MainWindow(QMainWindow):
         selected_loader = select_loader_dialog(self, file_extension, matching_loaders)
 
         if selected_loader:
-            self.loadFiles(selected_loader, file_paths)
+            self.loadFiles(selected_loader, actual_file_paths)
 
     def exportData(self, export_module: ExporterModule):
         file_types = getattr(export_module, 'file_types', 'All Files (*)')
@@ -391,7 +462,8 @@ class MainWindow(QMainWindow):
         """Handles the 'Download from URL' menu action."""
         url = prompt_for_url(self)
         if url:
-            # Pass self (MainWindow instance) as parent_widget for dialogs
-            _, extracted_paths = download_and_process_zip(url, self)
-            if extracted_paths: # Check if paths were returned (i.e., no major error)
+            _, extracted_paths, created_temp_dir_path = download_and_process_zip(url, self)
+            if extracted_paths:
+                if created_temp_dir_path and created_temp_dir_path not in self._temp_extraction_dirs:
+                    self._temp_extraction_dirs.append(created_temp_dir_path)
                 self.findLoaderAndLoad("all", extracted_paths)
