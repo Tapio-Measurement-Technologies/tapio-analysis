@@ -21,7 +21,7 @@ from gui.drop_zone import DropZoneWidget
 from utils.types import LoaderModule, ExporterModule
 from utils import store
 import settings
-from gui.download_handler import prompt_for_url, download_and_process_zip
+from gui.download_handler import prompt_for_url, download_zip_to_temp
 from utils.zip_utils import unpack_zip_to_temp_with_password_prompt
 import shutil
 
@@ -462,8 +462,25 @@ class MainWindow(QMainWindow):
         """Handles the 'Download from URL' menu action."""
         url = prompt_for_url(self)
         if url:
-            _, extracted_paths, created_temp_dir_path = download_and_process_zip(url, self)
-            if extracted_paths:
-                if created_temp_dir_path and created_temp_dir_path not in self._temp_extraction_dirs:
-                    self._temp_extraction_dirs.append(created_temp_dir_path)
-                self.findLoaderAndLoad("all", extracted_paths)
+            downloaded_zip_path = download_zip_to_temp(url, self)
+
+            if downloaded_zip_path:
+                try:
+                    # Preprocess the downloaded ZIP. This will unpack it to a managed temp dir.
+                    processed_paths = self._preprocess_file_paths([downloaded_zip_path])
+
+                    if processed_paths:
+                        # At this point, `processed_paths` contains paths to files *extracted* from the ZIP.
+                        # The original `downloaded_zip_path` can now be deleted.
+                        self.findLoaderAndLoad("all", processed_paths)
+                    # else: _preprocess_file_paths or unpack_zip_to_temp_with_password_prompt already showed a message
+                finally:
+                    # Ensure the originally downloaded temporary ZIP file is deleted
+                    # after attempting to process it, regardless of success/failure of unpacking or loading.
+                    if os.path.exists(downloaded_zip_path):
+                        print(f"Cleaning up downloaded temporary ZIP: {downloaded_zip_path}")
+                        try:
+                            os.remove(downloaded_zip_path)
+                        except Exception as e_del:
+                            print(f"Error deleting temporary downloaded ZIP {downloaded_zip_path}: {e_del}")
+            # else: download_zip_to_temp already showed an error message
