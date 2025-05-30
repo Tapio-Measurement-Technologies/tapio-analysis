@@ -8,7 +8,7 @@
 # You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 from PyQt6.QtWidgets import (QApplication, QWidget, QPushButton, QVBoxLayout, QLabel, QHBoxLayout, QMessageBox,
-                             QMainWindow, QFileDialog)
+                             QMainWindow, QFileDialog, QProgressDialog)
 from PyQt6.QtGui import QPixmap, QAction
 from PyQt6.QtCore import Qt
 import os
@@ -228,8 +228,17 @@ class MainWindow(QMainWindow):
 
         # Load the files
         self.closeAll()
+
+        progress_dialog = QProgressDialog("Loading measurement file(s)...", None, 0, 0, self)
+        progress_dialog.setWindowModality(Qt.WindowModality.WindowModal)
+        progress_dialog.setWindowTitle("Loading...")
+        progress_dialog.setCancelButton(None)
+        # progress_dialog.show() # TODO: Dialog is not displayed due to main thread being blocked
+        QApplication.processEvents()
+
         try:
             measurement = loader_module.load_data(processed_file_paths)
+            progress_dialog.close()
 
             # Check if the loader returned None or an invalid measurement
             if measurement is None:
@@ -238,6 +247,7 @@ class MainWindow(QMainWindow):
 
             store.loaded_measurement = measurement
         except Exception as e:
+            progress_dialog.close()
             store.loaded_measurement = None
             QMessageBox.critical(self, "Error", f"Error loading data: {e}")
             return

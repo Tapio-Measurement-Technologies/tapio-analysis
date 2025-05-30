@@ -2,7 +2,9 @@ import pyzipper
 import tempfile
 import os
 import shutil
-from PyQt6.QtWidgets import QInputDialog, QMessageBox, QLineEdit
+from PyQt6.QtWidgets import QInputDialog, QMessageBox, QLineEdit, QProgressDialog, QApplication
+from PyQt6.QtCore import Qt
+import time
 
 def unpack_zip_to_temp_with_password_prompt(zip_file_path, parent_widget):
     """Unpacks a ZIP file to a temporary directory using pyzipper, handling passwords.
@@ -110,6 +112,15 @@ def unpack_zip_to_temp_with_password_prompt(zip_file_path, parent_widget):
 
         final_persistent_temp_dir = tempfile.mkdtemp()
 
+        progress_dialog_unpack = QProgressDialog(parent_widget)
+        progress_dialog_unpack.setWindowModality(Qt.WindowModality.WindowModal)
+        progress_dialog_unpack.setWindowTitle("Unpacking...")
+        progress_dialog_unpack.setLabelText(f"Unpacking {os.path.basename(zip_file_path)}...")
+        progress_dialog_unpack.setRange(0, 0)  # Indeterminate
+        progress_dialog_unpack.setCancelButton(None)
+        progress_dialog_unpack.show()
+        QApplication.processEvents()
+
         try:
             # Use a single ZipFile context for extraction, configured with password if needed
             with pyzipper.ZipFile(zip_file_path, 'r') as zf_extract:
@@ -127,6 +138,8 @@ def unpack_zip_to_temp_with_password_prompt(zip_file_path, parent_widget):
 
                 zf_extract.extractall(path=final_persistent_temp_dir)
 
+            progress_dialog_unpack.close()
+
             for item_info in file_infos_for_extraction: # Use the infolist from the successfully opened zip
                 if not item_info.is_dir():
                     zip_entry_filename = item_info.filename.lstrip('/\\')
@@ -140,6 +153,7 @@ def unpack_zip_to_temp_with_password_prompt(zip_file_path, parent_widget):
         except RuntimeError as e_extract_rt:
             error_message = str(e_extract_rt)
             print(f"RuntimeError during extraction: {error_message}")
+            progress_dialog_unpack.close()
             if "unsupported compression method" in error_message.lower() or "compression method is not supported" in error_message.lower():
                 QMessageBox.critical(parent_widget, "Unsupported Compression", f"The ZIP file '{(os.path.basename(zip_file_path))}' uses an unsupported compression method during extraction. Please re-zip using a standard method.")
             else:
@@ -147,11 +161,13 @@ def unpack_zip_to_temp_with_password_prompt(zip_file_path, parent_widget):
             if final_persistent_temp_dir: shutil.rmtree(final_persistent_temp_dir, ignore_errors=True)
             return None, None
         except Exception as e_unhandled_extract:
+            progress_dialog_unpack.close()
             QMessageBox.critical(parent_widget, "Extraction Error", f"An unexpected error occurred during extraction: {e_unhandled_extract}")
             if final_persistent_temp_dir: shutil.rmtree(final_persistent_temp_dir, ignore_errors=True)
             return None, None
 
         if not extracted_file_paths_for_loader:
+            progress_dialog_unpack.close()
             QMessageBox.warning(parent_widget, "No Files Extracted", "The ZIP file was empty or contained no usable files after extraction.")
             if final_persistent_temp_dir: shutil.rmtree(final_persistent_temp_dir, ignore_errors=True)
             return None, None
