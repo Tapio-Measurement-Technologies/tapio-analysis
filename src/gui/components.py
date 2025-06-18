@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import QApplication
 from io import BytesIO
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT as NavigationToolbar
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QImage
+from PyQt6.QtGui import QImage, QMouseEvent
 from PyQt6.QtWidgets import QVBoxLayout, QWidget, QFrame
 from PyQt6.QtWidgets import QComboBox, QLabel, QDoubleSpinBox, QFileDialog, QCheckBox, QHBoxLayout, QMessageBox, QGridLayout, QPushButton
 from PyQt6.QtGui import QAction, QIcon
@@ -29,10 +29,148 @@ class ExtraQLabeledDoubleRangeSlider(QLabeledDoubleRangeSlider):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._slider.sliderReleased.connect(self._on_slider_released)
+        self._fine_control_active = False
+        self._fine_control_factor = settings.DOUBLE_SLIDER_FINE_CONTROL_FACTOR
+        self._drag_start_pos = None
+        self._original_pos = None
+        self._initializing_fine_control = False
+
+        # Override the underlying slider's mouse events
+        self._slider.mousePressEvent = self._slider_mouse_press_event
+        self._slider.mouseReleaseEvent = self._slider_mouse_release_event
+        self._slider.mouseMoveEvent = self._slider_mouse_move_event
 
     def _on_slider_released(self):
         value = self._slider.value()
         self.sliderReleased.emit((value[0], value[1]))
+
+    def _slider_mouse_press_event(self, event):
+        """Handle mouse press events on the underlying slider"""
+        # Only activate fine control if clicking on a handle or within the range
+        if (event.button() == Qt.MouseButton.RightButton or
+            (event.button() == Qt.MouseButton.LeftButton and
+             event.modifiers() == Qt.KeyboardModifier.ControlModifier)):
+            # Estimate handle positions
+            slider_rect = self._slider.rect()
+            min_val, max_val = self._slider.minimum(), self._slider.maximum()
+            low, high = self._slider.value()
+            width = slider_rect.width()
+            handle_radius = settings.DOUBLE_SLIDER_HANDLE_RADIUS
+
+            def value_to_pos(val):
+                return int((val - min_val) / (max_val - min_val) * width)
+
+            low_pos = value_to_pos(low)
+            high_pos = value_to_pos(high)
+            click_x = int(event.position().x())
+
+            # Activate if click is near a handle OR within the range
+            if (abs(click_x - low_pos) <= handle_radius or
+                abs(click_x - high_pos) <= handle_radius or
+                (low_pos <= click_x <= high_pos)):
+                self._fine_control_active = True
+                self._initializing_fine_control = True
+                self._drag_start_pos = event.position()
+                self._original_pos = event.position()
+
+                if event.button() == Qt.MouseButton.RightButton:
+                    self._slider.blockSignals(True)
+                    current_value = self._slider.value()
+                    left_click_event = QMouseEvent(
+                        event.Type.MouseButtonPress,
+                        event.position(),
+                        event.globalPosition(),
+                        Qt.MouseButton.LeftButton,
+                        Qt.MouseButton.LeftButton,
+                        event.modifiers()
+                    )
+                    super(type(self._slider), self._slider).mousePressEvent(left_click_event)
+                    self._slider.setValue(current_value)
+                    self._slider.blockSignals(False)
+                    self._initializing_fine_control = False
+                    return
+
+                self._initializing_fine_control = False
+            else:
+                # Not on a handle or within range, do not activate fine control, do not call base
+                return
+
+        # Call the original mousePressEvent for normal left-clicks
+        super(type(self._slider), self._slider).mousePressEvent(event)
+
+    def _slider_mouse_move_event(self, event):
+        """Handle mouse move events on the underlying slider"""
+        if self._fine_control_active and self._drag_start_pos is not None and not self._initializing_fine_control:
+            # For right-click fine control, we need to simulate the mouse press when dragging starts
+            # since we didn't call the original mousePressEvent
+            if event.buttons() & Qt.MouseButton.RightButton:
+                # Calculate the scaled position for fine control
+                current_pos = event.position()
+                delta = current_pos - self._drag_start_pos
+
+                # Only start dragging if we've moved enough (to prevent accidental activation)
+                if abs(delta.x()) > 2 or abs(delta.y()) > 2:  # 2 pixel threshold
+                    scaled_delta = delta * self._fine_control_factor
+                    scaled_pos = self._original_pos + scaled_delta
+
+                    # Create a new event with the scaled position
+                    scaled_event = QMouseEvent(
+                        event.Type.MouseMove,
+                        scaled_pos,
+                        event.globalPosition(),
+                        Qt.MouseButton.LeftButton,
+                        Qt.MouseButton.LeftButton,
+                        event.modifiers()
+                    )
+                    super(type(self._slider), self._slider).mouseMoveEvent(scaled_event)
+                    return
+
+            # For Ctrl+left-click, use the normal scaling approach
+            elif event.buttons() & Qt.MouseButton.LeftButton:
+                # Calculate the scaled position for fine control
+                current_pos = event.position()
+                delta = current_pos - self._drag_start_pos
+                scaled_delta = delta * self._fine_control_factor
+                scaled_pos = self._original_pos + scaled_delta
+
+                # Create a new event with the scaled position
+                scaled_event = QMouseEvent(
+                    event.Type.MouseMove,
+                    scaled_pos,
+                    event.globalPosition(),
+                    Qt.MouseButton.LeftButton,
+                    Qt.MouseButton.LeftButton,
+                    event.modifiers()
+                )
+                super(type(self._slider), self._slider).mouseMoveEvent(scaled_event)
+                return
+
+        # Call the original mouseMoveEvent
+        super(type(self._slider), self._slider).mouseMoveEvent(event)
+
+    def _slider_mouse_release_event(self, event):
+        """Handle mouse release events on the underlying slider"""
+        # Reset fine control state when mouse is released
+        if self._fine_control_active:
+            self._fine_control_active = False
+            self._drag_start_pos = None
+            self._original_pos = None
+
+            # For right-click release, convert to left-click release
+            if event.button() == Qt.MouseButton.RightButton:
+                left_release_event = QMouseEvent(
+                    event.Type.MouseButtonRelease,
+                    event.position(),
+                    event.globalPosition(),
+                    Qt.MouseButton.LeftButton,
+                    Qt.MouseButton.NoButton,
+                    event.modifiers()
+                )
+                super(type(self._slider), self._slider).mouseReleaseEvent(left_release_event)
+                return
+
+        # Call the original mouseReleaseEvent
+        super(type(self._slider), self._slider).mouseReleaseEvent(event)
 
 
 class MachineSpeedMixin:
