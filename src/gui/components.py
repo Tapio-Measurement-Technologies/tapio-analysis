@@ -735,7 +735,7 @@ class ExtraDataMixin:
             self.update_adjust_extra_data_end)
 
         # Slider layout
-        slider_layout = QHBoxLayout()
+        slider_layout = QVBoxLayout()
         self.extraDataAdjustStartLabel = QLabel("Adjust extra data start [m]")
         slider_layout.addWidget(self.extraDataAdjustStartLabel)
         slider_layout.addWidget(self.extraDataAdjustStartSlider)
