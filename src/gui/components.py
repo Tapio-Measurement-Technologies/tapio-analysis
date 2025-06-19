@@ -794,6 +794,9 @@ class ExtraDataMixin:
                 self.extraDataAdjustEndSlider.setValue(0)
                 self.extraDataAdjustEndSlider.show()
 
+                # Show extra data by default
+                self.extraDataCheckBox.setChecked(True)
+
         except Exception as e:
             QMessageBox.critical(
                 self, "Error", f"Failed to load file: {str(e)}")
