@@ -29,8 +29,6 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        self.windows = []
-        self.findSamplesWindow = None
         self.logWindow = None
         self._temp_extraction_dirs = []
 
@@ -218,7 +216,7 @@ class MainWindow(QMainWindow):
             return
 
         # Confirm if there are open windows
-        if len(self.windows) > 0:
+        if len(store.open_windows) > 0:
             response = QMessageBox.question(self, 'Confirm open new file',
                                         'This will close all current analysis windows. Do you want to proceed?',
                                         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
@@ -379,7 +377,7 @@ class MainWindow(QMainWindow):
 
     def closeAll(self):
         store.loaded_measurement = None
-        for window in self.windows:
+        for window in store.open_windows:
             window.close()
         self.refresh()
 
@@ -388,12 +386,12 @@ class MainWindow(QMainWindow):
         self.add_window(newWindow)
 
     def updateWindowsList(self):
-        self.windows = [
-            window for window in self.windows if window.isVisible()]
+        store.open_windows = [
+            window for window in store.open_windows if window.isVisible()]
 
     def add_window(self, newWindow):
         newWindow.show()
-        self.windows.append(newWindow)
+        store.open_windows.append(newWindow)
         self.updateWindowsList()
 
     def on_log_window_open(self):
@@ -411,7 +409,7 @@ class MainWindow(QMainWindow):
 
         if not allow_multiple:
             # Look for existing window of this type
-            for window in self.windows:
+            for window in store.open_windows:
                 if (getattr(window, 'tapio_analysis_key', None) == analysis_name and
                     getattr(window, 'window_type', None) == window_type and
                     getattr(window, 'tapio_measurement', None) == store.loaded_measurement):
@@ -424,7 +422,7 @@ class MainWindow(QMainWindow):
         newWindow = analysis.Analysis(measurement=store.loaded_measurement, window_type=window_type).window
         newWindow.tapio_analysis_key = analysis_name # Store the analysis key
         newWindow.tapio_measurement = store.loaded_measurement # Store the measurement
-        newWindow.closed.connect(lambda: self.windows.remove(newWindow))
+        newWindow.closed.connect(lambda: store.open_windows.remove(newWindow))
         self.add_window(newWindow)
 
         # Update main window when find samples analysis is updated

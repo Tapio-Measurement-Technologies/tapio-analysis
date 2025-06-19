@@ -19,6 +19,7 @@ from utils.types import ExporterModule, ModuleName, LoaderModule
 from utils.analysis import AnalysisModule
 from utils.measurement import Measurement
 from typing import cast
+from PyQt6.QtWidgets import QWidget
 
 # This will be set in main.py
 log_manager: LogManager | None = None
@@ -46,3 +47,4 @@ analyses: dict[ModuleName, AnalysisModule] = {
 }
 
 loaded_measurement: Measurement | None = None
+open_windows: list[QWidget] = []
