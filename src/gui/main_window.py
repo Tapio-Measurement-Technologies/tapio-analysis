@@ -377,8 +377,12 @@ class MainWindow(QMainWindow):
 
     def closeAll(self):
         store.loaded_measurement = None
-        for window in store.open_windows:
+        while len(store.open_windows) > 0:
+            window = store.open_windows[0]
             window.close()
+            # Just in case, window should be removed automatically when its closed
+            if window in store.open_windows:
+                store.open_windows.remove(window)
         self.refresh()
 
     def openReport(self, window_type="MD"):
