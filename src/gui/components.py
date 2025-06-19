@@ -746,6 +746,10 @@ class ExtraDataMixin:
         # Add sliders layout to the main layout
         layout.addLayout(slider_layout)
 
+        self.loadExtraDataButton = QPushButton("Load extra data")
+        self.loadExtraDataButton.clicked.connect(self.loadExtraData)
+        layout.addWidget(self.loadExtraDataButton)
+
         self.extraDataLabel.hide()
         self.extraDataComboBox.hide()
         self.extraDataCheckBox.hide()
