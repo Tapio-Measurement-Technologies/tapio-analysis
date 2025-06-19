@@ -496,3 +496,7 @@ class MainWindow(QMainWindow):
                         except Exception as e_del:
                             print(f"Error deleting temporary downloaded ZIP {downloaded_zip_path}: {e_del}")
             # else: download_zip_to_temp already showed an error message
+
+    def closeEvent(self, event):
+        self.closeAll()
+        super().closeEvent(event)
