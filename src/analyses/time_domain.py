@@ -166,7 +166,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         return pd.DataFrame(data)
 
 
-class AnalysisWindow(AnalysisWindowBase, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin,
+class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin,
                        ShowUnfilteredMixin, ShowTimeLabelsMixin, MachineSpeedMixin, CopyPlotMixin, ChildWindowCloseMixin, ShowAnnotationsMixin):
 
     def __init__(self, controller: AnalysisController, window_type="MD"):
@@ -241,10 +241,7 @@ class AnalysisWindow(AnalysisWindowBase, AnalysisRangeMixin, ChannelMixin, BandP
         plotStatsLayout.addWidget(self.stats_widget)
 
         # Matplotlib figure and canvas
-        self.plot = self.controller.getCanvas()
-        plotStatsLayout.addWidget(self.plot, 1) # Plot takes most of the vertical space
-        self.toolbar = NavigationToolbar(self.plot, self)
-        plotStatsLayout.addWidget(self.toolbar)
+        self.controller.addPlot(plotStatsLayout)
 
         self.refresh()
 

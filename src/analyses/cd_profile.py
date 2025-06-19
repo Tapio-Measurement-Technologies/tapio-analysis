@@ -349,10 +349,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         plotStatsLayout.addWidget(self.stats_widget)
 
         # Matplotlib figure and canvas
-        self.plot = self.controller.getCanvas()
-        plotStatsLayout.addWidget(self.plot, 1)
-        self.toolbar = NavigationToolbar(self.plot, self)
-        plotStatsLayout.addWidget(self.toolbar)
+        self.controller.addPlot(plotStatsLayout)
 
         self.setGeometry(*settings.CD_PROFILE_WINDOW_GEOMETRY)
         self.refresh()

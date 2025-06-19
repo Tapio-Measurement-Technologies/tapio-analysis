@@ -422,11 +422,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         plotLayout.addWidget(self.selectedQuefrencyLabel) # Place it above plot in the right panel
 
         # Matplotlib figure and canvas
-        self.plot = self.controller.getCanvas()
-        self.plot.mpl_connect('button_press_event', self.onclick)
-        plotLayout.addWidget(self.plot, 1)
-        self.toolbar = NavigationToolbar(self.plot, self)
-        plotLayout.addWidget(self.toolbar)
+        self.controller.addPlot(plotLayout)
+        self.controller.canvas.mpl_connect('button_press_event', self.onclick)
 
         self.refresh()
 

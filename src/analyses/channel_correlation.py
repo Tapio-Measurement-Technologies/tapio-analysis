@@ -224,10 +224,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         mainHorizontalLayout.addLayout(plotLayout, 1)
 
         # Matplotlib figure and canvas
-        self.plot = self.controller.getCanvas()
-        plotLayout.addWidget(self.plot, 1)
-        self.toolbar = NavigationToolbar(self.plot, self)
-        plotLayout.addWidget(self.toolbar)
+        self.controller.addPlot(plotLayout)
 
         self.refresh()
 

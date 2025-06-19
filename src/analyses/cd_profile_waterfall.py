@@ -180,7 +180,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         return pd.DataFrame(data)
 
 
-class AnalysisWindow(AnalysisWindowBase, AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowLegendMixin, ShowConfidenceIntervalMixin, ShowMinMaxMixin, WaterfallOffsetMixin, CopyPlotMixin, ChildWindowCloseMixin):
+class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowLegendMixin, ShowConfidenceIntervalMixin, ShowMinMaxMixin, WaterfallOffsetMixin, CopyPlotMixin, ChildWindowCloseMixin):
     def __init__(self, controller: AnalysisController, window_type="CD"):
         super().__init__(controller, window_type)
         self.sampleSelectorWindow = None
@@ -251,10 +251,7 @@ class AnalysisWindow(AnalysisWindowBase, AnalysisRangeMixin, ChannelMixin, BandP
         plotStatsLayout.addWidget(self.stats_widget)
 
         # Matplotlib figure and canvas
-        self.plot = self.controller.getCanvas()
-        plotStatsLayout.addWidget(self.plot, 1)
-        self.toolbar = NavigationToolbar(self.plot, self)
-        plotStatsLayout.addWidget(self.toolbar)
+        self.controller.addPlot(plotStatsLayout)
 
         self.setGeometry(*settings.CD_PROFILE_WINDOW_GEOMETRY) # Uses same as cd_profile
         self.refresh()

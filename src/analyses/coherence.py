@@ -646,11 +646,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         plotStatsLayout.addWidget(self.selectedFrequencyLabel)
 
         # Matplotlib figure and canvas
-        self.plot = self.controller.getCanvas()
-        self.plot.mpl_connect('button_press_event', self.onclick)
-        plotStatsLayout.addWidget(self.plot, 1)
-        self.toolbar = NavigationToolbar(self.plot, self)
-        plotStatsLayout.addWidget(self.toolbar)
+        self.controller.addPlot(plotStatsLayout)
+        self.controller.canvas.mpl_connect('button_press_event', self.onclick)
 
         self.refresh()
 

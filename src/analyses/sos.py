@@ -65,13 +65,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController]):
         self.setLayout(mainLayout)
 
         # Matplotlib figure and canvas
-        self.plot = self.controller.getCanvas()
-        # Add with stretch factor to allow expansion
-        mainLayout.addWidget(self.plot, 1)
+        self.controller.addPlot(mainLayout)
 
-        # Optional: Adding Matplotlib Navigation Toolbar
-        self.toolbar = NavigationToolbar(self.plot, self)
-        mainLayout.addWidget(self.toolbar)
         self.refresh()
 
     def refresh(self):

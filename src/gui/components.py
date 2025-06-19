@@ -887,8 +887,16 @@ class PlotMixin:
 
     def __init__(self):
         super().__init__()
+
         self.figure = Figure()
         self.canvas = FigureCanvas(self.figure)
+        self.toolbar = NavigationToolbar(self.canvas)
+
+    def addPlot(self, layout):
+        plotLayout = QVBoxLayout()
+        plotLayout.addWidget(self.canvas, stretch=1)
+        plotLayout.addWidget(self.toolbar)
+        layout.addLayout(plotLayout, stretch=1)
 
     def getCanvas(self):
         if not hasattr(self, 'canvas'):

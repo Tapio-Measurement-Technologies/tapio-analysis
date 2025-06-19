@@ -176,10 +176,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         plotLayout = QVBoxLayout()
         mainHorizontalLayout.addLayout(plotLayout, 1)
 
-        self.plot = self.controller.getCanvas()
-        plotLayout.addWidget(self.plot, 1)
-        self.toolbar = NavigationToolbar(self.plot, self)
-        plotLayout.addWidget(self.toolbar)
+        self.controller.addPlot(plotLayout)
 
         self.refresh()
 

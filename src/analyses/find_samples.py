@@ -233,12 +233,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], ChannelMixin, BandP
         plotLayout = QVBoxLayout()
         layout.addLayout(plotLayout)
 
-        self.plot = self.controller.getCanvas()
-        self.plot.mpl_connect('button_press_event', self.on_click)
-        plotLayout.addWidget(self.plot, 1)
-
-        self.toolbar = CustomNavigationToolbar(self.plot, self)
-        plotLayout.addWidget(self.toolbar)
+        self.controller.addPlot(plotLayout)
+        self.controller.canvas.mpl_connect('button_press_event', self.on_click)
 
         # Table for displaying peaks
         self.table = QTableWidget()

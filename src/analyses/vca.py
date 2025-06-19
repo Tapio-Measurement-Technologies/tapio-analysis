@@ -392,10 +392,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         mainHorizontalLayout.addLayout(plotStatsLayout, 1)
 
         # Plotting area setup
-        self.plot = self.controller.getCanvas()
-        plotStatsLayout.addWidget(self.plot, 1)
-        self.toolbar = NavigationToolbar(self.plot, self)
-        plotStatsLayout.addWidget(self.toolbar)
+        self.controller.addPlot(plotStatsLayout)
 
         self.setGeometry(*settings.VCA_WINDOW_GEOMETRY)
         self.refresh()
