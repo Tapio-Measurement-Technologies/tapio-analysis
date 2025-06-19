@@ -23,51 +23,69 @@ import os
 from gui.sample_selector import SampleSelectorWindow
 
 
-class ExtraQLabeledDoubleRangeSlider(QLabeledDoubleRangeSlider):
-    sliderReleased = Signal(tuple)  # Define the new signal for slider release
+class FineControlMixin:
+    """
+    A mixin to add fine control to SuperQt sliders.
+    Fine control is activated by right-clicking or Ctrl+left-clicking the slider.
+    This mixin must be used with a class that has a `_slider` attribute.
+    """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._slider.sliderReleased.connect(self._on_slider_released)
+    def _init_fine_control(self):
         self._fine_control_active = False
         self._fine_control_factor = settings.DOUBLE_SLIDER_FINE_CONTROL_FACTOR
+        self.handle_radius = settings.DOUBLE_SLIDER_HANDLE_RADIUS
+
         self._drag_start_pos = None
         self._original_pos = None
         self._initializing_fine_control = False
+
+        # Store original mouse handlers before overriding
+        self._original_mousePressEvent = self._slider.mousePressEvent
+        self._original_mouseMoveEvent = self._slider.mouseMoveEvent
+        self._original_mouseReleaseEvent = self._slider.mouseReleaseEvent
 
         # Override the underlying slider's mouse events
         self._slider.mousePressEvent = self._slider_mouse_press_event
         self._slider.mouseReleaseEvent = self._slider_mouse_release_event
         self._slider.mouseMoveEvent = self._slider_mouse_move_event
 
-    def _on_slider_released(self):
-        value = self._slider.value()
-        self.sliderReleased.emit((value[0], value[1]))
-
-    def _slider_mouse_press_event(self, event):
-        """Handle mouse press events on the underlying slider"""
-        # Only activate fine control if clicking on a handle or within the range
+    def _slider_mouse_press_event(self, event: QMouseEvent):
+        """Handle mouse press events on the underlying slider to activate fine control."""
         if (event.button() == Qt.MouseButton.RightButton or
             (event.button() == Qt.MouseButton.LeftButton and
              event.modifiers() == Qt.KeyboardModifier.ControlModifier)):
-            # Estimate handle positions
+
             slider_rect = self._slider.rect()
             min_val, max_val = self._slider.minimum(), self._slider.maximum()
-            low, high = self._slider.value()
+            current_value = self._slider.value()
             width = slider_rect.width()
-            handle_radius = settings.DOUBLE_SLIDER_HANDLE_RADIUS
 
             def value_to_pos(val):
+                if max_val == min_val:
+                    return 0
                 return int((val - min_val) / (max_val - min_val) * width)
 
-            low_pos = value_to_pos(low)
-            high_pos = value_to_pos(high)
             click_x = int(event.position().x())
 
-            # Activate if click is near a handle OR within the range
-            if (abs(click_x - low_pos) <= handle_radius or
-                abs(click_x - high_pos) <= handle_radius or
-                (low_pos <= click_x <= high_pos)):
+            handle_positions = []
+            is_range_slider = isinstance(current_value, (list, tuple))
+
+            if is_range_slider:
+                low, high = current_value
+                handle_positions.append(value_to_pos(low))
+                handle_positions.append(value_to_pos(high))
+            else:
+                handle_positions.append(value_to_pos(current_value))
+
+            on_handle = any(abs(click_x - pos) <=
+                            self.handle_radius for pos in handle_positions)
+
+            in_range = False
+            if is_range_slider:
+                low_pos, high_pos = handle_positions
+                in_range = low_pos <= click_x <= high_pos
+
+            if on_handle or in_range:
                 self._fine_control_active = True
                 self._initializing_fine_control = True
                 self._drag_start_pos = event.position()
@@ -75,103 +93,85 @@ class ExtraQLabeledDoubleRangeSlider(QLabeledDoubleRangeSlider):
 
                 if event.button() == Qt.MouseButton.RightButton:
                     self._slider.blockSignals(True)
-                    current_value = self._slider.value()
+                    current_value_at_press = self._slider.value()
                     left_click_event = QMouseEvent(
-                        event.Type.MouseButtonPress,
-                        event.position(),
-                        event.globalPosition(),
-                        Qt.MouseButton.LeftButton,
-                        Qt.MouseButton.LeftButton,
-                        event.modifiers()
+                        event.Type.MouseButtonPress, event.position(), event.globalPosition(),
+                        Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton, event.modifiers()
                     )
-                    super(type(self._slider), self._slider).mousePressEvent(left_click_event)
-                    self._slider.setValue(current_value)
+                    self._original_mousePressEvent(left_click_event)
+                    self._slider.setValue(current_value_at_press)
                     self._slider.blockSignals(False)
                     self._initializing_fine_control = False
                     return
 
                 self._initializing_fine_control = False
             else:
-                # Not on a handle or within range, do not activate fine control, do not call base
-                return
+                return  # Not on a handle or in range, do nothing
 
-        # Call the original mousePressEvent for normal left-clicks
-        super(type(self._slider), self._slider).mousePressEvent(event)
+        self._original_mousePressEvent(event)
 
-    def _slider_mouse_move_event(self, event):
-        """Handle mouse move events on the underlying slider"""
+    def _slider_mouse_move_event(self, event: QMouseEvent):
+        """Handle mouse move events for fine control."""
         if self._fine_control_active and self._drag_start_pos is not None and not self._initializing_fine_control:
-            # For right-click fine control, we need to simulate the mouse press when dragging starts
-            # since we didn't call the original mousePressEvent
-            if event.buttons() & Qt.MouseButton.RightButton:
-                # Calculate the scaled position for fine control
+            if event.buttons() & Qt.MouseButton.RightButton or \
+               (event.buttons() & Qt.MouseButton.LeftButton and event.modifiers() & Qt.KeyboardModifier.ControlModifier):
+
                 current_pos = event.position()
                 delta = current_pos - self._drag_start_pos
 
-                # Only start dragging if we've moved enough (to prevent accidental activation)
-                if abs(delta.x()) > 2 or abs(delta.y()) > 2:  # 2 pixel threshold
+                if abs(delta.x()) > 2 or abs(delta.y()) > 2:
                     scaled_delta = delta * self._fine_control_factor
                     scaled_pos = self._original_pos + scaled_delta
 
-                    # Create a new event with the scaled position
                     scaled_event = QMouseEvent(
-                        event.Type.MouseMove,
-                        scaled_pos,
-                        event.globalPosition(),
-                        Qt.MouseButton.LeftButton,
-                        Qt.MouseButton.LeftButton,
-                        event.modifiers()
+                        event.Type.MouseMove, scaled_pos, event.globalPosition(),
+                        Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton, event.modifiers()
                     )
-                    super(type(self._slider), self._slider).mouseMoveEvent(scaled_event)
+                    self._original_mouseMoveEvent(scaled_event)
                     return
 
-            # For Ctrl+left-click, use the normal scaling approach
-            elif event.buttons() & Qt.MouseButton.LeftButton:
-                # Calculate the scaled position for fine control
-                current_pos = event.position()
-                delta = current_pos - self._drag_start_pos
-                scaled_delta = delta * self._fine_control_factor
-                scaled_pos = self._original_pos + scaled_delta
+        self._original_mouseMoveEvent(event)
 
-                # Create a new event with the scaled position
-                scaled_event = QMouseEvent(
-                    event.Type.MouseMove,
-                    scaled_pos,
-                    event.globalPosition(),
-                    Qt.MouseButton.LeftButton,
-                    Qt.MouseButton.LeftButton,
-                    event.modifiers()
-                )
-                super(type(self._slider), self._slider).mouseMoveEvent(scaled_event)
-                return
-
-        # Call the original mouseMoveEvent
-        super(type(self._slider), self._slider).mouseMoveEvent(event)
-
-    def _slider_mouse_release_event(self, event):
-        """Handle mouse release events on the underlying slider"""
-        # Reset fine control state when mouse is released
+    def _slider_mouse_release_event(self, event: QMouseEvent):
+        """Handle mouse release events to deactivate fine control."""
         if self._fine_control_active:
             self._fine_control_active = False
             self._drag_start_pos = None
             self._original_pos = None
 
-            # For right-click release, convert to left-click release
             if event.button() == Qt.MouseButton.RightButton:
                 left_release_event = QMouseEvent(
-                    event.Type.MouseButtonRelease,
-                    event.position(),
-                    event.globalPosition(),
-                    Qt.MouseButton.LeftButton,
-                    Qt.MouseButton.NoButton,
-                    event.modifiers()
+                    event.Type.MouseButtonRelease, event.position(), event.globalPosition(),
+                    Qt.MouseButton.LeftButton, Qt.MouseButton.NoButton, event.modifiers()
                 )
-                super(type(self._slider), self._slider).mouseReleaseEvent(left_release_event)
+                self._original_mouseReleaseEvent(left_release_event)
                 return
 
-        # Call the original mouseReleaseEvent
-        super(type(self._slider), self._slider).mouseReleaseEvent(event)
+        self._original_mouseReleaseEvent(event)
 
+class ExtraQLabeledDoubleRangeSlider(FineControlMixin, QLabeledDoubleRangeSlider):
+    sliderReleased = Signal()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._slider.sliderReleased.connect(self.sliderReleased.emit)
+        self._init_fine_control()
+
+class ExtraQLabeledSlider(FineControlMixin, QLabeledSlider):
+    sliderReleased = Signal()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._slider.sliderReleased.connect(self.sliderReleased.emit)
+        self._init_fine_control()
+
+class ExtraQLabeledDoubleSlider(FineControlMixin, QLabeledDoubleSlider):
+    sliderReleased = Signal()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._slider.sliderReleased.connect(self.sliderReleased.emit)
+        self._init_fine_control()
 
 class MachineSpeedMixin:
 
@@ -333,20 +333,6 @@ class DoubleChannelMixin:
         self.refresh()
 
 
-class ExtraQLabeledSlider(QLabeledSlider):
-    pass
-
-    # sliderReleased = Signal(int)
-
-    # def __init__(self, *args, **kwargs):
-    #     super().__init__(*args, **kwargs)
-    #     self.sliderReleased.connect(self._on_slider_released)
-
-    # def _on_slider_released(self):
-    #     value = self._slider.value()
-    #     self.sliderReleased.emit(value)
-
-
 class SpectrumLengthMixin:
 
     def initSpectrumLengthSlider(self, block_signals=False):
@@ -398,7 +384,7 @@ class WaterfallOffsetMixin:
     def addWaterfallOffsetSlider(self, layout, live_update=settings.UPDATE_ON_SLIDE):
         self.bandPassFilterLabel = QLabel("Waterfall y-offset")
         layout.addWidget(self.bandPassFilterLabel)
-        self.waterfallOffsetSlider = QLabeledDoubleSlider(
+        self.waterfallOffsetSlider = ExtraQLabeledDoubleSlider(
             Qt.Orientation.Horizontal)
         self.initWaterfallOffsetSlider()
         layout.addWidget(self.waterfallOffsetSlider)
@@ -734,15 +720,15 @@ class ExtraDataMixin:
         layout.addWidget(self.sameScaleCheckBox)
 
         # Extra data adjustment sliders
-        self.extraDataAdjustStartSlider = QLabeledDoubleSlider(self)
-        self.extraDataAdjustStartSlider.setOrientation(Qt.Horizontal)
+        self.extraDataAdjustStartSlider = ExtraQLabeledDoubleSlider(self)
+        self.extraDataAdjustStartSlider.setOrientation(Qt.Orientation.Horizontal)
         self.extraDataAdjustStartSlider.sliderReleased.connect(
             self.update_adjust_extra_data_start)
         self.extraDataAdjustStartSlider.editingFinished.connect(
             self.update_adjust_extra_data_start)
 
-        self.extraDataAdjustEndSlider = QLabeledDoubleSlider(self)
-        self.extraDataAdjustEndSlider.setOrientation(Qt.Horizontal)
+        self.extraDataAdjustEndSlider = ExtraQLabeledDoubleSlider(self)
+        self.extraDataAdjustEndSlider.setOrientation(Qt.Orientation.Horizontal)
         self.extraDataAdjustEndSlider.sliderReleased.connect(
             self.update_adjust_extra_data_end)
         self.extraDataAdjustEndSlider.editingFinished.connect(
