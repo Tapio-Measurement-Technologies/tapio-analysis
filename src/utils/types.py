@@ -3,6 +3,7 @@ from typing import Optional, Callable, Literal, Protocol, ClassVar
 from abc import abstractmethod
 from PyQt6.QtWidgets import QPushButton
 from utils.measurement import Measurement
+import json
 
 AnalysisType = Literal["MD", "CD"]
 ModuleName = str
@@ -25,6 +26,9 @@ class PreconfiguredAnalysis:
     analysis_type: AnalysisType
     attributes: dict
     annotations: list[PlotAnnotation]
+
+    def to_json(self) -> str:
+        return json.dumps(self, default=lambda o: o.__dict__)
 
 @dataclass
 class MainWindowSectionModule:

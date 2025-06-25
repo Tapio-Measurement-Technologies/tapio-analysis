@@ -4,7 +4,9 @@ from typing import Type, List, Optional, TypeVar, Generic
 from dataclasses import dataclass
 from gui.components import PlotMixin
 from utils.measurement import Measurement
-from utils.types import PlotAnnotation, AnalysisType
+from utils.types import PlotAnnotation, AnalysisType, PreconfiguredAnalysis
+import settings
+import json
 from utils import store
 
 class AnalysisControllerBase(QObject, PlotMixin):
@@ -12,14 +14,31 @@ class AnalysisControllerBase(QObject, PlotMixin):
 
     def __init__(self, measurement: Measurement, window_type: AnalysisType, annotations: list[PlotAnnotation] = [], attributes: dict = {}):
         super().__init__()
+        self.analysis_name = self.__module__
         self.measurement: Measurement = measurement
         self.window_type: AnalysisType = window_type
+        self.analysis_type: AnalysisType = window_type # For backwards compatibility
         self.annotations: list[PlotAnnotation] = annotations
         self.show_annotations: bool = len(annotations) > 0
         self.channel: str = measurement.channels[0]
 
+        if attributes:
+            self.set_attributes(attributes)
+
+    def set_attributes(self, attributes: dict):
         for key, value in attributes.items():
             setattr(self, key, value)
+
+    def export_attributes(self) -> dict:
+        return {key: getattr(self, key) for key in settings.ANALYSIS_EXPORT_ATTRIBUTES if hasattr(self, key)}
+
+    def export_analysis(self) -> PreconfiguredAnalysis:
+        return PreconfiguredAnalysis(
+            analysis_name=self.analysis_name,
+            analysis_type=self.analysis_type,
+            attributes=self.export_attributes(),
+            annotations=self.annotations
+        )
 
 ControllerT = TypeVar("ControllerT", bound=AnalysisControllerBase)
 class AnalysisWindowBase(QWidget, Generic[ControllerT]):
@@ -28,8 +47,13 @@ class AnalysisWindowBase(QWidget, Generic[ControllerT]):
     def __init__(self, controller: ControllerT, window_type: AnalysisType):
         super().__init__()
         self.controller: ControllerT = controller
+        self.analysis_name = self.controller.analysis_name
         self.measurement: Measurement = self.controller.measurement
         self.window_type: AnalysisType = window_type
+        self.analysis_type: AnalysisType = window_type # For backwards compatibility
+
+    def on_export_analysis(self):
+        print(self.controller.export_analysis())
 
     def bring_to_front(self):
         self.raise_()

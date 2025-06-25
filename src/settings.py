@@ -285,6 +285,29 @@ REPORT_LOGO_PATH = None
 REPORT_ENABLE_ANALYSIS_TITLE = False
 
 
+ANALYSIS_EXPORT_ATTRIBUTES = [
+    "analysis_name",
+    "analysis_type",
+    "annotations",
+    "channel",
+    "channel1",
+    "channel2",
+    "band_pass_low",
+    "band_pass_high",
+    "analysis_range_low",
+    "analysis_range_high",
+    "waterfall_offset",
+    "confidence_interval",
+    "show_profiles",
+    "show_min_max",
+    "show_legend",
+    "selected_samples",
+    "selected_elements",
+    "selected_freqs",
+    "nperseg"
+]
+
+
 script_dir = os.path.dirname(os.path.abspath(__file__))
 ASSETS_DIR = os.path.join(script_dir, "assets")
 
