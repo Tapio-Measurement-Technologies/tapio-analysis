@@ -18,26 +18,37 @@ class AnalysisControllerBase(QObject, PlotMixin):
         self.measurement: Measurement = measurement
         self.window_type: AnalysisType = window_type
         self.analysis_type: AnalysisType = window_type # For backwards compatibility
-        self.annotations: list[PlotAnnotation] = annotations
-        self.show_annotations: bool = len(annotations) > 0
+        self.show_annotations: bool = len(annotations) > 0 # TODO: Add mixin checkboxes (if necessary)
         self.channel: str = measurement.channels[0]
 
         if attributes:
             self.set_attributes(attributes)
 
+        if annotations:
+            self.set_annotations(annotations)
+
     def set_attributes(self, attributes: dict):
         for key, value in attributes.items():
             setattr(self, key, value)
 
+    def set_annotations(self, annotations: list[PlotAnnotation]):
+        for annotation in annotations:
+            self.canvas.add_annotation(annotation)
+        self.show_annotations = len(annotations) > 0
+
     def export_attributes(self) -> dict:
-        return {key: getattr(self, key) for key in settings.ANALYSIS_EXPORT_ATTRIBUTES if hasattr(self, key)}
+        return {
+            key: getattr(self, key)
+            for key in settings.ANALYSIS_EXPORT_ATTRIBUTES
+            if hasattr(self, key)
+        }
 
     def export_analysis(self) -> PreconfiguredAnalysis:
         return PreconfiguredAnalysis(
             analysis_name=self.analysis_name,
             analysis_type=self.analysis_type,
             attributes=self.export_attributes(),
-            annotations=self.annotations
+            annotations=self.canvas.get_annotations()
         )
 
 ControllerT = TypeVar("ControllerT", bound=AnalysisControllerBase)

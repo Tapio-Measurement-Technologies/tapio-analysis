@@ -10,7 +10,7 @@ from qtpy.QtCore import Qt, Signal
 from superqt import QLabeledDoubleRangeSlider, QLabeledSlider, QLabeledDoubleSlider
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-
+from gui.annotable_canvas import AnnotableCanvas
 from utils.types import PlotAnnotation
 import logging
 import settings
@@ -889,7 +889,7 @@ class PlotMixin:
         super().__init__()
 
         self.figure = Figure()
-        self.canvas = FigureCanvas(self.figure)
+        self.canvas = AnnotableCanvas(self.figure)
         self.toolbar = NavigationToolbar(self.canvas)
 
     def addPlot(self, layout):
@@ -905,9 +905,11 @@ class PlotMixin:
 
     def updatePlot(self):
         try:
+            annotations = self.canvas.get_annotations()
             self.plot()
-            if self.show_annotations:
-                self.applyAnnotations()
+            # Re-apply interactive annotations
+            self.canvas.set_annotations(annotations)
+
         except Exception as e:
             # Print the exception details with traceback
             print("Exception occurred:")
@@ -915,17 +917,6 @@ class PlotMixin:
             self.figure.text(0.5, 0.5, "Invalid parameters",
                              fontsize=14, ha='center', va='center')
             self.canvas.draw()
-
-    def applyAnnotations(self):
-        for annotation in self.annotations:
-            self.figure.axes[0].annotate(
-                text=annotation.text,
-                xy=annotation.xy,
-                xytext=annotation.xytext,
-                arrowprops=annotation.arrowprops,
-                **annotation.style
-            )
-        self.canvas.draw()
 
     def getPlotImage(self, format="png", dpi=300):
         buf = io.BytesIO()

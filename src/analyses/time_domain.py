@@ -227,8 +227,6 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         controlsPanelLayout.addWidget(displayOptionsGroup)
         self.addShowTimeLabelsCheckbox(displayOptionsLayout)
         self.addShowUnfilteredCheckbox(displayOptionsLayout)
-        if self.controller.annotations:
-            self.addShowAnnotationsCheckbox(displayOptionsLayout)
 
         controlsPanelLayout.addStretch() # Add stretch to push control groups to the top
 
