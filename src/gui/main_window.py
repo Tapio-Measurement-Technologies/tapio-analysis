@@ -24,6 +24,7 @@ import settings
 from gui.download_handler import prompt_for_url, download_zip_to_temp
 from utils.zip_utils import unpack_zip_to_temp_with_password_prompt
 import shutil
+from utils.analysis import Analysis
 
 class MainWindow(QMainWindow):
 
@@ -403,8 +404,9 @@ class MainWindow(QMainWindow):
         self.logWindow.show()
 
     def open_analysis_window(self, analysis_name, window_type):
-        analysis = store.analyses.get(analysis_name, None)
-        if not analysis:
+        try:
+            analysis = Analysis(store.loaded_measurement, analysis_name, window_type)
+        except KeyError:
             print(f"Error: Analysis '{analysis_name}' not found")
             return
 
@@ -423,7 +425,7 @@ class MainWindow(QMainWindow):
                     return
 
         # Create new window
-        newWindow = analysis.Analysis(measurement=store.loaded_measurement, window_type=window_type).window
+        newWindow = analysis.window
         newWindow.tapio_analysis_key = analysis_name # Store the analysis key
         newWindow.tapio_measurement = store.loaded_measurement # Store the measurement
         newWindow.closed.connect(lambda: store.open_windows.remove(newWindow))

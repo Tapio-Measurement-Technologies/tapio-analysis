@@ -1,10 +1,11 @@
 from PyQt6.QtCore import QObject, pyqtSignal, Qt
 from PyQt6.QtWidgets import QWidget
-from typing import Type, Protocol, List, Optional, TypeVar, Generic
+from typing import Type, List, Optional, TypeVar, Generic
 from dataclasses import dataclass
 from gui.components import PlotMixin
 from utils.measurement import Measurement
 from utils.types import PlotAnnotation, AnalysisType
+from utils import store
 
 class AnalysisControllerBase(QObject, PlotMixin):
     updated = pyqtSignal()
@@ -40,26 +41,31 @@ class AnalysisWindowBase(QWidget, Generic[ControllerT]):
         self.closed.emit()
         super().closeEvent(event)
 
-def make_analysis_class(controller_cls: Type[AnalysisControllerBase], window_cls: Type[AnalysisWindowBase]):
-    class Analysis:
-        def __init__(self,
-                     measurement: Measurement,
-                     window_type: AnalysisType,
-                     annotations: list[PlotAnnotation] = [],
-                     attributes: dict = {},
-                     open_window: bool = True
-        ):
-            self.controller = controller_cls(measurement, window_type, annotations, attributes)
-            self.window = window_cls(self.controller, window_type)
-
-            if open_window:
-                self.window.show()
-
-    return Analysis
-
-class Analysis(Protocol):
+class Analysis:
     controller: AnalysisControllerBase
     window: AnalysisWindowBase
+    analysis_name: str
+    window_type: AnalysisType
+    measurement: Measurement
+
+    def __init__(self,
+                 measurement: Measurement,
+                 analysis_name: str,
+                 window_type: AnalysisType,
+                 annotations: list[PlotAnnotation] = [],
+                 attributes: dict = {},
+                 open_window: bool = True
+    ):
+        self.analysis_name = analysis_name
+        self.window_type = window_type
+        self.measurement = measurement
+
+        analysis_module = store.analyses[analysis_name] # Throws KeyError if analysis_name is not found
+        self.controller = analysis_module.AnalysisController(measurement, window_type, annotations, attributes)
+        self.window = analysis_module.AnalysisWindow(self.controller, window_type)
+
+        if open_window:
+            self.window.show()
 
 @dataclass
 class AnalysisModule:
@@ -69,6 +75,3 @@ class AnalysisModule:
     AnalysisController: Type[AnalysisControllerBase]
     AnalysisWindow: Type[AnalysisWindowBase]
     allow_multiple_instances: Optional[bool] = True # Flag to control if multiple windows of this analysis can be opened
-
-    def __post_init__(self):
-        self.Analysis = make_analysis_class(self.AnalysisController, self.AnalysisWindow)
