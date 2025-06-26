@@ -129,3 +129,24 @@ class AnalysisModule:
     AnalysisController: Type[AnalysisControllerBase]
     AnalysisWindow: Type[AnalysisWindowBase]
     allow_multiple_instances: Optional[bool] = True # Flag to control if multiple windows of this analysis can be opened
+
+def parse_preconfigured_analyses(data: str) -> list[PreconfiguredAnalysis]:
+    try:
+        json_data = json.loads(data)
+        if not isinstance(json_data, list):
+            json_data = [json_data]
+
+        analyses = []
+        for item in json_data:
+            if isinstance(item, str):
+                item = json.loads(item)
+
+            # Convert annotation dicts to PlotAnnotation objects
+            if 'annotations' in item and item['annotations']:
+                item['annotations'] = [PlotAnnotation.from_dict(ann) for ann in item['annotations']]
+
+            analyses.append(PreconfiguredAnalysis(**item))
+        return analyses
+    except Exception as e:
+        print(f"Error parsing preconfigured analyses: {e}")
+        return []

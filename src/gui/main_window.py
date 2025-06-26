@@ -10,7 +10,7 @@
 from PyQt6.QtWidgets import (QApplication, QWidget, QPushButton, QVBoxLayout, QLabel, QHBoxLayout, QMessageBox,
                              QMainWindow, QFileDialog, QProgressDialog)
 from PyQt6.QtGui import QPixmap, QAction
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSlot
 import os
 
 from gui.report import ReportWindow
@@ -24,7 +24,7 @@ import settings
 from gui.download_handler import prompt_for_url, download_zip_to_temp
 from utils.zip_utils import unpack_zip_to_temp_with_password_prompt
 import shutil
-from utils.analysis import Analysis
+from utils.analysis import Analysis, parse_preconfigured_analyses
 
 class MainWindow(QMainWindow):
 
@@ -82,6 +82,11 @@ class MainWindow(QMainWindow):
             if first:
                 action.setShortcut('Ctrl+O')
                 first = False
+
+        # Load analysis windows
+        loadAnalysisWindowsAction = QAction('Load analysis windows', self)
+        loadAnalysisWindowsAction.triggered.connect(self.load_analysis_windows)
+        fileMenu.addAction(loadAnalysisWindowsAction)
 
         # Add Download from URL option
         downloadAction = QAction('Download from URL...', self)
@@ -403,9 +408,9 @@ class MainWindow(QMainWindow):
         self.logWindow = LogWindow()
         self.logWindow.show()
 
-    def open_analysis_window(self, analysis_name, window_type):
+    def open_analysis_window(self, analysis_name, window_type, annotations=None, attributes=None):
         try:
-            analysis = Analysis(store.loaded_measurement, analysis_name, window_type)
+            analysis = Analysis(store.loaded_measurement, analysis_name, window_type, annotations, attributes)
         except KeyError:
             print(f"Error: Analysis '{analysis_name}' not found")
             return
@@ -498,6 +503,22 @@ class MainWindow(QMainWindow):
                         except Exception as e_del:
                             print(f"Error deleting temporary downloaded ZIP {downloaded_zip_path}: {e_del}")
             # else: download_zip_to_temp already showed an error message
+
+    @pyqtSlot()
+    def load_analysis_windows(self, file_path=None):
+        """Load analysis windows from JSON file."""
+        if not store.loaded_measurement:
+            QMessageBox.warning(self, "No measurement loaded", "No measurement loaded. Please load a measurement first.")
+            return
+
+        if file_path is None:
+            file_path, _ = QFileDialog.getOpenFileName(self, "Open JSON file", "", "JSON Files (*.json)")
+        if file_path:
+            with open(file_path, 'r') as file:
+                data_str = file.read()
+                data = parse_preconfigured_analyses(data_str)
+                for analysis in data:
+                    self.open_analysis_window(analysis.analysis_name, analysis.analysis_type, analysis.annotations, analysis.attributes)
 
     def closeEvent(self, event):
         self.closeAll()
