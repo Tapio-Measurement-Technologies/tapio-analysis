@@ -32,19 +32,14 @@ class AnalysisController(AnalysisControllerBase):
         self.sampleSelectorWindow = None
 
         if self.window_type == "MD":
-            self.max_dist = np.max(self.measurement.distances)
-            self.distances = self.measurement.distances
             self.set_default('analysis_range_low', settings.MD_FORMATION_RANGE_LOW_DEFAULT * self.max_dist)
             self.set_default('analysis_range_high', settings.MD_FORMATION_RANGE_HIGH_DEFAULT * self.max_dist)
 
         elif self.window_type == "CD":
-            self.max_dist = np.max(self.measurement.cd_distances)
-            self.distances = self.measurement.cd_distances
             self.set_default('analysis_range_low', settings.CD_FORMATION_RANGE_LOW_DEFAULT * self.max_dist)
             self.set_default('analysis_range_high', settings.CD_FORMATION_RANGE_HIGH_DEFAULT * self.max_dist)
 
-            self.set_default('selected_samples', self.measurement.selected_samples.copy())
-
+        self.set_default('selected_samples', self.measurement.selected_samples.copy())
         self.set_default('show_profiles', False)
 
     def check_required_channels(self):

@@ -127,12 +127,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 "spectrum_length_slider_max": settings.CD_SPECTRUM_LENGTH_SLIDER_MAX
             }
         }
-
-        self.fs = 1 / self.measurement.sample_step
         config = spectrum_defaults[self.window_type]
-        self.max_freq = self.fs / 2
-        self.max_dist = np.max(
-            self.measurement.cd_distances if self.window_type == "CD" else self.measurement.distances)
         self.data = None
         self.current_vlines = []
         self.spectral_window = settings.SPECTRUM_WELCH_WINDOW

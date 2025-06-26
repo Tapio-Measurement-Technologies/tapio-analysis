@@ -31,7 +31,6 @@ class AnalysisController(AnalysisControllerBase):
         self.selected_samples = self.measurement.selected_samples
         self.threshold_line = None
         self.peak_lines = []
-        self.fs = 1 / self.measurement.sample_step
         self.highlighted_intervals = []
         self.zoomed_in = False
 

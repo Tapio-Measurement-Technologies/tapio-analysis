@@ -27,11 +27,6 @@ class AnalysisController(AnalysisControllerBase):
     def __init__(self, measurement: Measurement, window_type: AnalysisType, annotations: list[PlotAnnotation] = [], attributes: dict = {}):
         super().__init__(measurement, window_type, annotations, attributes)
 
-        if window_type == "MD":
-            self.max_dist = np.max(self.measurement.distances)
-        elif window_type == "CD":
-            self.max_dist = np.max(self.measurement.cd_distances)
-
         setting_defaults = {
             "MD": {
                 "band_pass_low": settings.MD_CORRELATION_BAND_PASS_LOW_DEFAULT_1M,
@@ -47,7 +42,6 @@ class AnalysisController(AnalysisControllerBase):
             }
         }
         config = setting_defaults[self.window_type]
-        self.fs = 1 / self.measurement.sample_step
 
         self.set_default('band_pass_low', config["band_pass_low"])
         self.set_default('band_pass_high', config["band_pass_high"])

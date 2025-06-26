@@ -36,9 +36,6 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
     def __init__(self, measurement: Measurement, analysis_type="MD", annotations: list[PlotAnnotation] = [], attributes: dict = {}):
         super().__init__(measurement, analysis_type, annotations, attributes)
 
-        self.max_dist = np.max(self.measurement.distances)
-        self.fs = 1 / self.measurement.sample_step
-
         self.set_default('analysis_range_low', settings.TIME_DOMAIN_ANALYSIS_RANGE_LOW_DEFAULT * self.max_dist)
         self.set_default('analysis_range_high', settings.TIME_DOMAIN_ANALYSIS_RANGE_HIGH_DEFAULT * self.max_dist)
         self.set_default('band_pass_low', settings.TIME_DOMAIN_BAND_PASS_LOW_DEFAULT_1M)

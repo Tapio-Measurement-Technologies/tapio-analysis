@@ -32,8 +32,6 @@ class AnalysisController(AnalysisControllerBase):
         super().__init__(measurement, window_type, annotations, attributes)
 
         self.selected_samples = self.measurement.selected_samples.copy()
-        self.max_dist = np.max(self.measurement.cd_distances)
-        self.fs = 1 / self.measurement.sample_step
 
         self.set_default('band_pass_low', settings.VCA_BAND_PASS_LOW_DEFAULT_1M)
         self.set_default('band_pass_high', settings.VCA_BAND_PASS_HIGH_DEFAULT_1M)

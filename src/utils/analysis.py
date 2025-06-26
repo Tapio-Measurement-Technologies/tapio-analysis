@@ -9,6 +9,7 @@ from utils.types import PlotAnnotation, AnalysisType, PreconfiguredAnalysis
 import settings
 import json
 from utils import store
+import numpy as np
 
 class AnalysisControllerBase(QObject, PlotMixin):
     updated = pyqtSignal()
@@ -21,6 +22,13 @@ class AnalysisControllerBase(QObject, PlotMixin):
         self.analysis_type: AnalysisType = window_type # For backwards compatibility
         self.show_annotations: bool = True # TODO: Add mixin checkboxes (if necessary)
         self.channel: str = measurement.channels[0]
+        self.fs = 1 / measurement.sample_step
+        self.distances = (
+            measurement.cd_distances if self.window_type == "CD"
+            else measurement.distances
+        )
+        self.max_dist = np.max(self.distances)
+        self.max_freq = self.fs / 2
 
         if attributes:
             self.set_attributes(attributes)

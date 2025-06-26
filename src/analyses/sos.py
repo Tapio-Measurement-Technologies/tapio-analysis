@@ -14,7 +14,6 @@ class AnalysisController(AnalysisControllerBase):
         super().__init__(measurement, window_type, annotations, attributes)
 
         self.data = None
-        self.fs = None
 
         self.set_default('selected_freqs', None)
         self.set_default('channel', None)

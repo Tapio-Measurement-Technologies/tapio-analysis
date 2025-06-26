@@ -34,13 +34,6 @@ class AnalysisController(AnalysisControllerBase):
     def __init__(self, measurement: Measurement, window_type: AnalysisType, annotations: list[PlotAnnotation] = [], attributes: dict = {}):
         super().__init__(measurement, window_type, annotations, attributes)
 
-        if self.window_type == "MD":
-            self.max_dist = np.max(self.measurement.distances)
-            self.distances = self.measurement.distances
-        elif self.window_type == "CD":
-            self.max_dist = np.max(self.measurement.cd_distances)
-            self.distances = self.measurement.cd_distances
-
         channel_correlation_config = {
             "MD": {
                 "band_pass_low": settings.MD_CHANNEL_CORRELATION_BAND_PASS_LOW_DEFAULT_1M,
@@ -58,7 +51,6 @@ class AnalysisController(AnalysisControllerBase):
 
         self.channels = self.measurement.channels
         config = channel_correlation_config[self.window_type]
-        self.fs = 1 / self.measurement.sample_step
 
         self.set_default('selected_samples', self.measurement.selected_samples.copy())
         self.set_default('channel1', self.channels[0])
