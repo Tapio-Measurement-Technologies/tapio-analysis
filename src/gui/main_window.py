@@ -547,5 +547,14 @@ class MainWindow(QMainWindow):
             f.write(json.dumps(analyses, default=lambda o: o.__dict__, indent=4))
 
     def closeEvent(self, event):
+        if len(store.open_windows) > 0:
+            response = QMessageBox.question(self, 'Confirm close',
+                                        'This will close all current analysis windows. Do you want to proceed?',
+                                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                                        QMessageBox.StandardButton.No)
+            if response == QMessageBox.StandardButton.No:
+                event.ignore()
+                return
+
         self.closeAll()
         super().closeEvent(event)
