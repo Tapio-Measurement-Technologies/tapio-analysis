@@ -24,7 +24,8 @@ import settings
 from gui.download_handler import prompt_for_url, download_zip_to_temp
 from utils.zip_utils import unpack_zip_to_temp_with_password_prompt
 import shutil
-from utils.analysis import Analysis, parse_preconfigured_analyses
+from utils.analysis import Analysis, parse_preconfigured_analyses, PreconfiguredAnalysis
+import json
 
 class MainWindow(QMainWindow):
 
@@ -82,6 +83,11 @@ class MainWindow(QMainWindow):
             if first:
                 action.setShortcut('Ctrl+O')
                 first = False
+
+        # Save analysis windows
+        saveAnalysisWindowsAction = QAction('Save analysis windows', self)
+        saveAnalysisWindowsAction.triggered.connect(self.save_analysis_windows)
+        fileMenu.addAction(saveAnalysisWindowsAction)
 
         # Load analysis windows
         loadAnalysisWindowsAction = QAction('Load analysis windows', self)
@@ -519,6 +525,26 @@ class MainWindow(QMainWindow):
                 data = parse_preconfigured_analyses(data_str)
                 for analysis in data:
                     self.open_analysis_window(analysis.analysis_name, analysis.analysis_type, analysis.annotations, analysis.attributes)
+
+    @pyqtSlot()
+    def save_analysis_windows(self):
+        dialog = QFileDialog()
+        options = QFileDialog.options(dialog)
+        fileName, _ = QFileDialog.getSaveFileName(self, "Save analysis windows as...", "", "JSON Files (*.json)", options=options)
+        if not fileName:
+            return
+
+        analyses: list[PreconfiguredAnalysis] = []
+        for window in store.open_windows:
+            try:
+                analysis: PreconfiguredAnalysis = window.controller.export_analysis()
+                analyses.append(analysis)
+            except Exception as e:
+                print(f"Error saving analysis: {e}")
+                continue
+
+        with open(fileName, 'w') as f:
+            f.write(json.dumps(analyses, default=lambda o: o.__dict__, indent=4))
 
     def closeEvent(self, event):
         self.closeAll()

@@ -74,11 +74,11 @@ class AnalysisWindowBase(QWidget, Generic[ControllerT]):
         self.main_layout.setMenuBar(self.menu_bar)
 
         self.file_menu = self.menu_bar.addMenu('File')
-        self.exportAction = QAction('Export analysis', self)
-        self.exportAction.triggered.connect(self.on_export_analysis)
-        self.file_menu.addAction(self.exportAction)
+        self.save_analysis_action = QAction('Save analysis', self)
+        self.save_analysis_action.triggered.connect(self.on_save_analysis)
+        self.file_menu.addAction(self.save_analysis_action)
 
-    def on_export_analysis(self):
+    def on_save_analysis(self):
         dialog = QFileDialog()
         options = QFileDialog.options(dialog)
         fileName, _ = QFileDialog.getSaveFileName(self, "Save analysis as...", "", "JSON Files (*.json)", options=options)
