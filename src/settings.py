@@ -286,8 +286,6 @@ REPORT_ENABLE_ANALYSIS_TITLE = False
 
 
 ANALYSIS_EXPORT_ATTRIBUTES = [
-    "analysis_name",
-    "analysis_type",
     "channel",
     "channel1",
     "channel2",

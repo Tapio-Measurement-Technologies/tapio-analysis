@@ -29,7 +29,7 @@ class PreconfiguredAnalysis:
     annotations: list[PlotAnnotation]
 
     def to_json(self) -> str:
-        return json.dumps(self, default=lambda o: o.__dict__)
+        return json.dumps(self, default=lambda o: o.__dict__, indent=4)
 
 @dataclass
 class MainWindowSectionModule:

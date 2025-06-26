@@ -1,5 +1,6 @@
 from PyQt6.QtCore import QObject, pyqtSignal, Qt
-from PyQt6.QtWidgets import QWidget, QMenuBar, QVBoxLayout
+from PyQt6.QtWidgets import QWidget, QMenuBar, QVBoxLayout, QFileDialog
+from PyQt6.QtGui import QAction
 from typing import Type, List, Optional, TypeVar, Generic
 from dataclasses import dataclass
 from gui.components import PlotMixin
@@ -69,6 +70,17 @@ class AnalysisWindowBase(QWidget, Generic[ControllerT]):
         self.main_layout.setMenuBar(self.menu_bar)
 
         self.file_menu = self.menu_bar.addMenu('File')
+        self.exportAction = QAction('Export analysis', self)
+        self.exportAction.triggered.connect(self.on_export_analysis)
+        self.file_menu.addAction(self.exportAction)
+
+    def on_export_analysis(self):
+        dialog = QFileDialog()
+        options = QFileDialog.options(dialog)
+        fileName, _ = QFileDialog.getSaveFileName(self, "Save analysis as...", "", "JSON Files (*.json)", options=options)
+        if fileName:
+            with open(fileName, 'w') as f:
+                f.write(self.controller.export_analysis().to_json())
 
     def bring_to_front(self):
         self.raise_()
@@ -105,6 +117,9 @@ class Analysis:
 
         if open_window:
             self.window.show()
+
+    def export(self) -> PreconfiguredAnalysis:
+        return self.controller.export_analysis()
 
 @dataclass
 class AnalysisModule:
