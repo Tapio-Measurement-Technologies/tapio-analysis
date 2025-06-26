@@ -27,11 +27,10 @@ class AnalysisController(AnalysisControllerBase):
     analysis_range_high: float
     remove_cd_variations: bool
     remove_md_variations: bool
+    selected_samples: list[int]
 
     def __init__(self, measurement: Measurement, window_type: AnalysisType = "CD", annotations: list[PlotAnnotation] = [], attributes: dict = {}):
         super().__init__(measurement, window_type, annotations, attributes)
-
-        self.selected_samples = self.measurement.selected_samples.copy()
 
         self.set_default('band_pass_low', settings.VCA_BAND_PASS_LOW_DEFAULT_1M)
         self.set_default('band_pass_high', settings.VCA_BAND_PASS_HIGH_DEFAULT_1M)
@@ -39,6 +38,7 @@ class AnalysisController(AnalysisControllerBase):
         self.set_default('analysis_range_high', settings.VCA_RANGE_HIGH_DEFAULT * self.max_dist)
         self.set_default('remove_cd_variations', settings.VCA_REMOVE_CD_VARIATIONS_DEFAULT)
         self.set_default('remove_md_variations', settings.VCA_REMOVE_MD_VARIATIONS_DEFAULT)
+        self.set_default('selected_samples', self.measurement.selected_samples.copy())
 
     def plot(self):
         self.figure.clear()

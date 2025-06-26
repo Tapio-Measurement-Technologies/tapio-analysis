@@ -40,12 +40,13 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
     show_profiles: bool
     show_min_max: bool
     show_legend: bool
+    selected_samples: list[int]
 
     def __init__(self, measurement: Measurement, window_type: AnalysisType, annotations: list[PlotAnnotation] = [], attributes: dict = {}):
         super().__init__(measurement, window_type, annotations, attributes)
 
         self.mean_profile = None
-        self.selected_samples = self.measurement.selected_samples.copy()
+
         self.set_default('band_pass_low', settings.CD_PROFILE_BAND_PASS_LOW_DEFAULT_1M)
         self.set_default('band_pass_high', settings.CD_PROFILE_BAND_PASS_HIGH_DEFAULT_1M)
         self.set_default('analysis_range_low', settings.CD_PROFILE_RANGE_LOW_DEFAULT * self.max_dist)
@@ -55,6 +56,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         self.set_default('show_profiles', False)
         self.set_default('show_min_max', False)
         self.set_default('show_legend', False)
+        self.set_default('selected_samples', self.measurement.selected_samples.copy())
 
         # Extra data
         self.extra_data = None
