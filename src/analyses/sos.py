@@ -1,4 +1,3 @@
-from PyQt6.QtWidgets import QVBoxLayout
 from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
 from utils.types import AnalysisType, PlotAnnotation
@@ -61,11 +60,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController]):
         self.setWindowTitle("SOS analysis")
         self.setGeometry(100, 100, 500, 300)
 
-        mainLayout = QVBoxLayout()
-        self.setLayout(mainLayout)
-
         # Matplotlib figure and canvas
-        self.controller.addPlot(mainLayout)
+        self.controller.addPlot(self.main_layout)
 
         self.refresh()
 

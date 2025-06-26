@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QMenuBar, QHBoxLayout, QGroupBox
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGroupBox
 from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
 from utils.filters import bandpass_filter
@@ -174,28 +174,17 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.measurement = self.controller.measurement
         self.initUI()
 
-    def initMenuBar(self, layout):
-        menuBar = QMenuBar()
-        layout.setMenuBar(menuBar)
-
-        fileMenu = menuBar.addMenu('File')
-
+    def initMenuBar(self):
         exportAction = self.controller.initExportAction(self, "Export current data")
-        fileMenu.addAction(exportAction)
+        self.file_menu.addAction(exportAction)
 
     def initUI(self):
         self.setWindowTitle(f"Time domain analysis ({self.measurement.measurement_label})")
         self.setGeometry(*settings.TIME_DOMAIN_WINDOW_GEOMETRY)
 
-        # Main vertical layout for menu bar and the rest of the UI
-        topLevelLayout = QVBoxLayout()
-        self.setLayout(topLevelLayout)
-
-        self.initMenuBar(topLevelLayout) # Menu bar at the top
-
         # Main horizontal layout for controls and plot/stats
         mainHorizontalLayout = QHBoxLayout()
-        topLevelLayout.addLayout(mainHorizontalLayout)
+        self.main_layout.addLayout(mainHorizontalLayout)
 
         # Left panel for controls
         controlsPanelLayout = QVBoxLayout()

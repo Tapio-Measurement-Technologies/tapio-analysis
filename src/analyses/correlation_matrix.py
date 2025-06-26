@@ -156,7 +156,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.setGeometry(100, 100, 1000, 600)
 
         mainHorizontalLayout = QHBoxLayout()
-        self.setLayout(mainHorizontalLayout)
+        self.main_layout.addLayout(mainHorizontalLayout)
 
         controlsPanelLayout = QVBoxLayout()
         controlsWidget = QWidget()

@@ -1,7 +1,7 @@
 from PyQt6.QtGui import QAction
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QTableWidget,
-                             QTableWidgetItem, QSizePolicy, QMenuBar, QFileDialog, QHeaderView,
+                             QTableWidgetItem, QSizePolicy, QFileDialog, QHeaderView,
                              QLabel)
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from utils.measurement import Measurement
@@ -180,37 +180,29 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], ChannelMixin, BandP
         super().__init__(controller, window_type)
         self.initUI()
 
+    def initMenuBar(self):
+        saveAction = QAction('&Save samples', self)
+        saveAction.setShortcut('Ctrl+S')
+        saveAction.setStatusTip('Save sample indexes to a JSON file')
+        saveAction.triggered.connect(self.save_samples)
+        self.file_menu.addAction(saveAction)
+
     def initUI(self):
         self.setWindowTitle(
             f"Find CD Samples ({self.measurement.measurement_label})")
 
         self.setGeometry(100, 100, 1000, 800)
 
-        mainLayout = QVBoxLayout()
-        self.setLayout(mainLayout)
-
-        # Create the menu bar
-        menuBar = QMenuBar(self)
-        fileMenu = menuBar.addMenu('&File')
-
-        # Add "Save" action to the "File" menu
-        saveAction = QAction('&Save samples', self)
-        saveAction.setShortcut('Ctrl+S')
-        saveAction.setStatusTip('Save sample indexes to a JSON file')
-        saveAction.triggered.connect(self.save_samples)
-
-        fileMenu.addAction(saveAction)
-
-        mainLayout.setMenuBar(menuBar)  # Add the menu bar to the main layout
+        self.initMenuBar()
 
         # Add the channel selector
         # Ensure this method is correctly defined elsewhere
-        self.addChannelSelector(mainLayout)
-        self.addBandPassRangeSlider(mainLayout)
+        self.addChannelSelector(self.main_layout)
+        self.addBandPassRangeSlider(self.main_layout)
 
         # Add sample length range slider
         sampleLengthLabel = QLabel("Sample length range [m]")
-        mainLayout.addWidget(sampleLengthLabel)
+        self.main_layout.addWidget(sampleLengthLabel)
 
         self.sampleLengthSlider = ExtraQLabeledDoubleRangeSlider(
             Qt.Orientation.Horizontal)
@@ -224,10 +216,10 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], ChannelMixin, BandP
         self.sampleLengthSlider.editingFinished.connect(
             self.onSampleLengthChanged)
 
-        mainLayout.addWidget(self.sampleLengthSlider)
+        self.main_layout.addWidget(self.sampleLengthSlider)
 
         layout = QHBoxLayout()
-        mainLayout.addLayout(layout)
+        self.main_layout.addLayout(layout)
 
         # Plot layout
         plotLayout = QVBoxLayout()

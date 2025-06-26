@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QMenuBar, QPushButton, QHBoxLayout, QGroupBox
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QGroupBox
 from PyQt6.QtGui import QAction
 from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
@@ -263,11 +263,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.checked_elements = []
         self.initUI()
 
-    def initMenuBar(self, layout):
-        menuBar = QMenuBar()
-        layout.setMenuBar(menuBar)
-
-        viewMenu = menuBar.addMenu('View')
+    def initMenuBar(self):
+        viewMenu = self.menu_bar.addMenu('View')
 
         self.paperMachineDataAction = QAction('Paper machine data', self)
         self.sosAnalysisAction = QAction('SOS analysis', self)
@@ -352,15 +349,9 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.setWindowTitle(f"{analysis_name} ({self.controller.window_type}) - {self.measurement.measurement_label}")
         self.setGeometry(150, 150, 1000, 600) # Default geometry, consider adding to settings.py
 
-        # Top-level layout for menu bar and main content
-        topLevelLayout = QVBoxLayout()
-        self.setLayout(topLevelLayout)
-
-        self.initMenuBar(topLevelLayout)
-
         # Main horizontal layout for controls and plot/stats
         mainHorizontalLayout = QHBoxLayout()
-        topLevelLayout.addLayout(mainHorizontalLayout)
+        self.main_layout.addLayout(mainHorizontalLayout)
 
         # Left panel for controls
         controlsPanelLayout = QVBoxLayout()

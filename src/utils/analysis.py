@@ -1,5 +1,5 @@
 from PyQt6.QtCore import QObject, pyqtSignal, Qt
-from PyQt6.QtWidgets import QWidget
+from PyQt6.QtWidgets import QWidget, QMenuBar, QVBoxLayout
 from typing import Type, List, Optional, TypeVar, Generic
 from dataclasses import dataclass
 from gui.components import PlotMixin
@@ -63,8 +63,12 @@ class AnalysisWindowBase(QWidget, Generic[ControllerT]):
         self.window_type: AnalysisType = window_type
         self.analysis_type: AnalysisType = window_type # For backwards compatibility
 
-    def on_export_analysis(self):
-        print(self.controller.export_analysis())
+        self.main_layout = QVBoxLayout()
+        self.setLayout(self.main_layout)
+        self.menu_bar = QMenuBar()
+        self.main_layout.setMenuBar(self.menu_bar)
+
+        self.file_menu = self.menu_bar.addMenu('File')
 
     def bring_to_front(self):
         self.raise_()

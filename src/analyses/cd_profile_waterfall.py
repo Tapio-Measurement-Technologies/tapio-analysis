@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QMenuBar, QHBoxLayout, QGroupBox
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGroupBox
 from PyQt6.QtGui import QAction
 from utils.filters import bandpass_filter
 from utils.measurement import Measurement
@@ -186,16 +186,13 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.sampleSelectorWindow = None
         self.initUI()
 
-    def initMenuBar(self, layout):
-        menuBar = QMenuBar()
-        layout.setMenuBar(menuBar)
-
-        fileMenu = menuBar.addMenu('File')
+    def initMenuBar(self):
+        fileMenu = self.file_menu
         exportAction = self.controller.initExportAction(
             self, "Export mean profile")
         fileMenu.addAction(exportAction)
 
-        viewMenu = menuBar.addMenu('View')
+        viewMenu = self.menu_bar.addMenu('View')
 
         self.selectSamplesAction = QAction('Select samples', self)
         viewMenu.addAction(self.selectSamplesAction)
@@ -206,15 +203,11 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
             f"CD Profile (Waterfall) ({self.measurement.measurement_label})")
         # Geometry will be set from settings
 
-        # Top-level layout for menu bar and main content
-        topLevelLayout = QVBoxLayout()
-        self.setLayout(topLevelLayout)
-
-        self.initMenuBar(topLevelLayout)
+        self.initMenuBar()
 
         # Main horizontal layout for controls and plot/stats
         mainHorizontalLayout = QHBoxLayout()
-        topLevelLayout.addLayout(mainHorizontalLayout)
+        self.main_layout.addLayout(mainHorizontalLayout)
 
         # Left panel for controls
         controlsPanelLayout = QVBoxLayout()

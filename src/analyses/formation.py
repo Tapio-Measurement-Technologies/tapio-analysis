@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QMenuBar, QMessageBox, QHBoxLayout, QGroupBox
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QMessageBox, QHBoxLayout, QGroupBox
 from PyQt6.QtGui import QAction
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -215,10 +215,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
             return
         self.initUI()
 
-    def initMenuBar(self, layout):
-        menuBar = QMenuBar()
-        layout.setMenuBar(menuBar)
-        viewMenu = menuBar.addMenu('View')
+    def initMenuBar(self):
+        viewMenu = self.menu_bar.addMenu('View')
         self.selectSamplesAction = QAction('Select samples', self)
         viewMenu.addAction(self.selectSamplesAction)
         self.selectSamplesAction.triggered.connect(
@@ -230,16 +228,12 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
                 f"Formation analysis ({self.measurement.measurement_label})")
         self.setGeometry(100, 100, 1000, 600)
 
-        # Top-level layout for menu bar and main content
-        topLevelLayout = QVBoxLayout()
-        self.setLayout(topLevelLayout)
-
         if self.window_type == "CD":
-            self.initMenuBar(topLevelLayout)
+            self.initMenuBar()
 
         # Main horizontal layout for controls and plot/stats
         mainHorizontalLayout = QHBoxLayout()
-        topLevelLayout.addLayout(mainHorizontalLayout)
+        self.main_layout.addLayout(mainHorizontalLayout)
 
         # Left panel for controls
         controlsPanelLayout = QVBoxLayout()

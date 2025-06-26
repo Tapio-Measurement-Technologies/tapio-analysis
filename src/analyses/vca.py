@@ -288,11 +288,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.sampleSelectorWindow = None
         self.initUI()
 
-    def initMenuBar(self, layout):
-        menuBar = QMenuBar()
-        layout.setMenuBar(menuBar)
-        fileMenu = menuBar.addMenu('File')
-        viewMenu = menuBar.addMenu('View')
+    def initMenuBar(self):
+        viewMenu = self.menu_bar.addMenu('View')
 
         self.sampleSelectorWindow = None
         self.selectSamplesAction = QAction('Select samples', self)
@@ -313,15 +310,9 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.setWindowTitle(f"{analysis_name} ({self.measurement.measurement_label})")
         # Geometry will be set by VCA_WINDOW_GEOMETRY from settings
 
-        # Top-level layout for menu bar and main content
-        topLevelLayout = QVBoxLayout()
-        self.setLayout(topLevelLayout)
-
-        self.initMenuBar(topLevelLayout)
-
         # Main horizontal layout for controls and plot/stats
         mainHorizontalLayout = QHBoxLayout()
-        topLevelLayout.addLayout(mainHorizontalLayout)
+        self.main_layout.addLayout(mainHorizontalLayout)
 
         # Left panel for controls
         controlsPanelLayout = QVBoxLayout()
