@@ -21,6 +21,13 @@ analysis_name = "Variance Component Analysis"
 analysis_types = ["CD"]
 
 class AnalysisController(AnalysisControllerBase):
+    band_pass_low: float
+    band_pass_high: float
+    analysis_range_low: float
+    analysis_range_high: float
+    remove_cd_variations: bool
+    remove_md_variations: bool
+
     def __init__(self, measurement: Measurement, window_type: AnalysisType = "CD", annotations: list[PlotAnnotation] = [], attributes: dict = {}):
         super().__init__(measurement, window_type, annotations, attributes)
 

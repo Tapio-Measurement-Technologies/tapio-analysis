@@ -81,6 +81,25 @@ def tabular_legend(ax, col_labels, data, *args, **kwargs):
 
 
 class AnalysisController(AnalysisControllerBase, ExportMixin):
+    channel1: str
+    channel2: str
+    nperseg: float
+    overlap: float
+    frequency_range_low: float
+    frequency_range_high: float
+    peak_detection_range_min: float
+    peak_detection_range_max: float
+    spectrum_length_slider_min: float
+    spectrum_length_slider_max: float
+    analysis_range_low: float
+    analysis_range_high: float
+    machine_speed: float
+    selected_elements: list[str]
+    selected_samples: list[int]
+    selected_freqs: list[float]
+    show_wavelength: bool
+    auto_detect_peaks: bool
+
     def __init__(self, measurement: Measurement, window_type: AnalysisType, annotations: list[PlotAnnotation] = [], attributes: dict = {}):
         super().__init__(measurement, window_type, annotations, attributes)
 

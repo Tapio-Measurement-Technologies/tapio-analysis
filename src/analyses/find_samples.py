@@ -17,6 +17,11 @@ analysis_types = ["MD"]
 allow_multiple_instances = False
 
 class AnalysisController(AnalysisControllerBase):
+    band_pass_low: float
+    band_pass_high: float
+    min_length: float
+    max_length: float
+
     def __init__(self, measurement: Measurement, window_type: AnalysisType = "MD", annotations: list[PlotAnnotation] = [], attributes: dict = {}):
         super().__init__(measurement, window_type, annotations, attributes)
 

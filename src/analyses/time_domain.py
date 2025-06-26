@@ -25,6 +25,14 @@ analysis_name = "Time Domain"
 analysis_types = ["MD"]
 
 class AnalysisController(AnalysisControllerBase, ExportMixin):
+    analysis_range_low: float
+    analysis_range_high: float
+    band_pass_low: float
+    band_pass_high: float
+    machine_speed: float
+    show_unfiltered_data: bool
+    show_time_labels: bool
+
     def __init__(self, measurement: Measurement, analysis_type="MD", annotations: list[PlotAnnotation] = [], attributes: dict = {}):
         super().__init__(measurement, analysis_type, annotations, attributes)
 

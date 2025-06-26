@@ -29,6 +29,12 @@ analysis_name = "CD Profile (Waterfall)"
 analysis_types = ["CD"]
 
 class AnalysisController(AnalysisControllerBase, ExportMixin):
+    band_pass_low: float
+    band_pass_high: float
+    analysis_range_low: float
+    analysis_range_high: float
+    waterfall_offset: float
+
     def __init__(self, measurement: Measurement, window_type: AnalysisType, annotations: list[PlotAnnotation] = [], attributes: dict = {}):
         super().__init__(measurement, window_type, annotations, attributes)
 

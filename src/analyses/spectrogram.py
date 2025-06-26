@@ -26,6 +26,19 @@ analysis_name = "Spectrogram"
 analysis_types = ["MD", "CD"]
 
 class AnalysisController(AnalysisControllerBase):
+    nperseg: float
+    overlap: float
+    frequency_range_low: float
+    frequency_range_high: float
+    spectrum_length_slider_min: float
+    spectrum_length_slider_max: float
+    analysis_range_low: float
+    analysis_range_high: float
+    machine_speed: float
+    selected_elements: list[dict]
+    selected_samples: list[int]
+    selected_freqs: list[float]
+    show_wavelength: bool
 
     def __init__(self, measurement: Measurement, window_type: AnalysisType = "MD", annotations: list[PlotAnnotation] = [], attributes: dict = {}):
         super().__init__(measurement, window_type, annotations, attributes)

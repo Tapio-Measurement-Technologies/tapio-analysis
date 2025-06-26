@@ -8,6 +8,7 @@ analysis_name = "SOS Analysis"
 analysis_types = ["CD"]
 
 class AnalysisController(AnalysisControllerBase):
+    selected_freqs: list[float]
 
     def __init__(self, measurement: Measurement, window_type: AnalysisType = "CD", annotations: list[PlotAnnotation] = [], attributes: dict = {}):
         super().__init__(measurement, window_type, annotations, attributes)

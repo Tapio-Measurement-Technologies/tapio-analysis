@@ -20,6 +20,11 @@ analysis_name = "Formation"
 analysis_types = ["MD", "CD"]
 
 class AnalysisController(AnalysisControllerBase):
+    analysis_range_low: float
+    analysis_range_high: float
+    show_profiles: bool
+    selected_samples: list[int]
+
     def __init__(self, measurement: Measurement, window_type: AnalysisType = "MD", annotations: list[PlotAnnotation] = [], attributes: dict = {}):
         super().__init__(measurement, window_type, annotations, attributes)
         self.warning_message = None

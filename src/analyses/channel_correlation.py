@@ -22,6 +22,15 @@ analysis_name = "Channel Correlation"
 analysis_types = ["MD", "CD"]
 
 class AnalysisController(AnalysisControllerBase):
+    selected_samples: list[int]
+    channel1: str
+    channel2: str
+    show_unfiltered_data: bool
+    band_pass_low: float
+    band_pass_high: float
+    analysis_range_low: float
+    analysis_range_high: float
+
     def __init__(self, measurement: Measurement, window_type: AnalysisType, annotations: list[PlotAnnotation] = [], attributes: dict = {}):
         super().__init__(measurement, window_type, annotations, attributes)
 
