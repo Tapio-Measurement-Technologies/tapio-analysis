@@ -2,6 +2,7 @@ from PyQt6.QtWidgets import QMenu, QLineEdit
 from PyQt6.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
+from matplotlib.text import Text, Annotation
 import matplotlib.text as mtext
 from functools import wraps
 from utils.types import PlotAnnotation
@@ -16,7 +17,7 @@ def check_axes(func):
 
 class DraggableAnnotation:
     def __init__(self, annotation):
-        self.annotation = annotation
+        self.annotation: Annotation | Text = annotation
         self.draggable = False
         self.offset = (0, 0)
 
@@ -28,9 +29,9 @@ class AnnotableCanvas(FigureCanvasQTAgg):
         self.setParent(parent)
         self.ax = self.figure.add_subplot(111)
 
-        self.annotations = []
-        self.selected_annotation = None
-        self.editing_annotation = None
+        self.annotations: list[DraggableAnnotation] = []
+        self.selected_annotation: DraggableAnnotation | None = None
+        self.editing_annotation: DraggableAnnotation | None = None
         self.editor = None
 
         self.mpl_connect('pick_event', self.on_pick)
@@ -44,7 +45,12 @@ class AnnotableCanvas(FigureCanvasQTAgg):
 
     @check_axes
     def add_annotation(self, annotation: PlotAnnotation):
-        ax = self.figure.axes[0]
+        ax = None
+        if annotation.axes_index is not None and annotation.axes_index < len(self.figure.axes):
+            ax = self.figure.axes[annotation.axes_index]
+        else:
+            # Fallback for old annotations or single-plot figures
+            ax = self.figure.axes[0]
 
         if annotation.arrowprops:
             ax_annotation = ax.annotate(annotation.text,
@@ -118,7 +124,7 @@ class AnnotableCanvas(FigureCanvasQTAgg):
                 self._show_add_context_menu(event)
             return
 
-    def edit_annotation(self, annotation_to_edit):
+    def edit_annotation(self, annotation_to_edit: DraggableAnnotation):
         if self.editor:
             self.finish_editing()
 
@@ -153,13 +159,19 @@ class AnnotableCanvas(FigureCanvasQTAgg):
 
         action = menu.exec(self.mapToGlobal(event.guiEvent.pos()))
 
+        if not hasattr(event, 'inaxes') or event.inaxes not in self.figure.axes:
+            return
+
+        axes_index = self.figure.axes.index(event.inaxes)
+
         if action == add_text_action:
             self.add_annotation(PlotAnnotation(
                 text=f'Label {len(self.annotations) + 1}',
-                xy=(event.xdata, event.ydata)
+                xy=(event.xdata, event.ydata),
+                axes_index=axes_index
             ))
         elif action == add_arrow_action:
-            ax = self.figure.axes[0]
+            ax = self.figure.axes[axes_index]
             x_range = ax.get_xlim()[1] - ax.get_xlim()[0]
             xytext_offset_x = 0.1 * x_range
 
@@ -172,10 +184,11 @@ class AnnotableCanvas(FigureCanvasQTAgg):
                 text=f'Arrow {len(self.annotations) + 1}',
                 xy=(event.xdata, event.ydata),
                 xytext=(xytext_x, event.ydata),
-                arrowprops=dict(facecolor='black', shrink=0.05, width=1, headwidth=8)
+                arrowprops=dict(facecolor='black', shrink=0.05, width=1, headwidth=8),
+                axes_index=axes_index
             ))
 
-    def _show_remove_context_menu(self, event, annotation_to_remove):
+    def _show_remove_context_menu(self, event, annotation_to_remove: DraggableAnnotation):
         menu = QMenu(self)
         remove_action = menu.addAction("Remove")
 
@@ -184,7 +197,7 @@ class AnnotableCanvas(FigureCanvasQTAgg):
         if action == remove_action:
             self.remove_annotation(annotation_to_remove)
 
-    def remove_annotation(self, annotation_to_remove):
+    def remove_annotation(self, annotation_to_remove: DraggableAnnotation):
         annotation_to_remove.annotation.remove()
         self.annotations.remove(annotation_to_remove)
         if self.selected_annotation == annotation_to_remove:
@@ -218,7 +231,8 @@ class AnnotableCanvas(FigureCanvasQTAgg):
         """Returns a serializable list of annotations."""
         plot_annotations = []
         for ann in self.annotations:
-            if ann.annotation.get_figure() is not None:
+            if ann.annotation.get_figure() is not None and ann.annotation.axes in self.figure.axes:
+                axes_index = self.figure.axes.index(ann.annotation.axes)
                 text = ann.annotation.get_text()
                 style = {k: v for k, v in ann.annotation.properties().items() if k in ['color', 'fontsize', 'fontweight']}
 
@@ -228,13 +242,15 @@ class AnnotableCanvas(FigureCanvasQTAgg):
                         xy=ann.annotation.xy,
                         xytext=ann.annotation.get_position(),
                         arrowprops=ann.annotation.arrowprops,
-                        style=style
+                        style=style,
+                        axes_index=axes_index
                     ))
                 else:
                     plot_annotations.append(PlotAnnotation(
                         text=text,
                         xy=ann.annotation.get_position(),
-                        style=style
+                        style=style,
+                        axes_index=axes_index
                     ))
         return plot_annotations
 

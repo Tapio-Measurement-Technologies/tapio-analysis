@@ -15,6 +15,7 @@ class PlotAnnotation:
     xytext: Optional[tuple[float, float]] = None
     arrowprops: Optional[dict] = field(default_factory=dict)
     style: Optional[dict] = field(default_factory=dict)
+    axes_index: Optional[int] = None
 
     @staticmethod
     def from_dict(data: dict) -> "PlotAnnotation":
