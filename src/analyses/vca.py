@@ -26,15 +26,14 @@ class AnalysisController(AnalysisControllerBase):
 
         self.selected_samples = self.measurement.selected_samples.copy()
         self.max_dist = np.max(self.measurement.cd_distances)
-
-        self.remove_cd_variations = False
-        self.remove_md_variations = False
-
-        self.band_pass_low = settings.VCA_BAND_PASS_LOW_DEFAULT_1M
-        self.band_pass_high = settings.VCA_BAND_PASS_HIGH_DEFAULT_1M
-        self.analysis_range_low = settings.VCA_RANGE_LOW_DEFAULT * self.max_dist
-        self.analysis_range_high = settings.VCA_RANGE_HIGH_DEFAULT * self.max_dist
         self.fs = 1 / self.measurement.sample_step
+
+        self.set_default('band_pass_low', settings.VCA_BAND_PASS_LOW_DEFAULT_1M)
+        self.set_default('band_pass_high', settings.VCA_BAND_PASS_HIGH_DEFAULT_1M)
+        self.set_default('analysis_range_low', settings.VCA_RANGE_LOW_DEFAULT * self.max_dist)
+        self.set_default('analysis_range_high', settings.VCA_RANGE_HIGH_DEFAULT * self.max_dist)
+        self.set_default('remove_cd_variations', settings.VCA_REMOVE_CD_VARIATIONS_DEFAULT)
+        self.set_default('remove_md_variations', settings.VCA_REMOVE_MD_VARIATIONS_DEFAULT)
 
     def plot(self):
         self.figure.clear()

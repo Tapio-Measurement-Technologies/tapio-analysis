@@ -26,13 +26,14 @@ class AnalysisController(AnalysisControllerBase):
         self.selected_samples = self.measurement.selected_samples
         self.threshold_line = None
         self.peak_lines = []
-        self.band_pass_low = settings.FIND_SAMPLES_BAND_PASS_LOW_DEFAULT_1M
-        self.band_pass_high = settings.FIND_SAMPLES_BAND_PASS_HIGH_DEFAULT_1M
         self.fs = 1 / self.measurement.sample_step
         self.highlighted_intervals = []
         self.zoomed_in = False
-        self.min_length = settings.CD_SAMPLE_MIN_LENGTH_M
-        self.max_length = settings.CD_SAMPLE_MAX_LENGTH_M
+
+        self.set_default('band_pass_low', settings.FIND_SAMPLES_BAND_PASS_LOW_DEFAULT_1M)
+        self.set_default('band_pass_high', settings.FIND_SAMPLES_BAND_PASS_HIGH_DEFAULT_1M)
+        self.set_default('min_length', settings.CD_SAMPLE_MIN_LENGTH_M)
+        self.set_default('max_length', settings.CD_SAMPLE_MAX_LENGTH_M)
 
     def plot(self):
         self.figure.clear()

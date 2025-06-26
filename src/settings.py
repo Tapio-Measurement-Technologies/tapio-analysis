@@ -268,6 +268,8 @@ VCA_RANGE_LOW_DEFAULT = 0
 VCA_RANGE_HIGH_DEFAULT = 1
 VCA_COLORMAP = "viridis"
 VCA_WINDOW_GEOMETRY = (100, 100, 1000, 600)
+VCA_REMOVE_CD_VARIATIONS_DEFAULT = False
+VCA_REMOVE_MD_VARIATIONS_DEFAULT = False
 
 # VCA_COLORMAP = "gray"
 
@@ -293,15 +295,31 @@ ANALYSIS_EXPORT_ATTRIBUTES = [
     "band_pass_high",
     "analysis_range_low",
     "analysis_range_high",
+    "peak_detection_range_min",
+    "peak_detection_range_max",
+    "spectrum_length_slider_min",
+    "spectrum_length_slider_max",
+    "frequency_range_low",
+    "frequency_range_high",
+    "selected_samples",
+    "selected_elements",
+    "selected_freqs",
     "waterfall_offset",
     "confidence_interval",
     "show_profiles",
     "show_min_max",
     "show_legend",
-    "selected_samples",
-    "selected_elements",
-    "selected_freqs",
-    "nperseg"
+    "show_wavelength",
+    "show_unfiltered_data",
+    "show_time_labels",
+    "remove_md_variations",
+    "remove_cd_variations",
+    "auto_detect_peaks",
+    "nperseg",
+    "overlap",
+    "machine_speed",
+    "min_length",
+    "max_length"
 ]
 
 

@@ -58,29 +58,24 @@ class AnalysisController(AnalysisControllerBase):
 
         self.fs = 1 / self.measurement.sample_step
         config = spectrum_defaults[self.window_type]
-        self.nperseg = config["nperseg"]
-        self.overlap = config["overlap"]
         self.max_freq = self.fs / 2
-        self.frequency_range_low = self.max_freq * config["range_min"]
-        self.frequency_range_high = self.max_freq * config["range_max"]
-        self.spectrum_length_slider_min = config["spectrum_length_slider_min"]
-        self.spectrum_length_slider_max = config["spectrum_length_slider_max"]
-
         self.max_dist = np.max(
             self.measurement.cd_distances if self.window_type == "CD" else self.measurement.distances)
-
-        self.analysis_range_low = config["analysis_range_low"] * self.max_dist
-        self.analysis_range_high = config["analysis_range_high"] * \
-            self.max_dist
-
-        self.machine_speed = settings.PAPER_MACHINE_SPEED_DEFAULT
-
-        self.selected_elements = []
-        self.selected_samples = self.measurement.selected_samples.copy()
-        self.selected_freqs = []
-        self.show_wavelength = False
-
         self.current_hlines = []
+
+        self.set_default('nperseg', config["nperseg"])
+        self.set_default('overlap', config["overlap"])
+        self.set_default('frequency_range_low', self.max_freq * config["range_min"])
+        self.set_default('frequency_range_high', self.max_freq * config["range_max"])
+        self.set_default('spectrum_length_slider_min', config["spectrum_length_slider_min"])
+        self.set_default('spectrum_length_slider_max', config["spectrum_length_slider_max"])
+        self.set_default('analysis_range_low', config["analysis_range_low"] * self.max_dist)
+        self.set_default('analysis_range_high', config["analysis_range_high"] * self.max_dist)
+        self.set_default('machine_speed', settings.PAPER_MACHINE_SPEED_DEFAULT)
+        self.set_default('selected_elements', [])
+        self.set_default('selected_samples', self.measurement.selected_samples.copy())
+        self.set_default('selected_freqs', [])
+        self.set_default('show_wavelength', False)
 
     def plot(self):
         self.figure.clear()

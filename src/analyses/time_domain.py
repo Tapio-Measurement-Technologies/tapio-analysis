@@ -31,13 +31,13 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         self.max_dist = np.max(self.measurement.distances)
         self.fs = 1 / self.measurement.sample_step
 
-        self.analysis_range_low = settings.TIME_DOMAIN_ANALYSIS_RANGE_LOW_DEFAULT * self.max_dist
-        self.analysis_range_high = settings.TIME_DOMAIN_ANALYSIS_RANGE_HIGH_DEFAULT * self.max_dist
-        self.band_pass_low = settings.TIME_DOMAIN_BAND_PASS_LOW_DEFAULT_1M
-        self.band_pass_high = settings.TIME_DOMAIN_BAND_PASS_HIGH_DEFAULT_1M
-        self.machine_speed = settings.PAPER_MACHINE_SPEED_DEFAULT
-        self.show_unfiltered_data = settings.TIME_DOMAIN_SHOW_UNFILTERED_DATA_DEFAULT
-        self.show_time_labels = settings.TIME_DOMAIN_SHOW_TIME_LABELS_DEFAULT
+        self.set_default('analysis_range_low', settings.TIME_DOMAIN_ANALYSIS_RANGE_LOW_DEFAULT * self.max_dist)
+        self.set_default('analysis_range_high', settings.TIME_DOMAIN_ANALYSIS_RANGE_HIGH_DEFAULT * self.max_dist)
+        self.set_default('band_pass_low', settings.TIME_DOMAIN_BAND_PASS_LOW_DEFAULT_1M)
+        self.set_default('band_pass_high', settings.TIME_DOMAIN_BAND_PASS_HIGH_DEFAULT_1M)
+        self.set_default('machine_speed', settings.PAPER_MACHINE_SPEED_DEFAULT)
+        self.set_default('show_unfiltered_data', settings.TIME_DOMAIN_SHOW_UNFILTERED_DATA_DEFAULT)
+        self.set_default('show_time_labels', settings.TIME_DOMAIN_SHOW_TIME_LABELS_DEFAULT)
 
     def constrain_values(self):
         # This function constrains values in case they are set out of bounds by reporting

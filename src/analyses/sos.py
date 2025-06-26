@@ -14,8 +14,9 @@ class AnalysisController(AnalysisControllerBase):
 
         self.data = None
         self.fs = None
-        self.selected_freqs = None
-        self.channel = None
+
+        self.set_default('selected_freqs', None)
+        self.set_default('channel', None)
 
     def plot(self):
         data = self.data

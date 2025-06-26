@@ -41,13 +41,13 @@ class AnalysisController(AnalysisControllerBase):
                 "analysis_range_high": settings.CD_CORRELATION_ANALYSIS_RANGE_HIGH_DEFAULT * self.max_dist
             }
         }
-
         config = setting_defaults[self.window_type]
-        self.band_pass_low = config["band_pass_low"]
-        self.band_pass_high = config["band_pass_high"]
-        self.analysis_range_low = config["analysis_range_low"]
-        self.analysis_range_high = config["analysis_range_high"]
         self.fs = 1 / self.measurement.sample_step
+
+        self.set_default('band_pass_low', config["band_pass_low"])
+        self.set_default('band_pass_high', config["band_pass_high"])
+        self.set_default('analysis_range_low', config["analysis_range_low"])
+        self.set_default('analysis_range_high', config["analysis_range_high"])
 
     def plot(self):
         if self.measurement.channel_df.empty:

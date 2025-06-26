@@ -47,18 +47,18 @@ class AnalysisController(AnalysisControllerBase):
             }
         }
 
-        self.show_unfiltered_data = False
-        self.selected_samples = self.measurement.selected_samples.copy()
         self.channels = self.measurement.channels
-        self.channel1 = self.channels[0]
-        self.channel2 = self.channels[0]
         config = channel_correlation_config[self.window_type]
-        self.band_pass_low = config["band_pass_low"]
-        self.band_pass_high = config["band_pass_high"]
         self.fs = 1 / self.measurement.sample_step
-        self.analysis_range_low = config["analysis_range_low"] * self.max_dist
-        self.analysis_range_high = config["analysis_range_high"] * \
-            self.max_dist
+
+        self.set_default('selected_samples', self.measurement.selected_samples.copy())
+        self.set_default('channel1', self.channels[0])
+        self.set_default('channel2', self.channels[1])
+        self.set_default('show_unfiltered_data', False)
+        self.set_default('band_pass_low', config["band_pass_low"])
+        self.set_default('band_pass_high', config["band_pass_high"])
+        self.set_default('analysis_range_low', config["analysis_range_low"] * self.max_dist)
+        self.set_default('analysis_range_high', config["analysis_range_high"] * self.max_dist)
 
     def calculate_max_cross_correlation_offset(self, data1, data2, sample_step):
         corr = np.correlate(data1 - np.mean(data1),

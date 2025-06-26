@@ -1,7 +1,7 @@
 from PyQt6.QtCore import QObject, pyqtSignal, Qt
 from PyQt6.QtWidgets import QWidget, QMenuBar, QVBoxLayout, QFileDialog
 from PyQt6.QtGui import QAction
-from typing import Type, List, Optional, TypeVar, Generic
+from typing import Type, List, Optional, TypeVar, Generic, Any
 from dataclasses import dataclass
 from gui.components import PlotMixin
 from utils.measurement import Measurement
@@ -27,6 +27,10 @@ class AnalysisControllerBase(QObject, PlotMixin):
 
         if annotations:
             self.set_annotations(annotations)
+
+    def set_default(self, key: str, value: Any):
+        if not hasattr(self, key):
+            setattr(self, key, value)
 
     def set_attributes(self, attributes: dict):
         for key, value in attributes.items():

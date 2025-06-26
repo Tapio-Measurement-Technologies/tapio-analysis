@@ -37,16 +37,16 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         self.mean_profile = None
         self.selected_samples = self.measurement.selected_samples.copy()
         self.max_dist = np.max(self.measurement.cd_distances)
-        self.band_pass_low = settings.CD_PROFILE_BAND_PASS_LOW_DEFAULT_1M
-        self.band_pass_high = settings.CD_PROFILE_BAND_PASS_HIGH_DEFAULT_1M
         self.fs = 1 / self.measurement.sample_step
-        self.analysis_range_low = settings.CD_PROFILE_RANGE_LOW_DEFAULT * self.max_dist
-        self.analysis_range_high = settings.CD_PROFILE_RANGE_HIGH_DEFAULT * self.max_dist
-        self.waterfall_offset = settings.CD_PROFILE_WATERFALL_OFFSET_DEFAULT
-        self.confidence_interval = None
-        self.show_profiles = False
-        self.show_min_max = False
-        self.show_legend = False
+        self.set_default('band_pass_low', settings.CD_PROFILE_BAND_PASS_LOW_DEFAULT_1M)
+        self.set_default('band_pass_high', settings.CD_PROFILE_BAND_PASS_HIGH_DEFAULT_1M)
+        self.set_default('analysis_range_low', settings.CD_PROFILE_RANGE_LOW_DEFAULT * self.max_dist)
+        self.set_default('analysis_range_high', settings.CD_PROFILE_RANGE_HIGH_DEFAULT * self.max_dist)
+        self.set_default('waterfall_offset', settings.CD_PROFILE_WATERFALL_OFFSET_DEFAULT)
+        self.set_default('confidence_interval', None)
+        self.set_default('show_profiles', False)
+        self.set_default('show_min_max', False)
+        self.set_default('show_legend', False)
 
         # Extra data
         self.extra_data = None
