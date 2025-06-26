@@ -62,7 +62,7 @@ class LogManager(QObject):
 
         color_map = {
             "INFO": "black",
-            "ERROR": "red"
+            "ERROR": "black"
         }
 
         lines = message.rstrip().splitlines()
