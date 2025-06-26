@@ -411,8 +411,8 @@ class MainWindow(QMainWindow):
     def open_analysis_window(self, analysis_name, window_type, annotations=None, attributes=None):
         try:
             analysis = Analysis(store.loaded_measurement, analysis_name, window_type, annotations, attributes)
-        except KeyError:
-            print(f"Error: Analysis '{analysis_name}' not found")
+        except Exception as e:
+            print(f"Error opening analysis window: {e}")
             return
 
         # Check if this analysis allows multiple instances
