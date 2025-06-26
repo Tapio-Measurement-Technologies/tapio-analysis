@@ -4,7 +4,6 @@ from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
 from utils.filters import bandpass_filter
 from utils.types import PlotAnnotation
 from matplotlib.ticker import AutoMinorLocator
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from gui.components import (
     AnalysisRangeMixin,
     ChannelMixin,

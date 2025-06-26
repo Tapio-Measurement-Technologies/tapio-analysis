@@ -21,7 +21,6 @@ from gui.components import (
 from gui.paper_machine_data import PaperMachineDataWindow
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.ticker import AutoMinorLocator, LogLocator
 from scipy.signal import coherence
 from scipy.signal import find_peaks

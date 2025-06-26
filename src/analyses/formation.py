@@ -1,7 +1,6 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QMessageBox, QHBoxLayout, QGroupBox
 from PyQt6.QtGui import QAction
 from matplotlib import pyplot as plt
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from scipy.optimize import curve_fit
 from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase

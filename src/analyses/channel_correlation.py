@@ -1,7 +1,6 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGroupBox
 from PyQt6.QtGui import QAction
 from scipy.stats import pearsonr
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from utils.measurement import Measurement
 from utils.filters import bandpass_filter
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase

@@ -3,7 +3,6 @@ from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
 from utils.types import AnalysisType, PlotAnnotation
 from utils.filters import bandpass_filter
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import matplotlib.patheffects as path_effects
 from gui.components import (
     AnalysisRangeMixin,

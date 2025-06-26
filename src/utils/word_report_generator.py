@@ -4,7 +4,6 @@ from docx.enum.table import WD_ALIGN_VERTICAL
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
-import datetime
 import numpy as np
 from .report_generator import ReportGenerator
 import settings

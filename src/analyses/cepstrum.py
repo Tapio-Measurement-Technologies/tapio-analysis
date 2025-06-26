@@ -18,7 +18,6 @@ from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
 from utils.types import AnalysisType, PlotAnnotation
 import matplotlib.patches as mpatches
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from scipy.signal import welch
 import numpy as np
 import pandas as pd

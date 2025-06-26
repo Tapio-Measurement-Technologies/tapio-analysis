@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.ticker import AutoMinorLocator, LogLocator
 from scipy.signal import welch, find_peaks
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from gui.components import (
     AnalysisRangeMixin,
     ChannelMixin,

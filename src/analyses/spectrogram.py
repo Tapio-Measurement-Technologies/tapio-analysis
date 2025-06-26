@@ -6,7 +6,6 @@ from utils.types import AnalysisType, PlotAnnotation
 from utils.signal_processing import hs_units
 import matplotlib.pyplot as plt
 import matplotlib
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from gui.components import (
     AnalysisRangeMixin,
     ChannelMixin,

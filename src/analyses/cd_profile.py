@@ -6,7 +6,6 @@ from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
 from utils.types import AnalysisType, PlotAnnotation
 from scipy.stats import norm
 from matplotlib.ticker import AutoMinorLocator
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from gui.components import (
     AnalysisRangeMixin,
     ChannelMixin,

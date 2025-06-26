@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QMenuBar, QHBoxLayout, QGroupBox, QCheckBox, QLabel
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QCheckBox, QLabel
 from PyQt6.QtGui import QAction
 from utils.filters import bandpass_filter
 from utils.measurement import Measurement
@@ -6,7 +6,6 @@ from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
 from utils.types import AnalysisType, PlotAnnotation
 from matplotlib.ticker import MaxNLocator
 from matplotlib import colors, cm
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from gui.components import (
     AnalysisRangeMixin,
     ChannelMixin,

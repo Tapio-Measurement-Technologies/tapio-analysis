@@ -2,7 +2,6 @@ from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
 from utils.types import AnalysisType, PlotAnnotation
 from utils.signal_processing import harmonic_fitting_units
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import numpy as np
 
 analysis_name = "SOS Analysis"

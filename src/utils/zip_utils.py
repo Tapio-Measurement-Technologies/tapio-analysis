@@ -4,7 +4,6 @@ import os
 import shutil
 from PyQt6.QtWidgets import QInputDialog, QMessageBox, QLineEdit, QProgressDialog, QApplication
 from PyQt6.QtCore import Qt
-import time
 
 def unpack_zip_to_temp_with_password_prompt(zip_file_path, parent_widget):
     """Unpacks a ZIP file to a temporary directory using pyzipper, handling passwords.

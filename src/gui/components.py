@@ -1,24 +1,21 @@
 from PyQt6.QtWidgets import QApplication
 from io import BytesIO
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QImage, QMouseEvent
-from PyQt6.QtWidgets import QVBoxLayout, QWidget, QFrame
+from PyQt6.QtWidgets import QVBoxLayout, QWidget
 from PyQt6.QtWidgets import QComboBox, QLabel, QDoubleSpinBox, QFileDialog, QCheckBox, QHBoxLayout, QMessageBox, QGridLayout, QPushButton
 from PyQt6.QtGui import QAction, QIcon
 from qtpy.QtCore import Qt, Signal
 from superqt import QLabeledDoubleRangeSlider, QLabeledSlider, QLabeledDoubleSlider
 from matplotlib.figure import Figure
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from gui.annotable_canvas import AnnotableCanvas
-from utils.types import PlotAnnotation
 import logging
 import settings
 import numpy as np
 import pandas as pd
 import io
 import traceback
-import os
 
 from gui.sample_selector import SampleSelectorWindow
 
