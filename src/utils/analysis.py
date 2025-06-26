@@ -19,7 +19,7 @@ class AnalysisControllerBase(QObject, PlotMixin):
         self.measurement: Measurement = measurement
         self.window_type: AnalysisType = window_type
         self.analysis_type: AnalysisType = window_type # For backwards compatibility
-        self.show_annotations: bool = len(annotations) > 0 # TODO: Add mixin checkboxes (if necessary)
+        self.show_annotations: bool = True # TODO: Add mixin checkboxes (if necessary)
         self.channel: str = measurement.channels[0]
 
         if attributes:
