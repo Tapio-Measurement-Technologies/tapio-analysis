@@ -58,12 +58,12 @@ class AnnotableCanvas(FigureCanvasQTAgg):
                                         xytext=annotation.xytext,
                                         arrowprops=annotation.arrowprops,
                                         picker=True,
-                                        bbox=dict(boxstyle="round,pad=0.3", fc="yellow", ec="black", lw=1, alpha=0.7),
+                                        bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="black", lw=1, alpha=0.7),
                                         **annotation.style)
         else:
             ax_annotation = ax.text(annotation.xy[0], annotation.xy[1], annotation.text,
                                     picker=True,
-                                    bbox=dict(boxstyle="round,pad=0.3", fc="yellow", ec="black", lw=1, alpha=0.7),
+                                    bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="black", lw=1, alpha=0.7),
                                     **annotation.style)
 
         draggable_annotation = DraggableAnnotation(ax_annotation)
