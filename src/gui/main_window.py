@@ -227,6 +227,20 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "No Files", "No files were found after processing (e.g., empty ZIP or unpacking error).")
             return
 
+        json_files = [p for p in processed_file_paths if p.lower().endswith('.json')]
+        is_only_json = all(p.lower().endswith('.json') for p in processed_file_paths)
+
+        # If only JSON files are passed and a measurement is already loaded,
+        # try to treat them as analysis files. If that fails, proceed to load them as a new measurement.
+        if is_only_json and store.loaded_measurement:
+            analyses_loaded_count = 0
+            for json_file in json_files:
+                analyses_loaded_count += self.load_analysis_windows(json_file)
+
+            # If analyses were loaded, we are done.
+            if analyses_loaded_count > 0:
+                return
+
         # Confirm if there are open windows
         if len(store.open_windows) > 0:
             response = QMessageBox.question(self, 'Confirm open new file',
@@ -263,6 +277,10 @@ class MainWindow(QMainWindow):
             return
 
         self.refresh()
+
+        if json_files:
+            for json_file in json_files:
+                self.load_analysis_windows(json_file)
 
     def handleDroppedFiles(self, file_paths):
         """Handle files dropped onto the drop zone."""
@@ -511,20 +529,35 @@ class MainWindow(QMainWindow):
             # else: download_zip_to_temp already showed an error message
 
     @pyqtSlot()
-    def load_analysis_windows(self, file_path=None):
-        """Load analysis windows from JSON file."""
+    def load_analysis_windows(self, file_path=None) -> int:
+        """
+        Load analysis windows from JSON file.
+        Returns:
+            int: The number of analyses loaded.
+        """
         if not store.loaded_measurement:
             QMessageBox.warning(self, "No measurement loaded", "No measurement loaded. Please load a measurement first.")
-            return
+            return 0
 
         if file_path is None:
             file_path, _ = QFileDialog.getOpenFileName(self, "Open JSON file", "", "JSON Files (*.json)")
-        if file_path:
+
+        if not file_path:
+            return 0
+
+        try:
             with open(file_path, 'r') as file:
                 data_str = file.read()
-                data = parse_preconfigured_analyses(data_str)
-                for analysis in data:
-                    self.open_analysis_window(analysis.analysis_name, analysis.analysis_type, analysis.annotations, analysis.attributes)
+            data = parse_preconfigured_analyses(data_str)
+            if not data:
+                return 0  # Not a valid analysis file or empty list
+
+            for analysis in data:
+                self.open_analysis_window(analysis.analysis_name, analysis.analysis_type, analysis.annotations, analysis.attributes)
+            return len(data)
+        except Exception as e:
+            print(f"Could not process {file_path} as analysis file: {e}")
+            return 0
 
     @pyqtSlot()
     def save_analysis_windows(self):
