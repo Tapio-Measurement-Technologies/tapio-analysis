@@ -137,9 +137,12 @@ class Measurement:
             indices = np.arange(min_length)
             self.cd_distances = indices * self.sample_step
 
-        if self.cd_segments:
-            min_length = min(segment.length for segment in self.cd_segments)
-            indices = np.arange(min_length)
-            self.cd_distances = indices * self.sample_step
+        # if self.cd_segments:
+        #     min_length = min(segment.length for segment in self.cd_segments)
+        #     indices = np.arange(min_length)
+        #     self.cd_distances = indices * self.sample_step
+        #     print("CD distances from split_data_to_segments:")
+        #     print(self.cd_distances)
+        #     print(len(self.cd_distances))
 
         return self
