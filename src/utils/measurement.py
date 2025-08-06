@@ -75,7 +75,7 @@ class Measurement:
     segments: dict[str, list[float]] = field(default_factory=dict)
     cd_distances: list[float] = field(default_factory=list)
     pm_data: dict[str, pd.DataFrame] = field(default_factory=dict)
-    cd_segments: list[CDSegment] = field(default_factory=list)
+    # cd_segments: list[CDSegment] = field(default_factory=list)
     patch_segments: list[PatchSegment] = field(default_factory=list)
 
     def get_file_path(self, file_type: MeasurementFileType):
@@ -94,13 +94,13 @@ class Measurement:
         with open(self.pm_file_path, 'r') as f:
             self.pm_data = json.load(f)
 
-    def get_cd_segments(self, peak_locations: list[float], tape_width_m: float) -> list[CDSegment]:
-        segments = []
-        for i in range(len(peak_locations)-1):
-            start_dist = peak_locations[i] + tape_width_m
-            end_dist = peak_locations[i+1] - tape_width_m
-            segments.append(CDSegment(start_dist, end_dist, self.sample_step))
-        return segments
+    # def get_cd_segments(self, peak_locations: list[float], tape_width_m: float) -> list[CDSegment]:
+    #     segments = []
+    #     for i in range(len(peak_locations)-1):
+    #         start_dist = peak_locations[i] + tape_width_m
+    #         end_dist = peak_locations[i+1] - tape_width_m
+    #         segments.append(CDSegment(start_dist, end_dist, self.sample_step))
+    #     return segments
 
     def split_data_to_segments(self):
         """Split data into segments based on peak locations."""
@@ -129,7 +129,7 @@ class Measurement:
                 segments[channel] = np.array(trimmed_segments)
 
         self.segments = segments
-        self.cd_segments = self.get_cd_segments(self.peak_locations, tape_width_m)
+        # self.cd_segments = self.get_cd_segments(self.peak_locations, tape_width_m)
 
         if segments:
             # Only calculate cd_distances if we have segments

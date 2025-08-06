@@ -628,13 +628,15 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         if self.controller.window_type == "MD":
             self.addShowWavelengthCheckbox(displayOptionsLayout)
 
-        self.clearButton = QPushButton("Clear Frequency Selection")
-        self.clearButton.clicked.connect(self.clearFrequency)
-        displayOptionsLayout.addWidget(self.clearButton)
 
         self.refineButton = QPushButton("Refine Frequency Selection")
         self.refineButton.clicked.connect(self.refineFrequency)
         displayOptionsLayout.addWidget(self.refineButton)
+
+        self.clearButton = QPushButton("Clear Frequency Selection")
+        self.clearButton.clicked.connect(self.clearFrequency)
+        displayOptionsLayout.addWidget(self.clearButton)
+
 
         if self.controller.window_type == "MD":
             # Other Toggles Group
