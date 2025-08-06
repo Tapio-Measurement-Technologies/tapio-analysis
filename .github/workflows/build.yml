@@ -24,6 +24,9 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
+      - name: Create version file
+        run: echo "__version__ = '${{ github.ref_name }}'" > src/version.py
+
       - name: Build executable
         run: >
           pyinstaller
@@ -48,6 +51,11 @@ jobs:
         with:
           name: tapio-analysis-${{ github.ref_name }}
           path: dist/tapio-analysis-${{ github.ref_name }}.exe
+
+      - name: Clean up version file
+        if: always()
+        run: rm src/version.py
+
 
   release:
     runs-on: ubuntu-latest

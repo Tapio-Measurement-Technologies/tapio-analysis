@@ -26,6 +26,14 @@ from utils.zip_utils import unpack_zip_to_temp_with_password_prompt
 import shutil
 from utils.analysis import Analysis, parse_preconfigured_analyses, PreconfiguredAnalysis
 import json
+import traceback
+
+
+try:
+    from version import __version__
+except ImportError:
+    __version__ = " (development version)"
+
 
 class MainWindow(QMainWindow):
 
@@ -37,13 +45,15 @@ class MainWindow(QMainWindow):
         self.md_export_actions = []
         self.initUI()
 
+
+
         # Connect cleanup to application quit signal
         app = QApplication.instance()
         if app: # Ensure QApplication instance exists
             app.aboutToQuit.connect(self._cleanup_temp_dirs)
 
     def initUI(self):
-        self.setWindowTitle('Tapio Analysis')
+        self.setWindowTitle(f'Tapio Analysis{__version__}')
         # self.setGeometry(200, 200, 800, 600)  # x, y, width, height
         self.resize(800, 600)  # x, y, width, height
 
@@ -436,6 +446,7 @@ class MainWindow(QMainWindow):
         try:
             analysis = Analysis(store.loaded_measurement, analysis_name, window_type, annotations, attributes)
         except Exception as e:
+            traceback.print_exc()
             print(f"Error opening analysis window: {e}")
             return
 
