@@ -1,4 +1,6 @@
-from PyQt6.QtWidgets import QMenu, QLineEdit
+from PyQt6.QtGui import QKeyEvent, QFontMetrics
+from PyQt6.QtCore import Qt, pyqtSignal, QSize
+from PyQt6.QtWidgets import QMenu, QTextEdit
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 from matplotlib.text import Text, Annotation
@@ -13,6 +15,48 @@ def check_axes(func):
             return
         return func(self, *args, **kwargs)
     return wrapper
+
+class AnnotationTextEdit(QTextEdit):
+    editingFinished = pyqtSignal()
+    MAX_WIDTH = 200
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setAcceptRichText(False)
+        self.textChanged.connect(self._on_text_changed)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+    def _on_text_changed(self):
+        self.update_size()
+
+    def update_size(self):
+        font_metrics = QFontMetrics(self.font())
+        document = self.document()
+
+        text = self.toPlainText()
+
+        if not text:
+            # Set a minimum size for an empty editor
+            min_height = font_metrics.height() + document.documentMargin() * 2
+            self.setMinimumSize(QSize(30, int(min_height)))
+            self.setMaximumSize(QSize(30, int(min_height)))
+            return
+
+        bounding_rect = font_metrics.boundingRect(0, 0, self.MAX_WIDTH, 10000, Qt.TextFlag.TextWordWrap, text)
+
+        width = bounding_rect.width() + 20
+        height = bounding_rect.height() + 20
+
+        self.setFixedSize(QSize(int(width), int(height)))
+
+
+    def keyPressEvent(self, event: QKeyEvent):
+        if event.key() == Qt.Key.Key_Return and not (event.modifiers() & Qt.KeyboardModifier.ShiftModifier):
+            self.editingFinished.emit()
+        else:
+            super().keyPressEvent(event)
+
 
 class DraggableAnnotation:
     def __init__(self, annotation):
@@ -129,9 +173,10 @@ class AnnotableCanvas(FigureCanvasQTAgg):
         # Invert y-coordinate for Qt
         x, y = bbox.x0, self.height() - bbox.y1
 
-        self.editor = QLineEdit(self)
+        self.editor = AnnotationTextEdit(self)
         self.editor.setText(self.editing_annotation.annotation.get_text())
-        self.editor.setGeometry(int(x), int(y), int(bbox.width), int(bbox.height))
+        self.editor.move(int(x), int(y))
+        self.editor.update_size()
 
         self.editor.editingFinished.connect(self.finish_editing)
         self.editor.show()
@@ -139,7 +184,7 @@ class AnnotableCanvas(FigureCanvasQTAgg):
 
     def finish_editing(self):
         if self.editor:
-            new_text = self.editor.text()
+            new_text = self.editor.toPlainText()
             self.editing_annotation.annotation.set_text(new_text)
 
             self.editor.deleteLater()
