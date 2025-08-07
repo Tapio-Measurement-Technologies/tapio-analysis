@@ -1,5 +1,4 @@
 from PyQt6.QtWidgets import QMenu, QLineEdit
-from PyQt6.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 from matplotlib.text import Text, Annotation
@@ -38,10 +37,6 @@ class AnnotableCanvas(FigureCanvasQTAgg):
         self.mpl_connect('button_press_event', self.on_press)
         self.mpl_connect('button_release_event', self.on_release)
         self.mpl_connect('motion_notify_event', self.on_motion)
-        self.mpl_connect('key_press_event', self.on_key_press)
-
-        # For focusing the canvas to receive key events
-        self.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
 
     @check_axes
     def add_annotation(self, annotation: PlotAnnotation):
@@ -218,14 +213,6 @@ class AnnotableCanvas(FigureCanvasQTAgg):
                 new_y = event.ydata + dy
                 self.selected_annotation.annotation.set_position((new_x, new_y))
                 self.draw_idle()
-
-    @check_axes
-    def on_key_press(self, event):
-        if event.key == 'delete' and self.selected_annotation:
-            self.selected_annotation.annotation.remove()
-            self.annotations.remove(self.selected_annotation)
-            self.selected_annotation = None
-            self.draw_idle()
 
     def get_annotations(self) -> list[PlotAnnotation]:
         """Returns a serializable list of annotations."""
