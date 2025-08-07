@@ -6,6 +6,7 @@ from utils.measurement import Measurement
 import json
 
 AnalysisType = Literal["MD", "CD"]
+AnnotationType = Literal["text", "arrow", "vline"]
 ModuleName = str
 
 @dataclass
@@ -16,6 +17,7 @@ class PlotAnnotation:
     arrowprops: Optional[dict] = field(default_factory=dict)
     style: Optional[dict] = field(default_factory=dict)
     axes_index: Optional[int] = None
+    annotation_type: AnnotationType = "text"
 
     @staticmethod
     def from_dict(data: dict) -> "PlotAnnotation":

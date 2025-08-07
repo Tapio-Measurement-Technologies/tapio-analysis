@@ -5,6 +5,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 from matplotlib.text import Text, Annotation
 import matplotlib.text as mtext
+from matplotlib.lines import Line2D
 from functools import wraps
 from utils.types import PlotAnnotation
 
@@ -60,7 +61,7 @@ class AnnotationTextEdit(QTextEdit):
 
 class DraggableAnnotation:
     def __init__(self, annotation):
-        self.annotation: Annotation | Text = annotation
+        self.annotation: Annotation | Text | Line2D = annotation
         self.draggable = False
         self.offset = (0, 0)
 
@@ -91,7 +92,9 @@ class AnnotableCanvas(FigureCanvasQTAgg):
             # Fallback for old annotations or single-plot figures
             ax = self.figure.axes[0]
 
-        if annotation.arrowprops:
+        if annotation.annotation_type == 'vline':
+            ax_annotation = ax.axvline(x=annotation.xy[0], picker=True, **annotation.style)
+        elif annotation.annotation_type == 'arrow':
             ax_annotation = ax.annotate(annotation.text,
                                         xy=annotation.xy,
                                         xytext=annotation.xytext,
@@ -111,15 +114,21 @@ class AnnotableCanvas(FigureCanvasQTAgg):
 
     @check_axes
     def on_pick(self, event):
-        if isinstance(event.artist, mtext.Text):
+        is_text = isinstance(event.artist, mtext.Text)
+        is_line = isinstance(event.artist, Line2D)
+
+        if is_text or is_line:
             for annotation in self.annotations:
                 if event.artist == annotation.annotation:
                     self.selected_annotation = annotation
                     self.selected_annotation.draggable = True
-                    # Calculate offset from click to annotation position
                     mouse_event = event.mouseevent
-                    x, y = annotation.annotation.get_position()
-                    self.selected_annotation.offset = (x - mouse_event.xdata, y - mouse_event.ydata)
+                    if is_line:
+                        x = annotation.annotation.get_xdata()[0]
+                        self.selected_annotation.offset = (x - mouse_event.xdata, 0)
+                    else:
+                        x, y = annotation.annotation.get_position()
+                        self.selected_annotation.offset = (x - mouse_event.xdata, y - mouse_event.ydata)
                     break
 
     @check_axes
@@ -142,7 +151,8 @@ class AnnotableCanvas(FigureCanvasQTAgg):
                     break
 
             if clicked_annotation:
-                self.edit_annotation(clicked_annotation)
+                if not isinstance(clicked_annotation.annotation, Line2D):
+                    self.edit_annotation(clicked_annotation)
                 return
 
         if event.button == 3:  # Right-click
@@ -196,6 +206,7 @@ class AnnotableCanvas(FigureCanvasQTAgg):
         menu = QMenu(self)
         add_text_action = menu.addAction("Add Text Label")
         add_arrow_action = menu.addAction("Add Arrow")
+        add_vline_action = menu.addAction("Add Vertical Line")
 
         action = menu.exec(self.mapToGlobal(event.guiEvent.pos()))
 
@@ -208,7 +219,8 @@ class AnnotableCanvas(FigureCanvasQTAgg):
             self.add_annotation(PlotAnnotation(
                 text=f'Label {len(self.annotations) + 1}',
                 xy=(event.xdata, event.ydata),
-                axes_index=axes_index
+                axes_index=axes_index,
+                annotation_type='text'
             ))
         elif action == add_arrow_action:
             ax = self.figure.axes[axes_index]
@@ -225,7 +237,16 @@ class AnnotableCanvas(FigureCanvasQTAgg):
                 xy=(event.xdata, event.ydata),
                 xytext=(xytext_x, event.ydata),
                 arrowprops=dict(facecolor='black', shrink=0.05, width=1, headwidth=8),
-                axes_index=axes_index
+                axes_index=axes_index,
+                annotation_type='arrow'
+            ))
+        elif action == add_vline_action:
+            self.add_annotation(PlotAnnotation(
+                text='',
+                xy=(event.xdata, event.ydata),
+                axes_index=axes_index,
+                annotation_type='vline',
+                style={'color': 'red', 'linestyle': '--'}
             ))
 
     def _show_remove_context_menu(self, event, annotation_to_remove: DraggableAnnotation):
@@ -255,8 +276,12 @@ class AnnotableCanvas(FigureCanvasQTAgg):
             if event.xdata is not None and event.ydata is not None:
                 dx, dy = self.selected_annotation.offset
                 new_x = event.xdata + dx
-                new_y = event.ydata + dy
-                self.selected_annotation.annotation.set_position((new_x, new_y))
+
+                if isinstance(self.selected_annotation.annotation, Line2D):
+                    self.selected_annotation.annotation.set_xdata([new_x, new_x])
+                else:
+                    new_y = event.ydata + dy
+                    self.selected_annotation.annotation.set_position((new_x, new_y))
                 self.draw_idle()
 
     def get_annotations(self) -> list[PlotAnnotation]:
@@ -265,24 +290,32 @@ class AnnotableCanvas(FigureCanvasQTAgg):
         for ann in self.annotations:
             if ann.annotation.get_figure() is not None and ann.annotation.axes in self.figure.axes:
                 axes_index = self.figure.axes.index(ann.annotation.axes)
-                text = ann.annotation.get_text()
-                style = {k: v for k, v in ann.annotation.properties().items() if k in ['color', 'fontsize', 'fontweight']}
 
-                if isinstance(ann.annotation, mtext.Annotation):
+                if isinstance(ann.annotation, Line2D):
                     plot_annotations.append(PlotAnnotation(
-                        text=text,
+                        text='',
+                        xy=(ann.annotation.get_xdata()[0], 0),
+                        style={'color': ann.annotation.get_color(), 'linestyle': ann.annotation.get_linestyle()},
+                        axes_index=axes_index,
+                        annotation_type='vline'
+                    ))
+                elif isinstance(ann.annotation, mtext.Annotation):
+                    plot_annotations.append(PlotAnnotation(
+                        text=ann.annotation.get_text(),
                         xy=ann.annotation.xy,
                         xytext=ann.annotation.get_position(),
                         arrowprops=ann.annotation.arrowprops,
-                        style=style,
-                        axes_index=axes_index
+                        style={k: v for k, v in ann.annotation.properties().items() if k in ['color', 'fontsize', 'fontweight']},
+                        axes_index=axes_index,
+                        annotation_type='arrow'
                     ))
-                else:
+                elif isinstance(ann.annotation, mtext.Text):
                     plot_annotations.append(PlotAnnotation(
-                        text=text,
+                        text=ann.annotation.get_text(),
                         xy=ann.annotation.get_position(),
-                        style=style,
-                        axes_index=axes_index
+                        style={k: v for k, v in ann.annotation.properties().items() if k in ['color', 'fontsize', 'fontweight']},
+                        axes_index=axes_index,
+                        annotation_type='text'
                     ))
         return plot_annotations
 
