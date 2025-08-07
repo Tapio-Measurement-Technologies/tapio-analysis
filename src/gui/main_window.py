@@ -32,7 +32,7 @@ import traceback
 try:
     from version import __version__
 except ImportError:
-    __version__ = " (development version)"
+    __version__ = "(development version)"
 
 
 class MainWindow(QMainWindow):
@@ -53,7 +53,7 @@ class MainWindow(QMainWindow):
             app.aboutToQuit.connect(self._cleanup_temp_dirs)
 
     def initUI(self):
-        self.setWindowTitle(f'Tapio Analysis{__version__}')
+        self.setWindowTitle(f'Tapio Analysis {__version__}')
         # self.setGeometry(200, 200, 800, 600)  # x, y, width, height
         self.resize(800, 600)  # x, y, width, height
 
