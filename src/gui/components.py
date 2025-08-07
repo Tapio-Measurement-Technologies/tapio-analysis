@@ -928,8 +928,9 @@ class CopyPlotMixin:
     def keyPressEvent(self, event):
         if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_C:
             # Attempt to copy the plot if it exists
-            if hasattr(self, 'plot') and self.plot:
-                self.copyPlotToClipboard(self.plot)
+            if hasattr(self, 'controller') and hasattr(self.controller, 'canvas') and self.controller.canvas:
+                self.copyPlotToClipboard(self.controller.canvas)
+                print("Plot copied to clipboard.")
             else:
                 print("Warning: No plot available to copy.")
                 return
@@ -938,16 +939,16 @@ class CopyPlotMixin:
         if hasattr(parent, 'keyPressEvent'):
             parent.keyPressEvent(event)
 
-    def copyPlotToClipboard(self, plot):
+    def copyPlotToClipboard(self, canvas):
         """
         Copies the given plot's figure to the clipboard.
 
         Parameters:
-        - plot: The matplotlib plot canvas to copy.
+        - canvas: The matplotlib canvas to copy.
         """
         try:
             buffer = BytesIO()
-            plot.figure.savefig(buffer, format='png', dpi=300)
+            canvas.figure.savefig(buffer, format='png', dpi=300)
             buffer.seek(0)
 
             # Convert buffer to QImage
