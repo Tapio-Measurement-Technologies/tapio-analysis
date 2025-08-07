@@ -91,6 +91,8 @@ class AnalysisWindowBase(QWidget, Generic[ControllerT]):
         options = QFileDialog.options(dialog)
         fileName, _ = QFileDialog.getSaveFileName(self, "Save analysis as...", "", "JSON Files (*.json)", options=options)
         if fileName:
+            if not fileName.endswith('.json'):
+                fileName += '.json'
             with open(fileName, 'w') as f:
                 f.write(self.controller.export_analysis().to_json())
 
