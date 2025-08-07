@@ -16,26 +16,8 @@ import numpy as np
 import pandas as pd
 import io
 import traceback
-import sys
-import os
 
 from gui.sample_selector import SampleSelectorWindow
-
-def is_pyinstaller_compiled():
-    """Check if the application is running as a PyInstaller compiled executable."""
-    return getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
-
-def fix_dpi_scaling_issues():
-    """Apply fixes for DPI scaling issues in PyInstaller compiled applications."""
-    if is_pyinstaller_compiled():
-        # Set environment variables to handle DPI scaling issues
-        os.environ['QT_AUTO_SCREEN_SCALE_FACTOR'] = '1'
-        os.environ['QT_SCALE_FACTOR_ROUNDING_POLICY'] = 'PassThrough'
-        
-        # Force Qt to use the system DPI
-        if hasattr(QApplication, 'setAttribute'):
-            QApplication.setAttribute(Qt.ApplicationAttribute.AA_EnableHighDpiScaling, True)
-            QApplication.setAttribute(Qt.ApplicationAttribute.AA_UseHighDpiPixmaps, True)
 
 
 class FineControlMixin:
@@ -219,50 +201,16 @@ class FrequencyRangeMixin:
         # Prevent recursive refresh calls when updating values elsewhere
         self.frequencyRangeSlider.blockSignals(block_signals)
         self.frequencyRangeSlider.setDecimals(1)
-        
-        # Ensure max_freq is valid
-        max_freq = self.controller.max_freq
-        if max_freq <= 0:
-            # Fallback calculation if controller max_freq is invalid
-            max_freq = (1 / self.controller.measurement.sample_step) / 2 if self.controller.measurement.sample_step else 0.5
-        
-        # Set range with explicit float conversion to avoid precision issues
-        min_val = 0.0
-        max_val = float(max_freq)
-        
-        # Ensure the range is valid and not zero
-        if max_val <= min_val:
-            max_val = min_val + 0.5
-        
-        self.frequencyRangeSlider.setRange(min_val, max_val)
-        
-        # Get current values and ensure they're within the new range
-        current_low = self.controller.frequency_range_low
-        current_high = self.controller.frequency_range_high
-        
-        # Clamp values to valid range
-        current_low = max(min_val, min(current_low, max_val))
-        current_high = max(current_low, min(current_high, max_val))
-        
-        # Set the value with explicit tuple conversion
-        self.frequencyRangeSlider.setValue((current_low, current_high))
-        
-        # Force a layout update to ensure proper rendering
-        self.frequencyRangeSlider.update()
-        
+        self.frequencyRangeSlider.setRange(0, self.controller.max_freq)
+        self.frequencyRangeSlider.setValue(
+            (self.controller.frequency_range_low, self.controller.frequency_range_high))
         self.frequencyRangeSlider.blockSignals(False)
-        
-        # Debug logging for troubleshooting
-        if hasattr(settings, 'DEBUG') and settings.DEBUG:
-            print(f"FrequencyRangeSlider - Range: {min_val} to {max_val}, Value: ({current_low}, {current_high})")
 
     def addFrequencyRangeSlider(self, layout, live_update=settings.UPDATE_ON_SLIDE):
         self.frequencyRangeLabel = QLabel("Frequency range [1/m]")
         layout.addWidget(self.frequencyRangeLabel)
         self.frequencyRangeSlider = ExtraQLabeledDoubleRangeSlider(
             Qt.Orientation.Horizontal)
-        
-        # Initialize the slider after creation to ensure proper setup
         self.initFrequencyRangeSlider()
 
         if live_update:
@@ -276,25 +224,7 @@ class FrequencyRangeMixin:
         layout.addWidget(self.frequencyRangeSlider)
 
     def frequencyRangeChanged(self):
-        # Get the current slider values
-        slider_values = self.frequencyRangeSlider.value()
-        
-        # Ensure we have valid values
-        if isinstance(slider_values, (list, tuple)) and len(slider_values) == 2:
-            low, high = slider_values
-            # Validate the values are within the slider's range
-            slider_min = self.frequencyRangeSlider.minimum()
-            slider_max = self.frequencyRangeSlider.maximum()
-            
-            low = max(slider_min, min(low, slider_max))
-            high = max(low, min(high, slider_max))
-            
-            self.controller.frequency_range_low = low
-            self.controller.frequency_range_high = high
-        else:
-            # Fallback if slider returns unexpected format
-            print(f"Warning: Unexpected slider value format: {slider_values}")
-        
+        self.controller.frequency_range_low, self.controller.frequency_range_high = self.frequencyRangeSlider.value()
         self.refresh()  # Optionally refresh the plot if needed
 
 
@@ -409,12 +339,12 @@ class SpectrumLengthMixin:
             self.controller.spectrum_length_slider_min)
         self.spectrumLengthSlider.setMaximum(
             self.controller.spectrum_length_slider_max)
-        # self.spectrumLengthSlider.setSingleStep(1000)
+        self.spectrumLengthSlider.setSingleStep(1000)
         self.spectrumLengthSlider.setValue(self.controller.nperseg)
         self.spectrumLengthSlider.blockSignals(False)
 
     def addSpectrumLengthSlider(self, layout, live_update=settings.UPDATE_ON_SLIDE):
-        self.spectrumLengthLabel = QLabel("Window length")
+        self.spectrumLengthLabel = QLabel("Window length [m]")
         layout.addWidget(self.spectrumLengthLabel)
         self.spectrumLengthSlider = ExtraQLabeledSlider(
             Qt.Orientation.Horizontal)
@@ -473,25 +403,7 @@ class WaterfallOffsetMixin:
 class BandPassFilterMixin:
 
     def bandPassFilterRangeChanged(self):
-        # Get the current slider values
-        slider_values = self.bandPassFilterSlider.value()
-        
-        # Ensure we have valid values
-        if isinstance(slider_values, (list, tuple)) and len(slider_values) == 2:
-            low, high = slider_values
-            # Validate the values are within the slider's range
-            slider_min = self.bandPassFilterSlider.minimum()
-            slider_max = self.bandPassFilterSlider.maximum()
-            
-            low = max(slider_min, min(low, slider_max))
-            high = max(low, min(high, slider_max))
-            
-            self.controller.band_pass_low = low
-            self.controller.band_pass_high = high
-        else:
-            # Fallback if slider returns unexpected format
-            print(f"Warning: Unexpected slider value format: {slider_values}")
-        
+        self.controller.band_pass_low, self.controller.band_pass_high = self.bandPassFilterSlider.value()
         self.refresh()
         self._update_wavelength_label()
 
@@ -514,43 +426,11 @@ class BandPassFilterMixin:
     def initBandPassRangeSlider(self, block_signals=False):
         # Prevent recursive refresh calls when updating values elsewhere
         self.bandPassFilterSlider.blockSignals(block_signals)
-        
-        # Calculate max frequency with validation
-        max_freq = (self.controller.fs / 2) * ((settings.FILTER_NUMTAPS - 1) / settings.FILTER_NUMTAPS)
-        if max_freq <= 0:
-            # Fallback calculation if the result is invalid
-            max_freq = self.controller.fs / 2 if self.controller.fs > 0 else 30.0
-        
-        # Set range with explicit float conversion to avoid precision issues
-        min_val = 0.0
-        max_val = float(max_freq)
-        
-        # Ensure the range is valid and not zero
-        if max_val <= min_val:
-            max_val = min_val + 30.0
-        
-        self.bandPassFilterSlider.setRange(min_val, max_val)
-        
-        # Get current values and ensure they're within the new range
-        current_low = self.controller.band_pass_low
-        current_high = self.controller.band_pass_high
-        
-        # Clamp values to valid range
-        current_low = max(min_val, min(current_low, max_val))
-        current_high = max(current_low, min(current_high, max_val))
-        
-        # Set the value with explicit tuple conversion
-        self.bandPassFilterSlider.setValue((current_low, current_high))
-        
-        # Force a layout update to ensure proper rendering
-        self.bandPassFilterSlider.update()
-        
+        self.bandPassFilterSlider.setRange(0, (self.controller.fs / 2) *
+                                           ((settings.FILTER_NUMTAPS - 1) / settings.FILTER_NUMTAPS))
+        self.bandPassFilterSlider.setValue(
+            (self.controller.band_pass_low, self.controller.band_pass_high))
         self.bandPassFilterSlider.blockSignals(False)
-        
-        # Debug logging for troubleshooting
-        if hasattr(settings, 'DEBUG') and settings.DEBUG:
-            print(f"BandPassFilterSlider - Range: {min_val} to {max_val}, Value: ({current_low}, {current_high})")
-        
         self._update_wavelength_label()
 
     def addBandPassRangeSlider(self, layout, live_update=settings.UPDATE_ON_SLIDE):
