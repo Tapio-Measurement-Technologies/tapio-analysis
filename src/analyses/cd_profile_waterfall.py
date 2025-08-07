@@ -269,3 +269,5 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
     def updateStatistics(self, profile_data):
         unit = self.measurement.units[self.controller.channel]
         self.stats_widget.update_statistics(profile_data, unit)
+
+

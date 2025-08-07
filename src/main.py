@@ -29,6 +29,7 @@ import sys
 import traceback
 
 from gui.main_window import MainWindow
+from gui.components import fix_dpi_scaling_issues
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -47,6 +48,9 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 sys.excepthook = handle_exception
 
 def main():
+    # Apply DPI scaling fixes before creating the QApplication
+    fix_dpi_scaling_issues()
+    
     app = QApplication(sys.argv)
     app.setWindowIcon(
         QIcon(os.path.join(settings.ASSETS_DIR, "tapio_icon.ico")))
