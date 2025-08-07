@@ -33,8 +33,12 @@ jobs:
           -p src
           --onefile
           --noconsole
+          --hidden-import "gui.paper_machine_data"
+          --hidden-import "utils.filters"
+          --hidden-import "utils.signal_processing"
           --add-data "src/loaders/:loaders/"
           --add-data "src/exporters/:exporters/"
+          --add-data "src/analyses/:analyses/"
           --add-data "src/assets/:assets"
           --splash src/assets/splash.png
           --icon src/assets/tapio_favicon.ico
