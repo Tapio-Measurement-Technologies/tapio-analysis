@@ -13,6 +13,7 @@ menu_priority = 2
 
 file_types = "All Files (*);;Calibration files (*.ca2);;Data files (*.da2);;Header files (*.pk2);;Paper machine files (*.pmdata.json);;CD Sample location files (*.samples.json)"
 
+
 def load_data(fileNames: list[str]) -> Measurement | None:
     """
     Load Tapio data from a list of files and return a Measurement object.
@@ -47,7 +48,8 @@ def load_data(fileNames: list[str]) -> Measurement | None:
         sensor_df, units = add_calculated_channels(sensor_df, units)
 
         # Remove ignored channels
-        sensor_df = sensor_df.drop(columns=settings.IGNORE_CHANNELS, errors='ignore')
+        sensor_df = sensor_df.drop(
+            columns=settings.IGNORE_CHANNELS, errors='ignore')
 
         # Update measurement object with loaded data
         measurement.measurement_label = info
@@ -64,7 +66,8 @@ def load_data(fileNames: list[str]) -> Measurement | None:
 
         # Load CD samples data if available
         if measurement.samples_file_path:
-            peak_channel, threshold, peak_locations, selected_samples = load_cd_samples_data(measurement.samples_file_path)
+            peak_channel, threshold, peak_locations, selected_samples = load_cd_samples_data(
+                measurement.samples_file_path)
             measurement.peak_channel = peak_channel
             measurement.threshold = threshold
             measurement.peak_locations = peak_locations
@@ -75,6 +78,7 @@ def load_data(fileNames: list[str]) -> Measurement | None:
         return measurement
 
     return None
+
 
 def add_calculated_channels(sensor_df, units):
     """Add calculated channels to the sensor dataframe."""
@@ -91,6 +95,7 @@ def add_calculated_channels(sensor_df, units):
             traceback.print_exc()
 
     return sensor_df, units
+
 
 def read_common_from_ca(cal_file):
     """Read common parameters from calibration file."""
@@ -139,9 +144,11 @@ def read_channel_names_units_from_ca(cal_file):
                 break
             if line:
                 parts = line.split('\t')
+                parts = [part.strip() for part in parts]
+
                 if len(parts) >= 3:
                     sensor_name = parts[0]
-                    if not sensor_name.strip():
+                    if not sensor_name:
                         n_unnamed_channels += 1
                         sensor_name = f"Unnamed channel {n_unnamed_channels}"
                     logical_channel_number = parts[2]
@@ -151,6 +158,7 @@ def read_channel_names_units_from_ca(cal_file):
                         sensor_names.append(sensor_name)
 
     return sensor_names, units, logical_channel_numbers
+
 
 def read_info_from_header(header_file):
     """Read measurement info from header file."""
@@ -169,6 +177,7 @@ def read_info_from_header(header_file):
                 info = line
             index += 1
     return info
+
 
 def read_calibration_data_from_ca(cal_file, sensor_names):
     """Read calibration data for sensors from calibration file."""
@@ -255,11 +264,14 @@ def read_binary_data(file_path, num_channels):
     reshaped_data = np.reshape(data_points, (num_data_points, num_channels))
     return reshaped_data
 
+
 def parse_legacy_data(header_file_path, cal_file_path, data_file_path):
     """Parse legacy Tapio data files and return processed data."""
     with open(cal_file_path, 'r', encoding='iso-8859-1') as cal_file:
-        sensor_names, units, logical_channel_numbers = read_channel_names_units_from_ca(cal_file)
-        channels_n, ad_factor, formation, transmission_channel, bw_channel = read_common_from_ca(cal_file)
+        sensor_names, units, logical_channel_numbers = read_channel_names_units_from_ca(
+            cal_file)
+        channels_n, ad_factor, formation, transmission_channel, bw_channel = read_common_from_ca(
+            cal_file)
         calibrated, sensor_distances, sensor_scales, sensor_offsets, sensor_calibration_types, asymptotic_values = read_calibration_data_from_ca(
             cal_file, sensor_names)
 
@@ -288,6 +300,7 @@ def parse_legacy_data(header_file_path, cal_file_path, data_file_path):
 
     return sensor_df, units, sample_step, info, pm_speed
 
+
 def align_sensor_data(data, sensor_names, sensor_distances, sample_step):
     """Align sensor data based on sensor distances."""
     align_data_slices = {}
@@ -312,6 +325,7 @@ def align_sensor_data(data, sensor_names, sensor_distances, sample_step):
 
     return trimmed_data
 
+
 def apply_calibrations(sensor_df, sensor_names, sensor_calibration_types, ad_factor, sensor_scales, sensor_offsets, asymptotic_values):
     """Apply calibrations to sensor data."""
     for sensor_name in sensor_df.columns:
@@ -325,6 +339,7 @@ def apply_calibrations(sensor_df, sensor_names, sensor_calibration_types, ad_fac
 
     return sensor_df
 
+
 def load_cd_samples_data(samples_file_path: str):
     """Load CD samples data from file and update measurement object."""
     with open(samples_file_path, 'r') as f:
@@ -335,6 +350,7 @@ def load_cd_samples_data(samples_file_path: str):
         selected_samples = cd_data['selected_samples']
 
     return peak_channel, threshold, peak_locations, selected_samples
+
 
 def linear_calibration(y, a, s, f):
     """
