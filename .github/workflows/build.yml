@@ -35,6 +35,7 @@ jobs:
           --noconsole
           --add-data "src/loaders/:loaders/"
           --add-data "src/exporters/:exporters/"
+          --add-data "src/analyses/:analyses/"
           --add-data "src/assets/:assets"
           --splash src/assets/splash.png
           --icon src/assets/tapio_favicon.ico
