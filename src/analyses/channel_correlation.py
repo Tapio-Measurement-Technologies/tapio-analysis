@@ -175,7 +175,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
     def initUI(self):
         self.setWindowTitle(f"{self.window_type.upper()} Channel correlation analysis ({
                             self.measurement.measurement_label})")
-        self.setGeometry(settings.CHANNEL_CORRELATION_WINDOW_GEOMETRY)
+        self.setGeometry(*settings.CHANNEL_CORRELATION_WINDOW_GEOMETRY)
 
         if self.window_type == "CD":
             self.initMenuBar()
