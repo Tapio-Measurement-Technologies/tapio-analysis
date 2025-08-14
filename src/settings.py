@@ -307,7 +307,6 @@ REPORT_ENABLE_ANALYSIS_TITLE = False
 
 ANALYSIS_EXPORT_ATTRIBUTES = [
     "channel",
-    "channel1",
     "channel2",
     "band_pass_low",
     "band_pass_high",

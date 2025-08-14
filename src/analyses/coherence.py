@@ -82,7 +82,7 @@ def tabular_legend(ax, col_labels, data, *args, **kwargs):
 
 
 class AnalysisController(AnalysisControllerBase, ExportMixin):
-    channel1: str
+    channel: str
     channel2: str
     nperseg: float
     overlap: float
@@ -138,7 +138,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         self.current_vlines = []
         self.spectral_window = settings.SPECTRUM_WELCH_WINDOW
 
-        self.set_default('channel1', self.channels[0])
+        self.set_default('channel', self.channels[0])
         self.set_default('channel2', self.channels[0])
         self.set_default('nperseg', config["nperseg"])
         self.set_default('overlap', config["overlap"])
@@ -172,7 +172,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 self.measurement.distances, self.analysis_range_low)
             self.high_index = np.searchsorted(
                 self.measurement.distances, self.analysis_range_high, side='right')
-            data1 = self.measurement.channel_df[self.channel1][self.low_index:self.high_index]
+            data1 = self.measurement.channel_df[self.channel][self.low_index:self.high_index]
             data2 = self.measurement.channel_df[self.channel2][self.low_index:self.high_index]
 
             # Normalize both time series
@@ -210,7 +210,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
             x = self.measurement.cd_distances[self.low_index:self.high_index]
             sample_idx = self.selected_samples[0]  # or loop/average as needed
-            data1 = self.measurement.segments[self.channel1][sample_idx][self.low_index:self.high_index]
+            data1 = self.measurement.segments[self.channel][sample_idx][self.low_index:self.high_index]
             data2 = self.measurement.segments[self.channel2][sample_idx][self.low_index:self.high_index]
 
             # Normalize both time series
@@ -253,7 +253,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
         if settings.SPECTRUM_TITLE_SHOW:
             ax.set_title(f"{self.measurement.measurement_label} Coherence ({
-                self.channel1} vs {self.channel2})")
+                self.channel} vs {self.channel2})")
 
         ax.set_xlabel("Frequency [1/m]")
         ax.set_ylabel(f"Coherence")
@@ -330,7 +330,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         # Draw new lines and update frequency label
         if len(self.selected_freqs) > 0:
 
-            # legend_columns = [f"Amplitude [{self.measurement.units[self.channel1]}]",
+            # legend_columns = [f"Amplitude [{self.measurement.units[self.channel]}]",
             #                   "Frequency [1/m]", "Wavelength [cm]", "Frequency [Hz]"]
             if self.window_type == "MD":
                 legend_columns = [f"C",
@@ -355,17 +355,17 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                     if self.window_type == "CD":
                         label = f"{selected_freq:.2f} 1/m λ = {100 *
                                                                1/selected_freq:.2f} cm C = {amplitude:.2f}"
-                        print(f"Spectral peak in {self.channel1}: {label}")
+                        print(f"Spectral peak in {self.channel}: {label}")
                         legend_data.append([f"{amplitude:.2f}", f"{selected_freq:.2f}", f"{
                                            100*(1/selected_freq):.2f}"])
                     elif self.window_type == "MD":
                         label = f"{selected_freq:.2f} 1/m ({self.get_freq_in_hz(selected_freq):.2f} Hz) λ = {
                             100 * 1/selected_freq:.2f} cm C = {amplitude:.2f}"
-                        print(f"Spectral peak in {self.channel1}: {label}")
+                        print(f"Spectral peak in {self.channel}: {label}")
 
                         legend_data.append([f"{amplitude:.3f}", f"{selected_freq:.2f}", f"{
                                            100*(1/selected_freq):.2f}", f"{self.get_freq_in_hz(selected_freq):.2f}"])
-                        print(f"Spectral peak in {self.channel1}: {label}")
+                        print(f"Spectral peak in {self.channel}: {label}")
 
                     def get_color_cycler(num_colors):
                         # You can change 'tab10' to any colormap you prefer
@@ -397,12 +397,12 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                     if (i == 1):
                         if self.window_type == "CD":
                             label = f"{selected_freq:.2f} 1/m λ = {100 * 1/selected_freq:.2f} cm A = {
-                                amplitude:.2f} {self.measurement.units[self.channel1]}"
-                            print(f"Spectral peak in {self.channel1}: {label}")
+                                amplitude:.2f} {self.measurement.units[self.channel]}"
+                            print(f"Spectral peak in {self.channel}: {label}")
                         elif self.window_type == "MD":
                             label = f"{selected_freq:.2f} 1/m ({self.get_freq_in_hz(selected_freq):.2f} Hz) λ = {
-                                100 * 1/selected_freq:.2f} cm A = {amplitude:.2f} {self.measurement.units[self.channel1]}"
-                            print(f"Spectral peak in {self.channel1}: {label}")
+                                100 * 1/selected_freq:.2f} cm A = {amplitude:.2f} {self.measurement.units[self.channel]}"
+                            print(f"Spectral peak in {self.channel}: {label}")
                     else:
                         label = None
 
@@ -470,7 +470,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         # Add headers based on window type
         if self.window_type == "MD":
             stats.append(
-                [f"Amplitude {self.measurement.units[self.channel1]}", "Wavelength [cm]", "Frequency [Hz]", ])
+                [f"Amplitude {self.measurement.units[self.channel]}", "Wavelength [cm]", "Frequency [Hz]", ])
         elif self.window_type == "CD":
             stats.append(["Amplitude", "Wavelength [m]"])
 
@@ -502,7 +502,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
     def getExportData(self):
         data = {
             "Frequency [1/m]": self.frequencies,
-            f"{self.channel1} amplitude [{self.measurement.units[self.channel1]}]": self.amplitudes
+            f"{self.channel} amplitude [{self.measurement.units[self.channel]}]": self.amplitudes
         }
 
         return pd.DataFrame(data)
@@ -657,7 +657,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
             return
 
         print("Original frequency: ", selected_freqs[-1])
-        active_channel_for_data = self.controller.channel1
+        active_channel_for_data = self.controller.channel
         d = self.measurement.channel_df[active_channel_for_data][self.controller.low_index:self.controller.high_index]
         import time
         start_time = time.time()

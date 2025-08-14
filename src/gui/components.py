@@ -295,10 +295,10 @@ class DoubleChannelMixin:
         self.channelSelector1.blockSignals(block_signals)
         self.channelSelector2.blockSignals(block_signals)
 
-        channel1 = self.controller.channel1
+        channel = self.controller.channel
         channel2 = self.controller.channel2
-        if channel1 is not None and channel1 in self.controller.channels:
-            index = self.channelSelector1.findText(channel1)
+        if channel is not None and channel in self.controller.channels:
+            index = self.channelSelector1.findText(channel)
             if index >= 0:  # Ensure the text was found
                 self.channelSelector1.setCurrentIndex(index)
 
@@ -326,7 +326,7 @@ class DoubleChannelMixin:
         layout.addLayout(channelSelectorLayout)
 
     def channelsChanged(self):
-        self.controller.channel1 = self.channelSelector1.currentText()
+        self.controller.channel = self.channelSelector1.currentText()
         self.controller.channel2 = self.channelSelector2.currentText()
         self.refresh()
 

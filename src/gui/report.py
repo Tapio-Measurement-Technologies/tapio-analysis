@@ -302,11 +302,10 @@ class ReportWindow(QWidget):
                         analysis_name = store.analyses[analysis_name_mapping[analysis.get("analysis")]].analysis_name
 
                         channel = analysis.get("channel", "")
-                        channel1 = analysis.get("channel1", "")
                         channel2 = analysis.get("channel2", "")
 
                         invalid_channel = any(
-                            c and c not in self.measurement.channels for c in [channel, channel1, channel2]
+                            c and c not in self.measurement.channels for c in [channel, channel2]
                         )
 
                         if invalid_channel:
@@ -319,7 +318,7 @@ class ReportWindow(QWidget):
 
                         # Assign attributes if they exist, note the naming must be same as class attribute
                         for attr in [
-                            "channel", "channel1", "channel2",
+                            "channel", "channel2",
                             "analysis_range_low", "analysis_range_high",
                             "band_pass_low", "band_pass_high",
                             "show_individual_profiles", "show_min_max", "show_legend",
@@ -507,8 +506,8 @@ class AnalysisWidget(QWidget):
     def get_channel_text(self):
         if hasattr(self.controller, "channel"):
             return f"({self.controller.channel})"
-        elif hasattr(self.controller, "channel1") and hasattr(self.controller, "channel2"):
-            return f"({self.controller.channel1}, {self.controller.channel2})"
+        elif hasattr(self.controller, "channel") and hasattr(self.controller, "channel2"):
+            return f"({self.controller.channel}, {self.controller.channel2})"
         else:
             return ""
 

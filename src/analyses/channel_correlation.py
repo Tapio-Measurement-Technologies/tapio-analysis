@@ -24,7 +24,7 @@ analysis_types = ["MD", "CD"]
 
 class AnalysisController(AnalysisControllerBase):
     selected_samples: list[int]
-    channel1: str
+    channel: str
     channel2: str
     show_unfiltered_data: bool
     band_pass_low: float
@@ -54,7 +54,7 @@ class AnalysisController(AnalysisControllerBase):
         config = channel_correlation_config[self.window_type]
 
         self.set_default('selected_samples', self.measurement.selected_samples.copy())
-        self.set_default('channel1', self.channels[0])
+        self.set_default('channel', self.channels[0])
         self.set_default('channel2', self.channels[1])
         self.set_default('show_unfiltered_data', False)
         self.set_default('band_pass_low', config["band_pass_low"])
@@ -77,7 +77,7 @@ class AnalysisController(AnalysisControllerBase):
         ax1 = self.figure.add_subplot(212)
 
         # Plot for the first channel
-        data1 = self.plotChannelData(ax1, self.channel1, 'tab:blue')
+        data1 = self.plotChannelData(ax1, self.channel, 'tab:blue')
 
         # Adding a second Y axis for the second channel
         ax2 = ax1.twinx()
@@ -91,9 +91,9 @@ class AnalysisController(AnalysisControllerBase):
             coeffs = np.polyfit(data1, data2, 1)
             fit_line = np.polyval(coeffs, data1)
             ax_correlation.plot(data1, fit_line, color='red', linestyle='--',
-                                label=f"{self.channel2} = {coeffs[0]:.3f} * {self.channel1} + {coeffs[1]:.3f}")
+                                label=f"{self.channel2} = {coeffs[0]:.3f} * {self.channel} + {coeffs[1]:.3f}")
             ax_correlation.legend()
-            ax_correlation.set_title(f"Correlation coefficient: {corr_coeff:.2f}, {self.channel2} = {coeffs[0]:.3f} * {self.channel1} + {coeffs[1]:.3f}")
+            ax_correlation.set_title(f"Correlation coefficient: {corr_coeff:.2f}, {self.channel2} = {coeffs[0]:.3f} * {self.channel} + {coeffs[1]:.3f}")
 
 
         else:
@@ -107,7 +107,7 @@ class AnalysisController(AnalysisControllerBase):
 
 
         ax_correlation.set_xlabel(
-            f"{self.channel1} [{self.measurement.units[self.channel1]}]")
+            f"{self.channel} [{self.measurement.units[self.channel]}]")
         ax_correlation.set_ylabel(
             f"{self.channel2} [{self.measurement.units[self.channel2]}]")
         ax_correlation.grid()
