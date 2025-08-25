@@ -351,6 +351,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.setWindowTitle(f"{analysis_name} ({self.controller.window_type}) - {self.measurement.measurement_label}")
         self.setGeometry(*settings.SPECTROGRAM_WINDOW_GEOMETRY) # Default geometry, consider adding to settings.py
 
+        self.initMenuBar()
+
         # Main horizontal layout for controls and plot/stats
         mainHorizontalLayout = QHBoxLayout()
         self.main_layout.addLayout(mainHorizontalLayout)

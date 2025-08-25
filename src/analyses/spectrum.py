@@ -590,6 +590,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.setWindowTitle(f"{analysis_name} ({self.controller.window_type}) - {self.measurement.measurement_label}")
         # Geometry will be set from settings
 
+        self.initMenuBar()
+
         # Main horizontal layout for controls and plot/stats
         mainHorizontalLayout = QHBoxLayout()
         self.main_layout.addLayout(mainHorizontalLayout)
