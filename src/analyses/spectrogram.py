@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QGroupBox
 from PyQt6.QtGui import QAction
 from utils.measurement import Measurement
-from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
+from utils.analysis import AnalysisControllerBase, AnalysisWindowBase, Analysis
 from utils.types import AnalysisType, PlotAnnotation
 from utils.signal_processing import hs_units
 import matplotlib.pyplot as plt
@@ -330,7 +330,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
 
     def toggleSOSAnalysis(self, checked):
         if self.sosAnalysisWindow is None:
-            self.sosAnalysis = store.analyses['sos'].Analysis(self.measurement, self.window_type)
+            self.sosAnalysis = Analysis(self.measurement, 'sos', self.window_type)
             self.sosAnalysisWindow = self.sosAnalysis.window
             self.sosAnalysisWindow.show()
             self.sosAnalysisWindow.closed.connect(self.onSOSAnalysisClosed)
