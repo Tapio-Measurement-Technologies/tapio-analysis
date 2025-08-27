@@ -5,12 +5,12 @@ from utils.signal_processing import harmonic_fitting_units
 import numpy as np
 
 analysis_name = "SOS Analysis"
-analysis_types = ["CD"]
+analysis_types = ["MD"]
 
 class AnalysisController(AnalysisControllerBase):
     selected_freqs: list[float]
 
-    def __init__(self, measurement: Measurement, window_type: AnalysisType = "CD", annotations: list[PlotAnnotation] = [], attributes: dict = {}):
+    def __init__(self, measurement: Measurement, window_type: AnalysisType = "MD", annotations: list[PlotAnnotation] = [], attributes: dict = {}):
         super().__init__(measurement, window_type, annotations, attributes)
 
         self.data = None
@@ -52,7 +52,7 @@ class AnalysisController(AnalysisControllerBase):
 
 
 class AnalysisWindow(AnalysisWindowBase[AnalysisController]):
-    def __init__(self, controller: AnalysisController, window_type: AnalysisType = "CD"):
+    def __init__(self, controller: AnalysisController, window_type: AnalysisType = "MD"):
         super().__init__(controller, window_type)
         self.initUI()
 
