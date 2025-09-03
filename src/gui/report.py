@@ -310,7 +310,8 @@ class ReportWindow(QWidget):
 
                         if invalid_channel:
                             errors.append(
-                                f"{section_name}/{analysis_name}: Invalid channel name {c}")
+                                f"{section_name}/{analysis_module_name}: Invalid channel name '{channel}'{f' or {channel2}' if channel2 else ''}"
+                            )
                             continue
 
                         widget = AnalysisWidget(
