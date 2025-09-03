@@ -1,4 +1,5 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGroupBox
+from PyQt6.QtGui import QAction
 from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
 from utils.types import AnalysisType, PlotAnnotation
@@ -8,7 +9,8 @@ from gui.components import (
     AnalysisRangeMixin,
     BandPassFilterMixin,
     CopyPlotMixin,
-    ChildWindowCloseMixin
+    ChildWindowCloseMixin,
+    SampleSelectMixin
 )
 import settings
 import logging
@@ -23,6 +25,7 @@ class AnalysisController(AnalysisControllerBase):
     band_pass_high: float
     analysis_range_low: float
     analysis_range_high: float
+    selected_samples: list[int]
 
     def __init__(self, measurement: Measurement, window_type: AnalysisType, annotations: list[PlotAnnotation] = [], attributes: dict = {}):
         super().__init__(measurement, window_type, annotations, attributes)
@@ -47,6 +50,7 @@ class AnalysisController(AnalysisControllerBase):
         self.set_default('band_pass_high', config["band_pass_high"])
         self.set_default('analysis_range_low', config["analysis_range_low"])
         self.set_default('analysis_range_high', config["analysis_range_high"])
+        self.set_default('selected_samples', self.measurement.selected_samples.copy())
 
     def plot(self):
         if self.measurement.channel_df.empty:
@@ -78,9 +82,17 @@ class AnalysisController(AnalysisControllerBase):
             high_index = np.searchsorted(
                 self.measurement.cd_distances, self.analysis_range_high, side='right')
 
+            data = {
+                channel: [
+                    self.measurement.segments[channel][sample_idx][low_index:high_index]
+                    for sample_idx in self.selected_samples
+                ]
+                for channel in self.measurement.channels
+            }
+
             cd_data_frame = pd.DataFrame(index=range(low_index, high_index))
 
-            for channel, segments in self.measurement.segments.items():
+            for channel, segments in data.items():
                 channel_data = np.mean(segments, axis=0)[low_index:high_index]
                 print(channel)
                 cd_data_frame[channel] = channel_data
@@ -142,16 +154,27 @@ class AnalysisController(AnalysisControllerBase):
         stats = []
         return stats
 
-class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin, BandPassFilterMixin, CopyPlotMixin, ChildWindowCloseMixin):
+class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin, BandPassFilterMixin, CopyPlotMixin, ChildWindowCloseMixin, SampleSelectMixin):
 
     def __init__(self, controller: AnalysisController, window_type: AnalysisType = "MD"):
         super().__init__(controller, window_type)
+        self.sampleSelectorWindow = None
         self.initUI()
+
+    def initMenuBar(self):
+        viewMenu = self.menu_bar.addMenu('View')
+        self.selectSamplesAction = QAction('Select samples', self)
+        viewMenu.addAction(self.selectSamplesAction)
+        self.selectSamplesAction.triggered.connect(
+            self.toggleSelectSamples)
 
     def initUI(self):
         self.setWindowTitle(
             f"Correlation matrix ({self.controller.measurement.measurement_label})")
         self.setGeometry(100, 100, 1000, 600)
+
+        if self.window_type == "CD":
+            self.initMenuBar()
 
         mainHorizontalLayout = QHBoxLayout()
         self.main_layout.addLayout(mainHorizontalLayout)
