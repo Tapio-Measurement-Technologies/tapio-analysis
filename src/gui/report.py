@@ -13,7 +13,7 @@ from utils import store
 from utils.measurement import Measurement
 
 analysis_name_mapping = {
-    analysis.analysis_name: module_name
+    module_name: analysis.analysis_name
     for module_name, analysis in store.analyses.items()
 }
 
@@ -299,7 +299,7 @@ class ReportWindow(QWidget):
                     analyses = section.get("analyses", [])
 
                     for analysis in analyses:
-                        analysis_name = store.analyses[analysis_name_mapping[analysis.get("analysis")]].analysis_name
+                        analysis_module_name = analysis.get("analysis")
 
                         channel = analysis.get("channel", "")
                         channel2 = analysis.get("channel2", "")
@@ -314,7 +314,15 @@ class ReportWindow(QWidget):
                             continue
 
                         widget = AnalysisWidget(
-                            self.main_window, analysis_name, self.measurement, self.window_type, analysis_title=analysis.get("analysis_title"), info_string=analysis.get("info_string"), report_layout=analysis.get("report_layout"), image_width_mm=analysis.get("image_width_mm"))
+                            self.main_window,
+                            analysis_module_name,
+                            self.measurement,
+                            self.window_type,
+                            analysis_title=analysis.get("analysis_title"),
+                            info_string=analysis.get("info_string"),
+                            report_layout=analysis.get("report_layout"),
+                            image_width_mm=analysis.get("image_width_mm")
+                        )
 
                         # Assign attributes if they exist, note the naming must be same as class attribute
                         for attr in [
@@ -458,8 +466,8 @@ class AnalysisWidget(QWidget):
         self.report_layout = report_layout
         self.image_width_mm = image_width_mm
 
-        self.controller = store.analyses[analysis_name_mapping[analysis_name]].AnalysisController(self.measurement, self.window_type)
-        self.preview_window = store.analyses[analysis_name_mapping[analysis_name]].AnalysisWindow(self.window_type, self.controller)
+        self.controller = store.analyses[analysis_name].AnalysisController(self.measurement, self.window_type)
+        self.preview_window = store.analyses[analysis_name].AnalysisWindow(self.controller, self.window_type)
 
         if self.controller:
             self.controller.updated.connect(self.update_analysis_label)
@@ -473,7 +481,7 @@ class AnalysisWidget(QWidget):
 
         # Analysis label
         analysis_label_text = self.analysis_title or f"{
-            self.analysis_name} {self.get_channel_text()}"
+            analysis_name_mapping[self.analysis_name]} {self.get_channel_text()}"
 
         self.analysis_label = QLabel(analysis_label_text)
         self.analysis_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
@@ -512,7 +520,7 @@ class AnalysisWidget(QWidget):
             return ""
 
     def update_analysis_label(self):
-        self.analysis_label.setText(f"{self.analysis_name} {
+        self.analysis_label.setText(f"{analysis_name_mapping[self.analysis_name]} {
                                     self.get_channel_text()}")
 
     def preview(self):
