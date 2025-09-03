@@ -28,6 +28,7 @@ import pandas as pd
 analysis_name = "CD Profile (Waterfall)"
 analysis_types = ["CD"]
 
+
 class AnalysisController(AnalysisControllerBase, ExportMixin):
     band_pass_low: float
     band_pass_high: float
@@ -41,12 +42,18 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
         self.mean_profile = None
 
-        self.set_default('band_pass_low', settings.CD_PROFILE_BAND_PASS_LOW_DEFAULT_1M)
-        self.set_default('band_pass_high', settings.CD_PROFILE_BAND_PASS_HIGH_DEFAULT_1M)
-        self.set_default('analysis_range_low', settings.CD_PROFILE_RANGE_LOW_DEFAULT * self.max_dist)
-        self.set_default('analysis_range_high', settings.CD_PROFILE_RANGE_HIGH_DEFAULT * self.max_dist)
-        self.set_default('waterfall_offset', settings.CD_PROFILE_WATERFALL_OFFSET_DEFAULT)
-        self.set_default('selected_samples', self.measurement.selected_samples.copy())
+        self.set_default(
+            'band_pass_low', settings.CD_PROFILE_BAND_PASS_LOW_DEFAULT_1M)
+        self.set_default('band_pass_high',
+                         settings.CD_PROFILE_BAND_PASS_HIGH_DEFAULT_1M)
+        self.set_default('analysis_range_low',
+                         settings.CD_PROFILE_RANGE_LOW_DEFAULT * self.max_dist)
+        self.set_default('analysis_range_high',
+                         settings.CD_PROFILE_RANGE_HIGH_DEFAULT * self.max_dist)
+        self.set_default('waterfall_offset',
+                         settings.CD_PROFILE_WATERFALL_OFFSET_DEFAULT)
+        self.set_default('selected_samples',
+                         self.measurement.selected_samples.copy())
 
     def plot(self):
         # logging.info("Refresh")
@@ -96,12 +103,12 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                     filtered_data - offset_index * y_offset,
                     lw=1,
                     alpha=0.9,
-                    color=color)
+                    color=settings.CD_PROFILE_WATERFALL_COLOR if settings.CD_PROFILE_WATERFALL_COLOR else color)
 
             # Calculate mean and add horizontal line
             mean_value = np.mean(filtered_data) - offset_index * y_offset
             ax.axhline(mean_value, color='gray',
-                        linestyle='-', linewidth=1)
+                       linestyle='-', linewidth=1)
 
             if offset_index == 0:
                 ax.text(
@@ -116,7 +123,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 )
 
             ax.text(
-                x[0] - 0.06 * (x[-1] - x[0]),
+                x[0] - 0.07 * (x[-1] - x[0]),
                 mean_value,
                 f"{offset_index + 1}",
                 ha='center',
@@ -128,6 +135,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         if settings.CD_PROFILE_TITLE_SHOW:
             ax.set_title(
                 f"{self.measurement.measurement_label} ({self.channel})")
+        ax.grid(True, which='both', linestyle='--', linewidth=0.5)
         ax.set_xlabel("Distance [m]")
         # ax.set_ylabel("Sample Index")
         # ax.set_zlabel(
@@ -171,7 +179,8 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             else:
                 stats.append(["", f"{self.channel} [{units}]"])
                 labels = "\n".join(label + ":" for label, _, _ in stat_data)
-                values = "\n".join(f"{value} {unit}" for _, value, unit in stat_data)
+                values = "\n".join(f"{value} {unit}" for _,
+                                   value, unit in stat_data)
                 stats.append([labels, values])
 
         return stats
@@ -217,9 +226,11 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         # Left panel for controls
         controlsPanelLayout = QVBoxLayout()
         controlsWidget = QWidget()
-        controlsWidget.setMinimumWidth(settings.ANALYSIS_CONTROLS_PANEL_MIN_WIDTH)
+        controlsWidget.setMinimumWidth(
+            settings.ANALYSIS_CONTROLS_PANEL_MIN_WIDTH)
         controlsWidget.setLayout(controlsPanelLayout)
-        mainHorizontalLayout.addWidget(controlsWidget, 0) # Controls take less space
+        mainHorizontalLayout.addWidget(
+            controlsWidget, 0)  # Controls take less space
 
         # Data Selection Group
         dataSelectionGroup = QGroupBox("Data Selection")
@@ -242,7 +253,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
 
         # Right panel for plot and stats
         plotStatsLayout = QVBoxLayout()
-        mainHorizontalLayout.addLayout(plotStatsLayout, 1) # Plot/stats take more space
+        # Plot/stats take more space
+        mainHorizontalLayout.addLayout(plotStatsLayout, 1)
 
         # Add statistics widget
         self.stats_widget = StatsWidget()
@@ -251,7 +263,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         # Matplotlib figure and canvas
         self.controller.addPlot(plotStatsLayout)
 
-        self.setGeometry(*settings.CD_PROFILE_WINDOW_GEOMETRY) # Uses same as cd_profile
+        # Uses same as cd_profile
+        self.setGeometry(*settings.CD_PROFILE_WINDOW_GEOMETRY)
         self.refresh()
 
     def refresh_widgets(self):
