@@ -42,6 +42,11 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
         self.mean_profile = None
 
+        initial_waterfall_offset = settings.CD_PROFILE_WATERFALL_DEFAULT_CHANNEL_OFFSETS.get(
+            self.channel,
+            settings.CD_PROFILE_WATERFALL_OFFSET_DEFAULT
+        ) if settings.CD_PROFILE_WATERFALL_DEFAULT_CHANNEL_OFFSETS is not None else settings.CD_PROFILE_WATERFALL_OFFSET_DEFAULT
+
         self.set_default(
             'band_pass_low', settings.CD_PROFILE_BAND_PASS_LOW_DEFAULT_1M)
         self.set_default('band_pass_high',
@@ -51,7 +56,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         self.set_default('analysis_range_high',
                          settings.CD_PROFILE_RANGE_HIGH_DEFAULT * self.max_dist)
         self.set_default('waterfall_offset',
-                         settings.CD_PROFILE_WATERFALL_OFFSET_DEFAULT)
+                         initial_waterfall_offset)
         self.set_default('selected_samples',
                          self.measurement.selected_samples.copy())
 
@@ -249,6 +254,12 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.addBandPassRangeSlider(analysisParamsLayout)
         self.addWaterfallOffsetSlider(analysisParamsLayout)
 
+        # Disable the offset slider if default offsets for channels are configured
+        if settings.CD_PROFILE_WATERFALL_DEFAULT_CHANNEL_OFFSETS is not None:
+            self.waterfallOffsetSlider.setEnabled(False)
+            self.waterfallOffsetSlider.setToolTip(
+                "Adjustment disabled due to channel-specific default offsets configured in settings.")
+
         controlsPanelLayout.addStretch()
 
         # Right panel for plot and stats
@@ -282,3 +293,15 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
     def updateStatistics(self, profile_data):
         unit = self.measurement.units[self.controller.channel]
         self.stats_widget.update_statistics(profile_data, unit)
+
+    def on_channel_changed(self, channel):
+        if settings.CD_PROFILE_WATERFALL_DEFAULT_CHANNEL_OFFSETS is None:
+            # Do not change offsets if not explicitly configured in settings.py
+            return
+
+        waterfall_offset = settings.CD_PROFILE_WATERFALL_DEFAULT_CHANNEL_OFFSETS.get(
+            channel,
+            settings.CD_PROFILE_WATERFALL_OFFSET_DEFAULT
+        )
+        self.controller.waterfall_offset = waterfall_offset
+        self.waterfallOffsetSlider.setValue(waterfall_offset)
