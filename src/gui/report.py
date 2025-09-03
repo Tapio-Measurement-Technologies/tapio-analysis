@@ -245,10 +245,12 @@ class ReportWindow(QWidget):
 
                 # Generate report
                 generator.generate(fileName)
-                print(
-                    f"Report successfully generated as {os.path.basename(fileName)}")
 
                 self.close()
+                print(
+                    f"Report successfully generated as {os.path.basename(fileName)}")
+                QMessageBox.information(self, "Success",
+                                        f"Report successfully generated to '{fileName}'")
 
         except Exception as e:
             QMessageBox.critical(self, "Error",
