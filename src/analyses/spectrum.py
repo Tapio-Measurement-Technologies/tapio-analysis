@@ -619,6 +619,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         if self.controller.window_type == "MD":
             self.addMachineSpeedSpinner(analysisParamsLayout)
 
+        
+
         # Display & Peak Options Group
         displayOptionsGroup = QGroupBox("Display && Peak Options")
         displayOptionsLayout = QVBoxLayout()
@@ -628,6 +630,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         if self.controller.window_type == "MD":
             self.addShowWavelengthCheckbox(displayOptionsLayout)
 
+        self.addAutoDetectPeaksCheckbox(displayOptionsLayout)
 
         self.refineButton = QPushButton("Refine Frequency Selection")
         self.refineButton.clicked.connect(self.refineFrequency)
