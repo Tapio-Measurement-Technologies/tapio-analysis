@@ -4,7 +4,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QImage, QMouseEvent
 from PyQt6.QtWidgets import QVBoxLayout, QWidget
-from PyQt6.QtWidgets import QComboBox, QLabel, QDoubleSpinBox, QFileDialog, QCheckBox, QHBoxLayout, QMessageBox, QGridLayout, QPushButton
+from PyQt6.QtWidgets import QComboBox, QLabel, QDoubleSpinBox, QFileDialog, QCheckBox, QHBoxLayout, QMessageBox, QGridLayout, QPushButton, QScrollArea
 from PyQt6.QtGui import QAction, QIcon
 from qtpy.QtCore import Qt, Signal
 from superqt import QLabeledDoubleRangeSlider, QLabeledSlider, QLabeledDoubleSlider
@@ -1123,3 +1123,30 @@ class StatsWidget(QWidget):
 
         except Exception as e:
             print(f"Error copying to clipboard: {str(e)}")
+
+class ControlsPanelWidget(QScrollArea):
+    def __init__(self, parent = None):
+        super().__init__(parent)
+
+        self._layout = QVBoxLayout()
+        self._widget = QWidget()
+        self._widget.setLayout(self._layout)
+        self.setWidget(self._widget)
+
+        self.setFrameShape(QScrollArea.Shape.NoFrame)
+        self.setContentsMargins(0, 0, 0, 0)
+        self.setWidgetResizable(True)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setMinimumWidth(settings.ANALYSIS_CONTROLS_PANEL_MIN_WIDTH)
+
+    def addWidget(self, widget):
+        # Remove any existing stretch
+        if self._layout.count() > 0:
+            last_item = self._layout.itemAt(self._layout.count() - 1)
+            if last_item and last_item.spacerItem():
+                self._layout.removeItem(last_item)
+
+        self._layout.addWidget(widget)
+
+        # Add stretch at the end to push all content to top
+        self._layout.addStretch()
