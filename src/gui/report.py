@@ -530,9 +530,7 @@ class AnalysisWidget(QWidget):
         if self.preview_window.isVisible():
             self.preview_window.activateWindow()
         else:
-            self.preview_window.show()
-            self.main_window.windows.append(self.preview_window)
-            self.main_window.updateWindowsList()
+            self.main_window.add_window(self.preview_window)
 
     def remove_self(self):
         if self.preview_window:
