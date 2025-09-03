@@ -186,6 +186,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.setWindowTitle(f"Time domain analysis ({self.measurement.measurement_label})")
         self.setGeometry(*settings.TIME_DOMAIN_WINDOW_GEOMETRY)
 
+        self.initMenuBar()
+
         # Main horizontal layout for controls and plot/stats
         mainHorizontalLayout = QHBoxLayout()
         self.main_layout.addLayout(mainHorizontalLayout)
