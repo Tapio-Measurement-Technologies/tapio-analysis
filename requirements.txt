@@ -33,11 +33,11 @@ python-docx==1.1.2
 pytz==2024.1
 QtPy==2.4.1
 scipy==1.15.1
-setuptools==75.8.0
+setuptools==78.1.1
 six==1.16.0
 superqt==0.6.1
 typing_extensions==4.14.0
 tzdata==2024.1
-requests==2.32.3
+requests==2.32.4
 pyzipper==0.3.6
 pycryptodomex==3.23.0
