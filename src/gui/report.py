@@ -478,6 +478,8 @@ class AnalysisWidget(QWidget):
 
         self.controller = store.analyses[analysis_name].AnalysisController(self.measurement, self.window_type)
         self.preview_window = store.analyses[analysis_name].AnalysisWindow(self.controller, self.window_type)
+        self.preview_window.show()
+        self.preview_window.hide()
 
         if self.controller:
             self.controller.updated.connect(self.update_analysis_label)
