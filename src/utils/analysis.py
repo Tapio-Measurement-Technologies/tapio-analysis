@@ -102,6 +102,10 @@ class AnalysisWindowBase(QWidget, Generic[ControllerT]):
             self.windowState() & ~Qt.WindowState.WindowMinimized | Qt.WindowState.WindowActive)
         self.activateWindow()
 
+    def on_channel_changed(self, channel: str):
+        # Must be implemented in subclass if needed
+        pass
+
     def closeEvent(self, event):
         self.closed.emit()
         super().closeEvent(event)

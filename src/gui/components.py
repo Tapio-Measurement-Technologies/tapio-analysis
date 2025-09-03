@@ -284,6 +284,7 @@ class ChannelMixin:
 
     def channelChanged(self):
         self.controller.channel = self.channelComboBox.currentText()
+        self.on_channel_changed(self.controller.channel)
         self.refresh()
 
 
