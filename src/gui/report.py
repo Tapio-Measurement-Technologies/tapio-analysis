@@ -17,6 +17,10 @@ analysis_name_mapping = {
     for module_name, analysis in store.analyses.items()
 }
 
+module_name_mapping = {
+    v: k for k, v in analysis_name_mapping.items()
+}
+
 class Editor(QTextEdit):
     def __init__(self):
         super().__init__()
@@ -432,9 +436,10 @@ class ReportSectionWidget(QFrame):
             return
 
         analysis_name = self.analysis_combobox.currentText()
+        analysis_module_name = module_name_mapping[analysis_name]
         if analysis_name:  # Ensure a valid analysis is selected
             analysis_widget = AnalysisWidget(
-                self.main_window, analysis_name, self.measurement, self.window_type)
+                self.main_window, analysis_module_name, self.measurement, self.window_type)
             self.analysis_widgets.append(analysis_widget)
             analysis_widget.destroyed.connect(
                 lambda: self.analysis_widgets.remove(analysis_widget))
