@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QCheckBox, QLabel
+from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QGroupBox, QCheckBox, QLabel
 from PyQt6.QtGui import QAction
 from utils.filters import bandpass_filter
 from utils.measurement import Measurement
@@ -12,7 +12,8 @@ from gui.components import (
     BandPassFilterMixin,
     SampleSelectMixin,
     CopyPlotMixin,
-    ChildWindowCloseMixin
+    ChildWindowCloseMixin,
+    ControlsPanelWidget,
 )
 import settings
 import numpy as np
@@ -320,24 +321,21 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.main_layout.addLayout(mainHorizontalLayout)
 
         # Left panel for controls
-        controlsPanelLayout = QVBoxLayout()
-        controlsWidget = QWidget()
-        controlsWidget.setMinimumWidth(settings.ANALYSIS_CONTROLS_PANEL_MIN_WIDTH)
-        controlsWidget.setLayout(controlsPanelLayout)
-        mainHorizontalLayout.addWidget(controlsWidget, 0)
+        self.controlsPanel = ControlsPanelWidget()
+        mainHorizontalLayout.addWidget(self.controlsPanel, 0)
 
         # Data Selection Group
         dataSelectionGroup = QGroupBox("Data Selection")
         dataSelectionLayout = QVBoxLayout()
         dataSelectionGroup.setLayout(dataSelectionLayout)
-        controlsPanelLayout.addWidget(dataSelectionGroup)
+        self.controlsPanel.addWidget(dataSelectionGroup)
         self.addChannelSelector(dataSelectionLayout)
 
         # Analysis Parameters Group
         analysisParamsGroup = QGroupBox("Analysis Parameters")
         analysisParamsLayout = QVBoxLayout()
         analysisParamsGroup.setLayout(analysisParamsLayout)
-        controlsPanelLayout.addWidget(analysisParamsGroup)
+        self.controlsPanel.addWidget(analysisParamsGroup)
         self.addAnalysisRangeSlider(analysisParamsLayout)
         self.addBandPassRangeSlider(analysisParamsLayout)
 
@@ -345,7 +343,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         vcaOptionsGroup = QGroupBox("VCA Options")
         vcaOptionsLayout = QVBoxLayout()
         vcaOptionsGroup.setLayout(vcaOptionsLayout)
-        controlsPanelLayout.addWidget(vcaOptionsGroup)
+        self.controlsPanel.addWidget(vcaOptionsGroup)
 
         self.removeMDVariationsCheckbox = QCheckBox("Remove MD variations")
         self.removeMDVariationsCheckbox.setChecked(self.controller.remove_md_variations)
@@ -357,13 +355,12 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.removeCDVariationsCheckbox.toggled.connect(self.update_remove_cd_variations)
         vcaOptionsLayout.addWidget(self.removeCDVariationsCheckbox)
 
-        controlsPanelLayout.addStretch()
 
         # VCA Statistics Group
         vcaStatsGroup = QGroupBox("VCA Statistics")
         vcaStatsLayout = QVBoxLayout()
         vcaStatsGroup.setLayout(vcaStatsLayout)
-        controlsPanelLayout.addWidget(vcaStatsGroup)
+        self.controlsPanel.addWidget(vcaStatsGroup)
 
         self.vcaChannelInfoLabel = QLabel("Channel: N/A") # Placeholder
         vcaStatsLayout.addWidget(self.vcaChannelInfoLabel)

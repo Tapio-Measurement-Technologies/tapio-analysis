@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGroupBox
+from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QGroupBox
 from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
 from utils.filters import bandpass_filter
@@ -15,7 +15,8 @@ from gui.components import (
     ChildWindowCloseMixin,
     StatsWidget,
     ExportMixin,
-    ShowAnnotationsMixin
+    ShowAnnotationsMixin,
+    ControlsPanelWidget,
 )
 import settings
 import numpy as np
@@ -193,24 +194,21 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.main_layout.addLayout(mainHorizontalLayout)
 
         # Left panel for controls
-        controlsPanelLayout = QVBoxLayout()
-        controlsWidget = QWidget()
-        controlsWidget.setMinimumWidth(settings.ANALYSIS_CONTROLS_PANEL_MIN_WIDTH)
-        controlsWidget.setLayout(controlsPanelLayout)
-        mainHorizontalLayout.addWidget(controlsWidget)
+        self.controlsPanel = ControlsPanelWidget()
+        mainHorizontalLayout.addWidget(self.controlsPanel)
 
         # Data Selection Group
         dataSelectionGroup = QGroupBox("Channel Selection")
         dataSelectionLayout = QVBoxLayout()
         dataSelectionGroup.setLayout(dataSelectionLayout)
-        controlsPanelLayout.addWidget(dataSelectionGroup)
+        self.controlsPanel.addWidget(dataSelectionGroup)
         self.addChannelSelector(dataSelectionLayout)
 
         # Analysis Parameters Group
         analysisParamsGroup = QGroupBox("Analysis Parameters")
         analysisParamsLayout = QVBoxLayout()
         analysisParamsGroup.setLayout(analysisParamsLayout)
-        controlsPanelLayout.addWidget(analysisParamsGroup)
+        self.controlsPanel.addWidget(analysisParamsGroup)
         self.addAnalysisRangeSlider(analysisParamsLayout)
         self.addBandPassRangeSlider(analysisParamsLayout)
         self.addMachineSpeedSpinner(analysisParamsLayout)
@@ -219,11 +217,10 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         displayOptionsGroup = QGroupBox("Display Options")
         displayOptionsLayout = QVBoxLayout()
         displayOptionsGroup.setLayout(displayOptionsLayout)
-        controlsPanelLayout.addWidget(displayOptionsGroup)
+        self.controlsPanel.addWidget(displayOptionsGroup)
         self.addShowTimeLabelsCheckbox(displayOptionsLayout)
         self.addShowUnfilteredCheckbox(displayOptionsLayout)
 
-        controlsPanelLayout.addStretch() # Add stretch to push control groups to the top
 
         # Right panel for plot and stats
         plotStatsLayout = QVBoxLayout()

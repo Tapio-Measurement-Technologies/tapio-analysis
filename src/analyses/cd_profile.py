@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGroupBox
+from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QGroupBox
 from PyQt6.QtGui import QAction
 from utils.filters import bandpass_filter
 from utils.measurement import Measurement
@@ -21,7 +21,8 @@ from gui.components import (
     CopyPlotMixin,
     ChildWindowCloseMixin,
     StatsWidget,
-    ExportMixin
+    ExportMixin,
+    ControlsPanelWidget
 )
 import settings
 import numpy as np
@@ -299,17 +300,14 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.main_layout.addLayout(mainHorizontalLayout)
 
         # Left panel for controls
-        controlsPanelLayout = QVBoxLayout()
-        controlsWidget = QWidget()
-        controlsWidget.setMinimumWidth(settings.ANALYSIS_CONTROLS_PANEL_MIN_WIDTH)
-        controlsWidget.setLayout(controlsPanelLayout)
-        mainHorizontalLayout.addWidget(controlsWidget, 0) # Controls take less space
+        self.controlsPanel = ControlsPanelWidget()
+        mainHorizontalLayout.addWidget(self.controlsPanel, 0) # Controls take less space
 
         # Data Selection Group
         dataSelectionGroup = QGroupBox("Data Selection")
         dataSelectionLayout = QVBoxLayout()
         dataSelectionGroup.setLayout(dataSelectionLayout)
-        controlsPanelLayout.addWidget(dataSelectionGroup)
+        self.controlsPanel.addWidget(dataSelectionGroup)
         self.addChannelSelector(dataSelectionLayout)
         # SampleSelector is handled by menu bar action
 
@@ -317,7 +315,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         analysisParamsGroup = QGroupBox("Analysis Parameters")
         analysisParamsLayout = QVBoxLayout()
         analysisParamsGroup.setLayout(analysisParamsLayout)
-        controlsPanelLayout.addWidget(analysisParamsGroup)
+        self.controlsPanel.addWidget(analysisParamsGroup)
         self.addAnalysisRangeSlider(analysisParamsLayout)
         self.addBandPassRangeSlider(analysisParamsLayout)
         # No WaterfallOffsetSlider for the non-waterfall CD profile
@@ -326,7 +324,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         displayOptionsGroup = QGroupBox("Display Options")
         displayOptionsLayout = QVBoxLayout()
         displayOptionsGroup.setLayout(displayOptionsLayout)
-        controlsPanelLayout.addWidget(displayOptionsGroup)
+        self.controlsPanel.addWidget(displayOptionsGroup)
         self.addShowProfilesCheckbox(displayOptionsLayout)
         self.addShowMinMaxCheckbox(displayOptionsLayout)
         self.addShowLegendCheckbox(displayOptionsLayout)
@@ -336,10 +334,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         extraDataGroup = QGroupBox("Overlay External Data")
         extraDataLayout = QVBoxLayout()
         extraDataGroup.setLayout(extraDataLayout)
-        controlsPanelLayout.addWidget(extraDataGroup)
+        self.controlsPanel.addWidget(extraDataGroup)
         self.addExtraDataWidget(extraDataLayout)
-
-        controlsPanelLayout.addStretch()
 
         # Right panel for plot and stats
         plotStatsLayout = QVBoxLayout()

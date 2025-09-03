@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGroupBox
+from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QGroupBox
 from PyQt6.QtGui import QAction
 from scipy.stats import pearsonr
 from utils.measurement import Measurement
@@ -13,6 +13,7 @@ from gui.components import (
     DoubleChannelMixin,
     CopyPlotMixin,
     ChildWindowCloseMixin,
+    ControlsPanelWidget,
 )
 import settings
 import numpy as np
@@ -185,24 +186,21 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.main_layout.addLayout(mainHorizontalLayout)
 
         # Left panel for controls
-        controlsPanelLayout = QVBoxLayout()
-        controlsWidget = QWidget()
-        controlsWidget.setMinimumWidth(settings.ANALYSIS_CONTROLS_PANEL_MIN_WIDTH)
-        controlsWidget.setLayout(controlsPanelLayout)
-        mainHorizontalLayout.addWidget(controlsWidget, 0)
+        self.controlsPanel = ControlsPanelWidget()
+        mainHorizontalLayout.addWidget(self.controlsPanel, 0)
 
         # Data Selection Group
         dataSelectionGroup = QGroupBox("Data Selection")
         dataSelectionLayout = QVBoxLayout()
         dataSelectionGroup.setLayout(dataSelectionLayout)
-        controlsPanelLayout.addWidget(dataSelectionGroup)
+        self.controlsPanel.addWidget(dataSelectionGroup)
         self.addChannelSelectors(dataSelectionLayout)
 
         # Analysis Parameters Group
         analysisParamsGroup = QGroupBox("Analysis Parameters")
         analysisParamsLayout = QVBoxLayout()
         analysisParamsGroup.setLayout(analysisParamsLayout)
-        controlsPanelLayout.addWidget(analysisParamsGroup)
+        self.controlsPanel.addWidget(analysisParamsGroup)
         self.addAnalysisRangeSlider(analysisParamsLayout)
         self.addBandPassRangeSlider(analysisParamsLayout)
 
@@ -210,10 +208,9 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         displayOptionsGroup = QGroupBox("Display Options")
         displayOptionsLayout = QVBoxLayout()
         displayOptionsGroup.setLayout(displayOptionsLayout)
-        controlsPanelLayout.addWidget(displayOptionsGroup)
+        self.controlsPanel.addWidget(displayOptionsGroup)
         self.addShowUnfilteredCheckbox(displayOptionsLayout)
 
-        controlsPanelLayout.addStretch()
 
         # Right panel for plot
         plotLayout = QVBoxLayout()

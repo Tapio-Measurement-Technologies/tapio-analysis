@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QGroupBox
+from PyQt6.QtWidgets import QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QGroupBox
 from PyQt6.QtGui import QAction
 from gui.components import (
     AnalysisRangeMixin,
@@ -11,7 +11,8 @@ from gui.components import (
     CopyPlotMixin,
     AutoDetectPeaksMixin,
     ChildWindowCloseMixin,
-    ExportMixin
+    ExportMixin,
+    ControlsPanelWidget
 )
 from gui.paper_machine_data import PaperMachineDataWindow
 from utils.measurement import Measurement
@@ -351,24 +352,21 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.main_layout.addLayout(mainHorizontalLayout)
 
         # Left panel for controls
-        controlsPanelLayout = QVBoxLayout()
-        controlsWidget = QWidget()
-        controlsWidget.setMinimumWidth(settings.ANALYSIS_CONTROLS_PANEL_MIN_WIDTH)
-        controlsWidget.setLayout(controlsPanelLayout)
-        mainHorizontalLayout.addWidget(controlsWidget, 0)
+        self.controlsPanel = ControlsPanelWidget()
+        mainHorizontalLayout.addWidget(self.controlsPanel, 0)
 
         # Data Selection Group
         dataSelectionGroup = QGroupBox("Data Selection")
         dataSelectionLayout = QVBoxLayout()
         dataSelectionGroup.setLayout(dataSelectionLayout)
-        controlsPanelLayout.addWidget(dataSelectionGroup)
+        self.controlsPanel.addWidget(dataSelectionGroup)
         self.addChannelSelector(dataSelectionLayout)
 
         # Analysis Parameters Group (using Spectrum-like controls as per original structure)
         analysisParamsGroup = QGroupBox("Analysis Parameters")
         analysisParamsLayout = QVBoxLayout()
         analysisParamsGroup.setLayout(analysisParamsLayout)
-        controlsPanelLayout.addWidget(analysisParamsGroup)
+        self.controlsPanel.addWidget(analysisParamsGroup)
         self.addAnalysisRangeSlider(analysisParamsLayout)
         self.addFrequencyRangeSlider(analysisParamsLayout) # Cepstrum uses freq range from spectrum defaults
         self.addSpectrumLengthSlider(analysisParamsLayout)
@@ -379,7 +377,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         displayOptionsGroup = QGroupBox("Display && Peak Options")
         displayOptionsLayout = QVBoxLayout()
         displayOptionsGroup.setLayout(displayOptionsLayout)
-        controlsPanelLayout.addWidget(displayOptionsGroup)
+        self.controlsPanel.addWidget(displayOptionsGroup)
         if self.controller.window_type == "MD":
             self.addShowWavelengthCheckbox(displayOptionsLayout)
 
@@ -396,7 +394,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
             otherTogglesGroup = QGroupBox("Other Analyses")
             otherTogglesLayout = QVBoxLayout()
             otherTogglesGroup.setLayout(otherTogglesLayout)
-            controlsPanelLayout.addWidget(otherTogglesGroup)
+            self.controlsPanel.addWidget(otherTogglesGroup)
 
             self.pmdButton = QPushButton("Paper Machine Data")
             self.pmdButton.setCheckable(True)
@@ -404,8 +402,6 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
             if not self.measurement.pm_data:
                 self.pmdButton.setDisabled(True)
             otherTogglesLayout.addWidget(self.pmdButton)
-
-        controlsPanelLayout.addStretch()
 
         # Right panel for plot
         plotLayout = QVBoxLayout()

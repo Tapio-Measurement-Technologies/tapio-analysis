@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QMessageBox, QHBoxLayout, QGroupBox
+from PyQt6.QtWidgets import QVBoxLayout, QMessageBox, QHBoxLayout, QGroupBox
 from PyQt6.QtGui import QAction
 from matplotlib import pyplot as plt
 from scipy.optimize import curve_fit
@@ -11,7 +11,8 @@ from gui.components import (
     ShowProfilesMixin,
     CopyPlotMixin,
     ChildWindowCloseMixin,
-    StatsWidget
+    StatsWidget,
+    ControlsPanelWidget,
 )
 import settings
 import numpy as np
@@ -235,17 +236,14 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.main_layout.addLayout(mainHorizontalLayout)
 
         # Left panel for controls
-        controlsPanelLayout = QVBoxLayout()
-        controlsWidget = QWidget()
-        controlsWidget.setMinimumWidth(settings.ANALYSIS_CONTROLS_PANEL_MIN_WIDTH)
-        controlsWidget.setLayout(controlsPanelLayout)
-        mainHorizontalLayout.addWidget(controlsWidget, 0)
+        self.controlsPanel = ControlsPanelWidget()
+        mainHorizontalLayout.addWidget(self.controlsPanel, 0)
 
         # Analysis Parameters Group
         analysisParamsGroup = QGroupBox("Analysis Parameters")
         analysisParamsLayout = QVBoxLayout()
         analysisParamsGroup.setLayout(analysisParamsLayout)
-        controlsPanelLayout.addWidget(analysisParamsGroup)
+        self.controlsPanel.addWidget(analysisParamsGroup)
         self.addAnalysisRangeSlider(analysisParamsLayout)
 
         if self.window_type == "CD":
@@ -253,10 +251,9 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
             displayOptionsGroup = QGroupBox("Display Options")
             displayOptionsLayout = QVBoxLayout()
             displayOptionsGroup.setLayout(displayOptionsLayout)
-            controlsPanelLayout.addWidget(displayOptionsGroup)
+            self.controlsPanel.addWidget(displayOptionsGroup)
             self.addShowProfilesCheckbox(displayOptionsLayout)
 
-        controlsPanelLayout.addStretch()
 
         # Right panel for plot and stats
         plotStatsLayout = QVBoxLayout()

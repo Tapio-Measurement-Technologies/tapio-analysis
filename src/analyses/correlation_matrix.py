@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGroupBox
+from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QGroupBox
 from PyQt6.QtGui import QAction
 from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
@@ -10,7 +10,8 @@ from gui.components import (
     BandPassFilterMixin,
     CopyPlotMixin,
     ChildWindowCloseMixin,
-    SampleSelectMixin
+    SampleSelectMixin,
+    ControlsPanelWidget,
 )
 import settings
 import logging
@@ -179,20 +180,16 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         mainHorizontalLayout = QHBoxLayout()
         self.main_layout.addLayout(mainHorizontalLayout)
 
-        controlsPanelLayout = QVBoxLayout()
-        controlsWidget = QWidget()
-        controlsWidget.setMinimumWidth(settings.ANALYSIS_CONTROLS_PANEL_MIN_WIDTH)
-        controlsWidget.setLayout(controlsPanelLayout)
-        mainHorizontalLayout.addWidget(controlsWidget, 0)
+        self.controlsPanel = ControlsPanelWidget()
+        mainHorizontalLayout.addWidget(self.controlsPanel, 0)
 
         analysisParamsGroup = QGroupBox("Analysis Parameters")
         analysisParamsLayout = QVBoxLayout()
         analysisParamsGroup.setLayout(analysisParamsLayout)
-        controlsPanelLayout.addWidget(analysisParamsGroup)
+        self.controlsPanel.addWidget(analysisParamsGroup)
         self.addAnalysisRangeSlider(analysisParamsLayout)
         self.addBandPassRangeSlider(analysisParamsLayout)
 
-        controlsPanelLayout.addStretch()
 
         plotLayout = QVBoxLayout()
         mainHorizontalLayout.addLayout(plotLayout, 1)
