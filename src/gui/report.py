@@ -403,6 +403,8 @@ class ReportSectionWidget(QFrame):
 
         # ComboBox for analysis items
         self.analysis_combobox = QComboBox()
+        # Disable wheel scrolling to prevent accidental selections when scrolling the report window
+        self.analysis_combobox.wheelEvent = lambda event: None
         self.analyses = {
             module_name: {
                 "label": analysis.analysis_name
