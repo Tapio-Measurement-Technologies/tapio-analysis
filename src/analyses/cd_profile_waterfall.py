@@ -99,10 +99,18 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         ax.set_yticks(y_ticks)
         ax.set_yticklabels(y_tick_labels)
 
+        ax.set_ylim(1*self.waterfall_offset, -1 *
+                    self.waterfall_offset * (len(self.selected_samples)))
+
         for offset_index, sample_idx in enumerate(self.selected_samples):
             unfiltered_data = self.measurement.segments[self.channel][sample_idx][low_index:high_index]
             filtered_data = bandpass_filter(
                 unfiltered_data, self.band_pass_low, self.band_pass_high, self.fs)
+
+            # Remove mean
+
+            filtered_data -= np.mean(filtered_data)
+            filtered_data *= -1
 
             color = tableau_color_cycle(sample_idx % 10)
             ax.plot(x * settings.CD_PROFILE_DISPLAY_UNIT_MULTIPLIER,
@@ -112,7 +120,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                     color=settings.CD_PROFILE_WATERFALL_COLOR if settings.CD_PROFILE_WATERFALL_COLOR else color)
 
             # Calculate mean and add horizontal line
-            mean_value = np.mean(filtered_data) - offset_index * y_offset
+            mean_value = -1 * offset_index * y_offset
             ax.axhline(mean_value, color='gray',
                        linestyle='-', linewidth=1)
 
@@ -231,7 +239,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
 
         # Left panel for controls
         self.controlsPanel = ControlsPanelWidget()
-        mainHorizontalLayout.addWidget(self.controlsPanel, 0)  # Controls take less space
+        mainHorizontalLayout.addWidget(
+            self.controlsPanel, 0)  # Controls take less space
 
         # Data Selection Group
         dataSelectionGroup = QGroupBox("Data Selection")
