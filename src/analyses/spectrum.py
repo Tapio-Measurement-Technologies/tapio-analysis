@@ -585,7 +585,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
 
     def initUI(self):
         self.setWindowTitle(f"{analysis_name} ({self.controller.window_type}) - {self.measurement.measurement_label}")
-        # Geometry will be set from settings
+        self.resize(*settings.SPECTRUM_WINDOW_SIZE)
 
         self.initMenuBar()
 
@@ -646,7 +646,6 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.controller.addPlot(plotStatsLayout)
         self.controller.canvas.mpl_connect('button_press_event', self.onclick)
 
-        self.setGeometry(*settings.SPECTRUM_WINDOW_GEOMETRY)
         self.refresh()
 
     def clearFrequency(self):

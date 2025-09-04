@@ -291,7 +291,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
     def initUI(self):
         self.setWindowTitle(
             f"CD Profile ({self.measurement.measurement_label})")
-        # Geometry will be set from settings CD_PROFILE_WINDOW_GEOMETRY
+        self.resize(*settings.CD_PROFILE_WINDOW_SIZE)
 
         self.initMenuBar()
 
@@ -348,7 +348,6 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         # Matplotlib figure and canvas
         self.controller.addPlot(plotStatsLayout)
 
-        self.setGeometry(*settings.CD_PROFILE_WINDOW_GEOMETRY)
         self.refresh()
 
     def refresh_widgets(self):

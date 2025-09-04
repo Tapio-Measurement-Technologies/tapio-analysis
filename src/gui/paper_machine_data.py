@@ -2,6 +2,7 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QCheckBox, QHBoxLayout, QToolB
 from PyQt6.QtCore import pyqtSignal, Qt, pyqtSlot
 import numpy as np
 from utils.measurement import Measurement
+import settings
 
 COLLAPSE_BY_DEFAULT = True
 
@@ -95,7 +96,7 @@ class PaperMachineDataWindow(QWidget):
 
     def initUI(self):
         self.setWindowTitle(f"{self.window_type} Paper machine data")
-        self.setGeometry(100, 100, 500, 500)
+        self.resize(*settings.PAPER_MACHINE_WINDOW_SIZE)
 
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)

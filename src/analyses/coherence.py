@@ -567,7 +567,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
 
     def initUI(self):
         self.setWindowTitle(f"{analysis_name} ({self.controller.window_type}) - {self.measurement.measurement_label}")
-        self.setGeometry(150, 150, 1000, 600) # Default geometry, recommend COHERENCE_WINDOW_GEOMETRY
+        self.resize(*settings.COHERENCE_WINDOW_SIZE)
 
         self.initMenuBar()
 

@@ -312,7 +312,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
 
     def initUI(self):
         self.setWindowTitle(f"{analysis_name} ({self.measurement.measurement_label})")
-        # Geometry will be set by VCA_WINDOW_GEOMETRY from settings
+        self.resize(*settings.VCA_WINDOW_SIZE)
 
         self.initMenuBar()
 
@@ -387,7 +387,6 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         # Plotting area setup
         self.controller.addPlot(plotStatsLayout)
 
-        self.setGeometry(*settings.VCA_WINDOW_GEOMETRY)
         self.refresh()
 
     def refresh_widgets(self):

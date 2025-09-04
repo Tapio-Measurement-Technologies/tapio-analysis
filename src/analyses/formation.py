@@ -152,10 +152,10 @@ class AnalysisController(AnalysisControllerBase):
 
             if self.show_profiles:
                 for i in formation_profiles:
-                    ax.plot(x[settings.FORMATION_WINDOW_SIZE-1:],
+                    ax.plot(x[settings.FORMATION_WINDOW_LENGTH-1:],
                             i, color="gray", alpha=0.5, lw=0.5)
 
-        x = x[settings.FORMATION_WINDOW_SIZE-1:]
+        x = x[settings.FORMATION_WINDOW_LENGTH-1:]
 
         show_unfiltered_data = True
         ax.plot(x, y)
@@ -192,7 +192,7 @@ class AnalysisController(AnalysisControllerBase):
 
         return stats
 
-    def calculate_formation_index(self, arr, window_size=settings.FORMATION_WINDOW_SIZE):
+    def calculate_formation_index(self, arr, window_size=settings.FORMATION_WINDOW_LENGTH):
         arr = np.array(arr)
         num_values = len(arr) - window_size + 1
         result = np.empty(num_values)
@@ -226,7 +226,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         if settings.FORMATION_TITLE_SHOW:
             self.setWindowTitle(
                 f"Formation analysis ({self.measurement.measurement_label})")
-        self.setGeometry(100, 100, 1000, 600)
+        self.resize(*settings.FORMATION_WINDOW_SIZE)
 
         if self.window_type == "CD":
             self.initMenuBar()

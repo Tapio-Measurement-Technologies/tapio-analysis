@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QCheckBox, QScrollArea, QWidget
 from PyQt6.QtCore import pyqtSignal, Qt
 from utils.measurement import Measurement
-
+import settings
 
 class SampleSelectorWindow(QWidget):
 
@@ -22,7 +22,7 @@ class SampleSelectorWindow(QWidget):
 
     def initUI(self):
         self.setWindowTitle("Select Samples")
-        self.setGeometry(100, 100, 300, 600)
+        self.resize(*settings.SAMPLE_SELECT_WINDOW_SIZE)
 
         layout = QVBoxLayout()
         self.setLayout(layout)

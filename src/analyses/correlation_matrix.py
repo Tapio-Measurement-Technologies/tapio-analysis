@@ -172,7 +172,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
     def initUI(self):
         self.setWindowTitle(
             f"Correlation matrix ({self.controller.measurement.measurement_label})")
-        self.setGeometry(100, 100, 1000, 600)
+        self.resize(*settings.CORRELATION_MATRIX_WINDOW_SIZE)
 
         if self.window_type == "CD":
             self.initMenuBar()

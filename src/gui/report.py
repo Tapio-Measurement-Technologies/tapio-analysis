@@ -40,10 +40,11 @@ class Editor(QTextEdit):
 class ReportWindow(QWidget):
     def __init__(self, main_window, measurement: Measurement, window_type="MD"):
         super().__init__()
-        self.measurement = measurement
         self.setWindowTitle(f"Generate {window_type} Report ({
-                            self.measurement.measurement_label})")
-        self.setGeometry(100, 100, 700, 700)
+                            measurement.measurement_label})")
+        self.resize(*settings.REPORT_WINDOW_SIZE)
+
+        self.measurement = measurement
         self.main_window = main_window
         self.window_type = window_type
         self.report_title = f"{window_type} Report"

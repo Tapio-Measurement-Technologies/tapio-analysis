@@ -3,6 +3,7 @@ from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
 from utils.types import AnalysisType, PlotAnnotation
 from utils.signal_processing import harmonic_fitting_units
 import numpy as np
+import settings
 
 analysis_name = "SOS Analysis"
 analysis_types = ["MD"]
@@ -74,7 +75,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController]):
 
     def initUI(self):
         self.setWindowTitle("SOS analysis")
-        self.setGeometry(100, 100, 800, 600)
+        self.resize(*settings.SOS_ANALYSIS_WINDOW_SIZE)
 
         # Matplotlib figure and canvas
         self.controller.addPlot(self.main_layout)

@@ -348,7 +348,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
 
     def initUI(self):
         self.setWindowTitle(f"{analysis_name} ({self.controller.window_type}) - {self.measurement.measurement_label}")
-        self.setGeometry(*settings.SPECTROGRAM_WINDOW_GEOMETRY) # Default geometry, consider adding to settings.py
+        self.resize(*settings.SPECTROGRAM_WINDOW_SIZE)
 
         self.initMenuBar()
 

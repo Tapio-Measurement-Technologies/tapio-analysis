@@ -195,8 +195,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], ChannelMixin, BandP
     def initUI(self):
         self.setWindowTitle(
             f"Find CD Samples ({self.measurement.measurement_label})")
-
-        self.setGeometry(100, 100, 1000, 800)
+        self.resize(*settings.FIND_SAMPLES_WINDOW_SIZE)
 
         self.initMenuBar()
 

@@ -185,7 +185,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
 
     def initUI(self):
         self.setWindowTitle(f"Time domain analysis ({self.measurement.measurement_label})")
-        self.setGeometry(*settings.TIME_DOMAIN_WINDOW_GEOMETRY)
+        self.resize(*settings.TIME_DOMAIN_WINDOW_SIZE)
 
         self.initMenuBar()
 
