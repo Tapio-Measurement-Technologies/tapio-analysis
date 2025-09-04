@@ -386,9 +386,6 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         if self.controller.window_type == "MD":
             self.addShowWavelengthCheckbox(displayOptionsLayout)
 
-        self.selectedFrequencyLabel = QLabel("Selected frequency: None") # Keep this label as it's updated in onclick
-        displayOptionsLayout.addWidget(self.selectedFrequencyLabel)
-
         self.clearButton = QPushButton("Clear Frequency Selection")
         self.clearButton.clicked.connect(self.clearFrequency)
         displayOptionsLayout.addWidget(self.clearButton)
@@ -396,6 +393,9 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         # Right panel for plot and stats
         plotStatsLayout = QVBoxLayout()
         mainHorizontalLayout.addLayout(plotStatsLayout, 1)
+
+        self.selectedFrequencyLabel = QLabel("Selected frequency: None") # Keep this label as it's updated in onclick
+        plotStatsLayout.addWidget(self.selectedFrequencyLabel)
 
         # Matplotlib figure and canvas
         self.controller.addPlot(plotStatsLayout)
