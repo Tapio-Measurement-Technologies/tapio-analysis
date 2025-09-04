@@ -385,18 +385,32 @@ LOG_WINDOW_MAX_LINES = 1000
 CRASH_DIALOG_CONTACT_EMAIL = "info@tapiotechnologies.com"
 
 
-def load_local_settings(local_settings_path):
+def get_py_file_vars(py_file_path):
     """
-    Load a local_settings.py file dynamically using importlib.
+    Returns variables from python file dynamically using importlib.
     """
-    if os.path.exists(local_settings_path):
-        spec = importlib.util.spec_from_file_location(
-            "local_settings", local_settings_path)
-        local_settings = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(local_settings)
-        return vars(local_settings)
+    if os.path.exists(py_file_path):
+        spec = importlib.util.spec_from_file_location("imported_module", py_file_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return vars(module)
     return {}
 
+def apply_custom_settings_from_file(py_file_path):
+    vars = get_py_file_vars(py_file_path)
+    apply_custom_settings_from_dict(vars)
+
+    return vars
+
+def apply_custom_settings_from_dict(settings_dict):
+    globals().update(settings_dict)
+
+    print(f"Applied custom settings from provided dictionary:")
+    for var in settings_dict:
+        if not var.startswith("__"):
+            print(f"  {var} = {settings_dict[var]}")
+
+    return settings_dict
 
 # Check if a local_settings.py path is provided as a parameter
 if len(sys.argv) > 1:
@@ -405,8 +419,7 @@ if len(sys.argv) > 1:
         print(
             f"Loading local settings from provided argument {supplied_local_settings}")
         # Dynamically load settings from the provided path
-        local_settings_vars = load_local_settings(supplied_local_settings)
-        globals().update(local_settings_vars)
+        apply_custom_settings_from_file(supplied_local_settings)
     else:
         print(f"WARNING: Provided local_settings.py not found at {
               supplied_local_settings}")

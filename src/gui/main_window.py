@@ -18,6 +18,7 @@ from gui.log_window import LogWindow
 from gui.setting_input_dialog import open_setting_input_dialog
 from gui.loader_selection_dialog import select_loader_dialog
 from gui.drop_zone import DropZoneWidget
+from gui.custom_settings_dialog import show_custom_settings_dialog
 from utils.types import LoaderModule, ExporterModule
 from utils import store
 import settings
@@ -235,6 +236,33 @@ class MainWindow(QMainWindow):
 
         if not processed_file_paths:
             QMessageBox.information(self, "No Files", "No files were found after processing (e.g., empty ZIP or unpacking error).")
+            return
+
+        # Separate .py settings files from measurement files after preprocessing
+        settings_files = [p for p in processed_file_paths if p.lower().endswith('.py')]
+        measurement_files = [p for p in processed_file_paths if not p.lower().endswith('.py')]
+
+        # Handle settings files first
+        if settings_files:
+            for settings_file in settings_files:
+                try:
+                    settings_vars = settings.get_py_file_vars(settings_file)
+                    if settings_vars:
+                        accepted, applied_settings = show_custom_settings_dialog(settings_file, settings_vars, self)
+                        # If user cancels, just continue without applying settings
+                        # Don't abort the measurement loading process
+                except Exception as e:
+                    QMessageBox.critical(self, "Settings Error", f"Error reading settings file {settings_file}: {str(e)}")
+                    # Continue with measurement loading even if settings failed
+
+        # Update processed_file_paths to only include measurement files
+        processed_file_paths = measurement_files
+
+        if not processed_file_paths:
+            if settings_files:
+                QMessageBox.information(self, "Settings Applied", "Custom settings were processed, but no measurement files were found to load.")
+            else:
+                QMessageBox.information(self, "No Files", "No measurement files were found after processing.")
             return
 
         json_files = [p for p in processed_file_paths if p.lower().endswith('.json')]
