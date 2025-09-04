@@ -553,7 +553,6 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
             self.paperMachineDataWindow.closed.connect(
                 self.onPaperMachineDataClosed)
             self.paperMachineDataAction.setChecked(True)
-            self.pmdButton.setChecked(True)
         else:
             self.paperMachineDataWindow.close()
 
@@ -565,7 +564,6 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
     def onPaperMachineDataClosed(self):
         self.paperMachineDataWindow = None
         self.paperMachineDataAction.setChecked(False)
-        self.pmdButton.setChecked(False)
 
     def initUI(self):
         self.setWindowTitle(f"{analysis_name} ({self.controller.window_type}) - {self.measurement.measurement_label}")
@@ -614,21 +612,6 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.refineButton = QPushButton("Refine Frequency Selection")
         self.refineButton.clicked.connect(self.refineFrequency)
         displayOptionsLayout.addWidget(self.refineButton)
-
-        # Other Toggles Group
-        if self.controller.window_type == "MD":
-            otherTogglesGroup = QGroupBox("Other Analyses")
-            otherTogglesLayout = QVBoxLayout()
-            otherTogglesGroup.setLayout(otherTogglesLayout)
-            self.controlsPanel.addWidget(otherTogglesGroup)
-
-            self.pmdButton = QPushButton("Paper Machine Data")
-            self.pmdButton.setCheckable(True)
-            self.pmdButton.clicked.connect(self.togglePaperMachineData)
-            if not self.measurement.pm_data:
-                self.pmdButton.setDisabled(True)
-            otherTogglesLayout.addWidget(self.pmdButton)
-
 
         # Right panel for plot and stats
         plotStatsLayout = QVBoxLayout()

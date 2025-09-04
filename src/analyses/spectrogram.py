@@ -306,7 +306,6 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
             self.paperMachineDataWindow.closed.connect(
                 self.onPaperMachineDataClosed)
             self.paperMachineDataAction.setChecked(True)
-            self.pmdButton.setChecked(True)
         else:
             self.paperMachineDataWindow.close()
 
@@ -318,7 +317,6 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
     def onPaperMachineDataClosed(self):
         self.paperMachineDataWindow = None
         self.paperMachineDataAction.setChecked(False)
-        self.pmdButton.setChecked(False)
 
     def refreshSOS(self):
         self.sosAnalysis.controller.data = self.controller.data
@@ -394,26 +392,6 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.clearButton = QPushButton("Clear Frequency Selection")
         self.clearButton.clicked.connect(self.clearFrequency)
         displayOptionsLayout.addWidget(self.clearButton)
-
-
-        if self.controller.window_type == "MD":
-            otherTogglesGroup = QGroupBox("Other Analyses")
-            otherTogglesLayout = QVBoxLayout()
-            otherTogglesGroup.setLayout(otherTogglesLayout)
-            self.controlsPanel.addWidget(otherTogglesGroup)
-
-            self.sosButton = QPushButton("SOS Analysis")
-            self.sosButton.setCheckable(True)
-            self.sosButton.clicked.connect(self.toggleSOSAnalysis)
-            otherTogglesLayout.addWidget(self.sosButton)
-
-            self.pmdButton = QPushButton("Paper Machine Data")
-            self.pmdButton.setCheckable(True)
-            self.pmdButton.clicked.connect(self.togglePaperMachineData)
-            if not self.measurement.pm_data:
-                self.pmdButton.setDisabled(True)
-            otherTogglesLayout.addWidget(self.pmdButton)
-
 
         # Right panel for plot and stats
         plotStatsLayout = QVBoxLayout()

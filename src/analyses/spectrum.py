@@ -548,7 +548,6 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
             self.paperMachineDataWindow.closed.connect(
                 self.onPaperMachineDataClosed)
             self.paperMachineDataAction.setChecked(True)
-            self.pmdButton.setChecked(True)
         else:
             self.paperMachineDataWindow.close()
 
@@ -560,7 +559,6 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
     def onPaperMachineDataClosed(self):
         self.paperMachineDataWindow = None
         self.paperMachineDataAction.setChecked(False)
-        self.pmdButton.setChecked(False)
 
     def refreshSOS(self):
         if self.sosAnalysis:
@@ -578,14 +576,12 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
             self.sosAnalysisWindow.closed.connect(self.onSOSAnalysisClosed)
             self.controller.updated.connect(self.refreshSOS)
             self.sosAnalysisAction.setChecked(True)
-            self.sosButton.setChecked(True)
         else:
             self.sosAnalysisWindow.close()
 
     def onSOSAnalysisClosed(self):
         self.sosAnalysisWindow = None
         self.sosAnalysisAction.setChecked(False)
-        self.sosButton.setChecked(False)
 
     def initUI(self):
         self.setWindowTitle(f"{analysis_name} ({self.controller.window_type}) - {self.measurement.measurement_label}")
@@ -619,8 +615,6 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         if self.controller.window_type == "MD":
             self.addMachineSpeedSpinner(analysisParamsLayout)
 
-        
-
         # Display & Peak Options Group
         displayOptionsGroup = QGroupBox("Display && Peak Options")
         displayOptionsLayout = QVBoxLayout()
@@ -639,27 +633,6 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.clearButton = QPushButton("Clear Frequency Selection")
         self.clearButton.clicked.connect(self.clearFrequency)
         displayOptionsLayout.addWidget(self.clearButton)
-
-
-        if self.controller.window_type == "MD":
-            # Other Toggles Group
-            otherTogglesGroup = QGroupBox("Other Analyses")
-            otherTogglesLayout = QVBoxLayout()
-            otherTogglesGroup.setLayout(otherTogglesLayout)
-            self.controlsPanel.addWidget(otherTogglesGroup)
-
-            self.sosButton = QPushButton("SOS Analysis")
-            self.sosButton.setCheckable(True)
-            self.sosButton.clicked.connect(self.toggleSOSAnalysis)
-            otherTogglesLayout.addWidget(self.sosButton)
-
-            self.pmdButton = QPushButton("Paper Machine Data")
-            self.pmdButton.setCheckable(True)
-            self.pmdButton.clicked.connect(self.togglePaperMachineData)
-            if not self.measurement.pm_data:
-                self.pmdButton.setDisabled(True)
-            otherTogglesLayout.addWidget(self.pmdButton)
-
 
         # Right panel for plot and stats
         plotStatsLayout = QVBoxLayout()
