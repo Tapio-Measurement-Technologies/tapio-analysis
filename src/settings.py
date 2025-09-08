@@ -413,16 +413,17 @@ def apply_custom_settings_from_dict(settings_dict):
     return settings_dict
 
 # Check if a local_settings.py path is provided as a parameter
+
 if len(sys.argv) > 1:
     supplied_local_settings = sys.argv[1]
-    if os.path.exists(supplied_local_settings):
-        print(
-            f"Loading local settings from provided argument {supplied_local_settings}")
+    if not supplied_local_settings.lower().endswith('.py'):
+        print(f"WARNING: Provided local_settings file is not a .py file: {supplied_local_settings}")
+    elif os.path.exists(supplied_local_settings):
+        print(f"Loading local settings from provided argument {supplied_local_settings}")
         # Dynamically load settings from the provided path
         apply_custom_settings_from_file(supplied_local_settings)
     else:
-        print(f"WARNING: Provided local_settings.py not found at {
-              supplied_local_settings}")
+        print(f"WARNING: Provided local_settings.py not found at {supplied_local_settings}")
 else:
     # Fallback to default local_settings import if none is supplied
     try:
