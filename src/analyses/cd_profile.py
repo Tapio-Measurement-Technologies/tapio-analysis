@@ -73,6 +73,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         self.figure.clear()
 
         if len(self.selected_samples) == 0:
+            self.mean_profile = None
             self.canvas.draw()
             return
 
