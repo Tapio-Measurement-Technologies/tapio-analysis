@@ -154,6 +154,18 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 color="black"
             )
 
+            # Add actual sample index on the right side
+            ax.text(
+                x[-1] + 0.02 * (x[-1] - x[0]),
+                mean_value,
+                f"#{sample_idx + 1}",
+                ha='left',
+                va='bottom',
+                fontsize=8,
+                color="tab:gray",
+                alpha=0.7
+            )
+
         # ax.set_ylabel("Sample Index")
         # ax.set_zlabel(
         #     f"{self.channel} [{self.measurement.units[self.channel]}]")
