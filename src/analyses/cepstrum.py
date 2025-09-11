@@ -146,10 +146,15 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
     def plot(self):
         self.figure.clear()
-        # This to avoid crash due to a too long spectrum calculation on too short data
 
         self.ax = self.figure.add_subplot(111)
         ax = self.ax
+        ax.set_xlabel("Quefrency [m]")
+        ax.set_ylabel("Cepstrum amplitude")
+        ax.grid(True)
+
+        if settings.SPECTRUM_TITLE_SHOW:
+            ax.set_title(f"{self.measurement.measurement_label} ({self.channel}) - Cepstrum")
 
         overlap_per = self.overlap
         noverlap = round(self.nperseg) * overlap_per
@@ -223,13 +228,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         # Plot only the first half (up to Nyquist quefrency)
         N = len(cepstrum) // 2
         ax.plot(quefrency[:N], cepstrum[:N])
-        ax.set_xlabel("Quefrency [m]")
-        ax.set_ylabel("Cepstrum amplitude")
 
-        if settings.SPECTRUM_TITLE_SHOW:
-            ax.set_title(f"{self.measurement.measurement_label} ({self.channel}) - Cepstrum")
-
-        ax.grid(True)
         self.canvas.draw()
         self.updated.emit()
         return self.canvas

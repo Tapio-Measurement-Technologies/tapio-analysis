@@ -65,6 +65,20 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         # logging.info("Refresh")
         self.figure.clear()
 
+        ax = self.figure.add_subplot(111)
+        ax.figure.set_constrained_layout(True)
+
+        if settings.CD_PROFILE_TITLE_SHOW:
+            ax.set_title(
+                f"{self.measurement.measurement_label} ({self.channel})")
+        ax.grid(True, which='both', linestyle='--', linewidth=0.5)
+        ax.set_xlabel("Distance [m]")
+
+        y_ticks = []
+        y_tick_labels = []
+        ax.set_yticks(y_ticks)
+        ax.set_yticklabels(y_tick_labels)
+
         if len(self.selected_samples) == 0:
             self.mean_profile = None
             self.canvas.draw()
@@ -92,13 +106,6 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         tableau_color_cycle = plt.get_cmap('tab10')
 
         y_offset = self.waterfall_offset
-        ax = self.figure.add_subplot(111)
-
-        y_ticks = []
-        y_tick_labels = []
-
-        ax.set_yticks(y_ticks)
-        ax.set_yticklabels(y_tick_labels)
 
         ax.set_ylim(1*self.waterfall_offset, -1 *
                     self.waterfall_offset * (len(self.selected_samples)))
@@ -147,18 +154,12 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 color="black"
             )
 
-        if settings.CD_PROFILE_TITLE_SHOW:
-            ax.set_title(
-                f"{self.measurement.measurement_label} ({self.channel})")
-        ax.grid(True, which='both', linestyle='--', linewidth=0.5)
-        ax.set_xlabel("Distance [m]")
         # ax.set_ylabel("Sample Index")
         # ax.set_zlabel(
         #     f"{self.channel} [{self.measurement.units[self.channel]}]")
 
         # ax.view_init(25, -130)
 
-        ax.figure.set_constrained_layout(True)
         self.canvas.draw()
         self.updated.emit()
 

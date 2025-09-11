@@ -54,6 +54,28 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         # logging.info("Refresh")
         self.figure.clear()
         ax = self.figure.add_subplot(111)
+        ax.figure.set_constrained_layout(True)
+        ax.set_xlabel(
+            f"Distance [{settings.TIME_DOMAIN_ANALYSIS_DISPLAY_UNIT}]")
+        ax.set_ylabel(f"{self.channel} [{self.measurement.units[self.channel]}]")
+
+        if settings.TIME_DOMAIN_TITLE_SHOW:
+            ax.set_title(
+                f"{self.measurement.measurement_label} ({self.channel})")
+
+        if settings.TIME_DOMAIN_MINOR_GRID:
+            ax.grid(True, which='both')
+            ax.minorticks_on()
+            ax.xaxis.set_minor_locator(AutoMinorLocator(5))
+            ax.yaxis.set_minor_locator(AutoMinorLocator(4))
+            ax.grid(True, which='minor', linestyle=':', linewidth=0.5)
+        else:
+            ax.grid()
+
+        if settings.TIME_DOMAIN_FIXED_XTICKS:
+            fixed_tick_positions = np.linspace(self.analysis_range_low, self.analysis_range_high,
+                                               settings.TIME_DOMAIN_FIXED_XTICKS)
+            ax.set_xticks(fixed_tick_positions)
 
         # Todo: These are in meters, like distances array. Convert these to indices and have them have an effect on the displayed slice of the measurement
 
@@ -88,27 +110,6 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             y_max += margin
             ax.set_ylim(y_min, y_max)
 
-        if settings.TIME_DOMAIN_TITLE_SHOW:
-            ax.set_title(
-                f"{self.measurement.measurement_label} ({self.channel})")
-        if settings.TIME_DOMAIN_MINOR_GRID:
-            ax.grid(True, which='both')
-            ax.minorticks_on()
-            ax.xaxis.set_minor_locator(AutoMinorLocator(5))
-            ax.yaxis.set_minor_locator(AutoMinorLocator(4))
-            ax.grid(True, which='minor', linestyle=':', linewidth=0.5)
-        else:
-            ax.grid()
-
-        ax.set_xlabel(
-            f"Distance [{settings.TIME_DOMAIN_ANALYSIS_DISPLAY_UNIT}]")
-        ax.set_ylabel(f"{self.channel} [{self.measurement.units[self.channel]}]")
-
-        if settings.TIME_DOMAIN_FIXED_XTICKS:
-            fixed_tick_positions = np.linspace(self.analysis_range_low, self.analysis_range_high,
-                                               settings.TIME_DOMAIN_FIXED_XTICKS)
-            ax.set_xticks(fixed_tick_positions)
-
         if self.show_time_labels:
             # Convert machine speed to meters per second
             machine_speed_m_per_s = self.machine_speed / 60.0
@@ -122,7 +123,6 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             ax2.set_xticks(tick_positions)
             ax2.set_xticklabels([f"{time:.2f}" for time in tick_labels])
 
-        ax.figure.set_constrained_layout(True)
         self.canvas.draw()
         self.updated.emit()
 

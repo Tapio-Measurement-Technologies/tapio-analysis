@@ -72,7 +72,13 @@ class AnalysisController(AnalysisControllerBase):
 
     def plot(self):
         self.figure.clear()
+
         ax_correlation = self.figure.add_subplot(211)
+        ax_correlation.set_xlabel(
+            f"{self.channel} [{self.measurement.units[self.channel]}]")
+        ax_correlation.set_ylabel(
+            f"{self.channel2} [{self.measurement.units[self.channel2]}]")
+        ax_correlation.grid()
 
         ax1 = self.figure.add_subplot(212)
 
@@ -104,13 +110,6 @@ class AnalysisController(AnalysisControllerBase):
             max_offset = self.calculate_max_cross_correlation_offset(
                 data1, data2, self.measurement.sample_step)
             logging.info(f"Cross-correlation max at {max_offset:.2f} m ({1000*max_offset:.2f} mm)")
-
-
-        ax_correlation.set_xlabel(
-            f"{self.channel} [{self.measurement.units[self.channel]}]")
-        ax_correlation.set_ylabel(
-            f"{self.channel2} [{self.measurement.units[self.channel2]}]")
-        ax_correlation.grid()
 
         self.canvas.draw()
         self.updated.emit()

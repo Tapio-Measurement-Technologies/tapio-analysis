@@ -162,7 +162,23 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         # This to avoid crash due to a too long spectrum calculation on too short data
 
         self.ax = self.figure.add_subplot(111)
+        ax.figure.set_constrained_layout(True)
         ax = self.ax
+        ax.set_xlabel("Frequency [1/m]")
+        ax.set_ylabel("Coherence")
+
+        if settings.SPECTRUM_TITLE_SHOW:
+            ax.set_title(f"{self.measurement.measurement_label} Coherence ({
+                self.channel} vs {self.channel2})")
+
+        if settings.SPECTRUM_MINOR_GRID:
+            ax.grid(True, which='both')
+            ax.minorticks_on()
+            ax.xaxis.set_minor_locator(AutoMinorLocator(5))
+            ax.yaxis.set_minor_locator(AutoMinorLocator(4))
+            ax.grid(True, which='minor', linestyle=':', linewidth=0.5)
+        else:
+            ax.grid()
 
         overlap_per = self.overlap
         noverlap = round(self.nperseg) * overlap_per
@@ -189,7 +205,6 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 noverlap=noverlap
             )
             # ax.plot(f, Cxy)
-            ax.set_ylabel("Coherence")
 
             if self.nperseg >= (self.high_index - self.low_index):
                 self.canvas.draw()
@@ -227,7 +242,6 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 noverlap=noverlap
             )
             # ax.plot(f, Cxy)
-            ax.set_ylabel("Coherence")
 
         f_low_index = np.searchsorted(f, self.frequency_range_low)
         f_high_index = np.searchsorted(
@@ -251,12 +265,6 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             ax.yaxis.set_major_locator(LogLocator(
                 base=10.0, subs=np.arange(1.0, 10.0) * 0.1, numticks=10))
 
-        if settings.SPECTRUM_TITLE_SHOW:
-            ax.set_title(f"{self.measurement.measurement_label} Coherence ({
-                self.channel} vs {self.channel2})")
-
-        ax.set_xlabel("Frequency [1/m]")
-        ax.set_ylabel(f"Coherence")
         ax.set_ylim(0, 1.1)
 
         secax = ax.twiny()
@@ -443,17 +451,6 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                     leg.get_frame().set_alpha(0)
                 else:
                     ax.legend(handles, labels, loc="upper right")
-
-        ax.figure.set_constrained_layout(True)
-
-        if settings.SPECTRUM_MINOR_GRID:
-            ax.grid(True, which='both')
-            ax.minorticks_on()
-            ax.xaxis.set_minor_locator(AutoMinorLocator(5))
-            ax.yaxis.set_minor_locator(AutoMinorLocator(4))
-            ax.grid(True, which='minor', linestyle=':', linewidth=0.5)
-        else:
-            ax.grid()
 
         self.canvas.draw()
         self.updated.emit()

@@ -156,6 +156,22 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
         self.ax = self.figure.add_subplot(111)
         ax = self.ax
+        ax.figure.set_constrained_layout(True)
+        ax.set_xlabel("Frequency [1/m]")
+        ax.set_ylabel(f"Amplitude [{self.measurement.units[self.channel]}]")
+
+        if settings.SPECTRUM_MINOR_GRID:
+            ax.grid(True, which='both')
+            ax.minorticks_on()
+            ax.xaxis.set_minor_locator(AutoMinorLocator(5))
+            ax.yaxis.set_minor_locator(AutoMinorLocator(4))
+            ax.grid(True, which='minor', linestyle=':', linewidth=0.5)
+        else:
+            ax.grid()
+
+        if settings.SPECTRUM_TITLE_SHOW:
+            ax.set_title(f"{self.measurement.measurement_label} ({
+                self.channel}) - Spectrum")
 
         overlap_per = self.overlap
         noverlap = round(self.nperseg) * overlap_per
@@ -234,12 +250,6 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             ax.yaxis.set_major_locator(LogLocator(
                 base=10.0, subs=np.arange(1.0, 10.0) * 0.1, numticks=10))
 
-        if settings.SPECTRUM_TITLE_SHOW:
-            ax.set_title(f"{self.measurement.measurement_label} ({
-                self.channel}) - Spectrum")
-
-        ax.set_xlabel("Frequency [1/m]")
-        ax.set_ylabel(f"Amplitude [{self.measurement.units[self.channel]}]")
         if ylim:
             ax.set_ylim(bottom=ylim[0], top=ylim[1])
 
@@ -427,17 +437,6 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                     leg.get_frame().set_alpha(0)
                 else:
                     ax.legend(handles, labels, loc="upper right")
-
-        ax.figure.set_constrained_layout(True)
-
-        if settings.SPECTRUM_MINOR_GRID:
-            ax.grid(True, which='both')
-            ax.minorticks_on()
-            ax.xaxis.set_minor_locator(AutoMinorLocator(5))
-            ax.yaxis.set_minor_locator(AutoMinorLocator(4))
-            ax.grid(True, which='minor', linestyle=':', linewidth=0.5)
-        else:
-            ax.grid()
 
         self.canvas.draw()
         self.updated.emit()

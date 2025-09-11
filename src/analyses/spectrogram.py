@@ -92,6 +92,12 @@ class AnalysisController(AnalysisControllerBase):
 
         self.ax = self.figure.add_subplot(111)
         ax = self.ax
+        ax.set_title(f"{self.measurement.measurement_label} ({self.channel})")
+        ax.set_xlabel("Distance [m]")
+        ax.set_ylabel("Frequency [1/m]")
+        # ax.figure.set_constrained_layout(True)
+        # ax.grid()
+        # ax.tight_layout()
 
         overlap_per = self.overlap
         noverlap = round(self.nperseg * overlap_per)
@@ -152,10 +158,6 @@ class AnalysisController(AnalysisControllerBase):
                        extent=[bins[0], bins[-1], freqs_cut[0], freqs_cut[-1]],
                        norm=matplotlib.colors.Normalize(vmin=0, vmax=3*np.mean(amplitudes_cut)), cmap=settings.SPECTROGRAM_COLORMAP)
 
-        # Set the axis labels, title, and colorbar
-        ax.set_title(f"{self.measurement.measurement_label} ({self.channel})")
-        ax.set_xlabel("Distance [m]")
-        ax.set_ylabel("Frequency [1/m]")
         cbar = self.figure.colorbar(im, ax=ax, pad=0.2)
         cbar.set_label(f"Amplitude [{self.measurement.units[self.channel]}]")
 
@@ -227,10 +229,6 @@ class AnalysisController(AnalysisControllerBase):
         handles, labels=ax.get_legend_handles_labels()
         if labels:  # This list will be non-empty if there are items to include in the legend
             ax.legend(handles, labels, loc="upper right")
-
-        # ax.figure.set_constrained_layout(True)
-        # ax.grid()
-        # ax.tight_layout()
 
         self.canvas.draw()
         self.updated.emit()

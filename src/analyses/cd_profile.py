@@ -72,6 +72,24 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         # logging.info("Refresh")
         self.figure.clear()
 
+        ax = self.figure.add_subplot(111)
+        ax.set_xlabel(f"Distance [{settings.CD_PROFILE_DISPLAY_UNIT}]")
+        ax.set_ylabel(
+            f"{self.channel} [{self.measurement.units[self.channel]}]")
+
+        if settings.CD_PROFILE_MINOR_GRID:
+            ax.grid(True, which='both')
+            ax.minorticks_on()
+            ax.xaxis.set_minor_locator(AutoMinorLocator(5))
+            ax.yaxis.set_minor_locator(AutoMinorLocator(4))
+            ax.grid(True, which='minor', linestyle=':', linewidth=0.5)
+        else:
+            ax.grid()
+
+        if settings.CD_PROFILE_TITLE_SHOW:
+            ax.set_title(
+                f"{self.measurement.measurement_label} ({self.channel})")
+
         if len(self.selected_samples) == 0:
             self.mean_profile = None
             self.canvas.draw()
@@ -102,8 +120,6 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             z_score = norm.ppf(1 - (1 - self.confidence_interval) / 2)
             confidence_interval = z_score * std_error
 
-        ax = self.figure.add_subplot(111)
-
         if self.show_profiles:
             for i in filtered_data:
                 ax.plot(x * settings.CD_PROFILE_DISPLAY_UNIT_MULTIPLIER,
@@ -129,29 +145,11 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                             self.mean_profile + confidence_interval,
                             color='tab:blue', alpha=0.3, label=f"{self.confidence_interval * 100}% CI")
 
-        if settings.CD_PROFILE_TITLE_SHOW:
-            ax.set_title(
-                f"{self.measurement.measurement_label} ({self.channel})")
-
         if self.show_legend:
 
             handles, labels = ax.get_legend_handles_labels()
             if labels:  # This list will be non-empty if there are items to include in the legend
                 ax.legend(handles, labels, loc="upper right")
-
-        if settings.CD_PROFILE_MINOR_GRID:
-
-            ax.grid(True, which='both')
-            ax.minorticks_on()
-            ax.xaxis.set_minor_locator(AutoMinorLocator(5))
-            ax.yaxis.set_minor_locator(AutoMinorLocator(4))
-            ax.grid(True, which='minor', linestyle=':', linewidth=0.5)
-        else:
-            ax.grid()
-
-        ax.set_xlabel(f"Distance [{settings.CD_PROFILE_DISPLAY_UNIT}]")
-        ax.set_ylabel(
-            f"{self.channel} [{self.measurement.units[self.channel]}]")
 
         # Add minimum range check
         if self.channel in settings.CD_PROFILE_MIN_RANGES:

@@ -41,7 +41,11 @@ class AnalysisController(AnalysisControllerBase):
 
     def plot(self):
         self.figure.clear()
+
         ax = self.figure.add_subplot(111)
+        ax.set_title(f"{self.measurement.measurement_label} ({self.channel})")
+        ax.set_xlabel("Distance [m]")
+        ax.set_ylabel(f"{self.channel} [{self.measurement.units[self.channel]}]")
 
         self.distances = self.measurement.distances
         self.data = self.measurement.channel_df[self.channel]
@@ -62,10 +66,6 @@ class AnalysisController(AnalysisControllerBase):
                 mask = (self.distances >= start) & (self.distances <= end)
                 ax.plot(
                     self.distances[mask], self.filtered_data[mask], color='tab:blue', alpha=1.0)
-
-        ax.set_title(f"{self.measurement.measurement_label} ({self.channel})")
-        ax.set_xlabel("Distance [m]")
-        ax.set_ylabel(f"{self.channel} [{self.measurement.units[self.channel]}]")
 
         self.draw_peaks()
         if self.channel == self.measurement.peak_channel:

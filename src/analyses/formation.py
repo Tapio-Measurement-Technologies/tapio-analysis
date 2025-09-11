@@ -72,7 +72,15 @@ class AnalysisController(AnalysisControllerBase):
 
     def plot(self):
         self.figure.clear()
+
         ax = self.figure.add_subplot(111)
+        ax.set_title(
+            f"{self.measurement.measurement_label} - Formation index ({self.channel})")
+        params = {'mathtext.default': 'regular'}
+        plt.rcParams.update(params)
+        ax.set_xlabel("Distance [m]")
+        ax.set_ylabel(f"$f_N$")
+        ax.grid()
 
         if not self.can_calculate:
             self.figure.text(0.5, 0.5, "Formation Index calculation not available\nRequired channels missing",
@@ -159,14 +167,7 @@ class AnalysisController(AnalysisControllerBase):
 
         show_unfiltered_data = True
         ax.plot(x, y)
-        ax.set_title(
-            f"{self.measurement.measurement_label} - Formation index ({self.channel})")
 
-        ax.set_xlabel("Distance [m]")
-        params = {'mathtext.default': 'regular'}
-        plt.rcParams.update(params)
-        ax.set_ylabel(f"$f_N$")
-        ax.grid()
         self.stats = y
 
         self.canvas.draw()
