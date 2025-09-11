@@ -479,7 +479,7 @@ class BandPassFilterMixin:
             else:
                 wavelength_text = f"{wavelength_high:.{settings.BAND_PASS_FILTER_WAVELENGTH_DECIMALS}f} - {wavelength_low:.{settings.BAND_PASS_FILTER_WAVELENGTH_DECIMALS}f}"
             self.bandPassFilterLabel.setText(
-                f"Band pass filter [1/m]\t λ = {wavelength_text} cm")
+                f"Band pass filter [1/m]\nλ = {wavelength_text} cm")
         else:
             self.bandPassFilterLabel.setText("Band pass filter [1/m]")
 
