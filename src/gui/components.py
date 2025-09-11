@@ -33,8 +33,9 @@ class FineControlMixin:
         self.handle_radius = settings.DOUBLE_SLIDER_HANDLE_RADIUS
 
         self._drag_start_pos = None
-        self._original_pos = None
         self._initializing_fine_control = False
+        self._fine_control_start_value = None
+        self._dragging_handle = None  # 'low', 'high', or 'both' for range sliders
 
         # Store original mouse handlers before overriding
         self._original_mousePressEvent = self._slider.mousePressEvent
@@ -82,11 +83,25 @@ class FineControlMixin:
                 low_pos, high_pos = handle_positions
                 in_range = low_pos <= click_x <= high_pos
 
+            # Determine which handle is being dragged for range sliders
+            if is_range_slider and on_handle:
+                low_pos, high_pos = handle_positions
+                if abs(click_x - low_pos) <= self.handle_radius:
+                    self._dragging_handle = 'low'
+                elif abs(click_x - high_pos) <= self.handle_radius:
+                    self._dragging_handle = 'high'
+                else:
+                    self._dragging_handle = 'low'  # fallback
+            elif is_range_slider and in_range:
+                self._dragging_handle = 'both'  # dragging the range
+            else:
+                self._dragging_handle = 'single'  # single-value slider
+
             if on_handle or in_range:
                 self._fine_control_active = True
                 self._initializing_fine_control = True
                 self._drag_start_pos = event.position()
-                self._original_pos = event.position()
+                self._fine_control_start_value = self._slider.value()
 
                 if event.button() == Qt.MouseButton.RightButton:
                     self._slider.blockSignals(True)
@@ -114,18 +129,62 @@ class FineControlMixin:
                (event.buttons() & Qt.MouseButton.LeftButton and event.modifiers() & Qt.KeyboardModifier.ControlModifier):
 
                 current_pos = event.position()
-                delta = current_pos - self._drag_start_pos
+                total_delta = current_pos - self._drag_start_pos
 
-                if abs(delta.x()) > 2 or abs(delta.y()) > 2:
-                    scaled_delta = delta * self._fine_control_factor
-                    scaled_pos = self._original_pos + scaled_delta
+                # Calculate accumulated fine-controlled movement
+                fine_delta = total_delta * self._fine_control_factor
 
-                    scaled_event = QMouseEvent(
-                        event.Type.MouseMove, scaled_pos, event.globalPosition(),
-                        Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton, event.modifiers()
-                    )
-                    self._original_mouseMoveEvent(scaled_event)
-                    return
+                # Convert pixel movement to value change using slider geometry
+                slider_rect = self._slider.rect()
+                min_val, max_val = self._slider.minimum(), self._slider.maximum()
+
+                # Calculate value per pixel
+                if slider_rect.width() > 0 and max_val != min_val:
+                    value_per_pixel = (max_val - min_val) / slider_rect.width()
+
+                    # Calculate the fine-controlled value change from pixel movement
+                    fine_value_delta = fine_delta.x() * value_per_pixel
+
+                    # Calculate target value from start value
+                    is_range_slider = isinstance(self._fine_control_start_value, (list, tuple))
+
+                    if is_range_slider:
+                        start_low, start_high = self._fine_control_start_value
+
+                        if self._dragging_handle == 'low':
+                            # Only move the low handle
+                            new_low = start_low + fine_value_delta
+                            fine_controlled_value = (max(min_val, min(start_high, new_low)), start_high)
+                        elif self._dragging_handle == 'high':
+                            # Only move the high handle
+                            new_high = start_high + fine_value_delta
+                            fine_controlled_value = (start_low, min(max_val, max(start_low, new_high)))
+                        else:  # 'both' - move the entire range
+                            new_low = start_low + fine_value_delta
+                            new_high = start_high + fine_value_delta
+                            # Clamp the range while maintaining its size
+                            range_size = start_high - start_low
+                            if new_low < min_val:
+                                new_low = min_val
+                                new_high = new_low + range_size
+                            elif new_high > max_val:
+                                new_high = max_val
+                                new_low = new_high - range_size
+                            fine_controlled_value = (new_low, new_high)
+                    else:
+                        fine_controlled_value = self._fine_control_start_value + fine_value_delta
+                        # Clamp to valid range
+                        fine_controlled_value = max(min_val, min(max_val, fine_controlled_value))
+
+                    # Only update if value actually changed
+                    current_value = self._slider.value()
+                    if fine_controlled_value != current_value:
+                        self._slider.blockSignals(True)
+                        self._slider.setValue(fine_controlled_value)
+                        self._slider.blockSignals(False)
+                        self._slider.valueChanged.emit(fine_controlled_value)
+
+                return
 
         self._original_mouseMoveEvent(event)
 
@@ -134,7 +193,8 @@ class FineControlMixin:
         if self._fine_control_active:
             self._fine_control_active = False
             self._drag_start_pos = None
-            self._original_pos = None
+            self._fine_control_start_value = None
+            self._dragging_handle = None
 
             if event.button() == Qt.MouseButton.RightButton:
                 left_release_event = QMouseEvent(
