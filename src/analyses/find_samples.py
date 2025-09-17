@@ -147,7 +147,7 @@ class AnalysisController(AnalysisControllerBase):
                             x[start] - x[last_peak_end]) <= max_length_meters
                     ):
                         peaks.append(center)
-                        last_peak_end = end
+                    last_peak_end = end
                     start = None
 
         self.peaks = peaks
