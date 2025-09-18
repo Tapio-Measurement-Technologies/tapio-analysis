@@ -162,8 +162,8 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         # This to avoid crash due to a too long spectrum calculation on too short data
 
         self.ax = self.figure.add_subplot(111)
-        ax.figure.set_constrained_layout(True)
         ax = self.ax
+        ax.figure.set_constrained_layout(True)
         ax.set_xlabel("Frequency [1/m]")
         ax.set_ylabel("Coherence")
 
