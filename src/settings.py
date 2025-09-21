@@ -313,6 +313,8 @@ REPORT_LOGO_PATH = None
 REPORT_ENABLE_ANALYSIS_TITLE = False
 
 
+SOS_HARMONICS = 10
+
 ANALYSIS_EXPORT_ATTRIBUTES = [
     "channel",
     "channel2",
@@ -354,6 +356,23 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 ASSETS_DIR = os.path.join(script_dir, "assets")
 
 CALCULATED_CHANNELS = []
+# Examples: 
+# def calc_bulk(dataframe):
+#     return (dataframe['Caliper']) / dataframe['Basis Weight']
+
+# def calc_density(dataframe):
+#     return (dataframe['Basis Weight']) / dataframe['Caliper']
+
+# def calc_relative_ash(dataframe):
+#     return (dataframe['Ash']) / dataframe['Basis Weight']
+
+# CALCULATED_CHANNELS = [
+#     {"name": "Density", "unit": "g/m^3", "function": calc_density},
+#     {"name": "Bulk", "unit": "m^3/g", "function": calc_bulk},
+#     {"name": "Ash (relative)", "unit": "", "function": calc_relative_ash}
+# ]
+
+
 
 MULTIPLE_SELECT_MODE = False
 

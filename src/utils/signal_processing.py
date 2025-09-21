@@ -1,6 +1,7 @@
 import numpy as np
 import scipy
 import matplotlib.pyplot as plt
+import settings
 
 # NLS estimators for
 
@@ -121,7 +122,7 @@ def generate_sine_wave(freq, sample_rate, duration, amplitude=1.0):
 def harmonic_fitting_units(x, Fs, w):
     # Function to return single "mean revolution" using least squares harmonic model fitting
     # Called SOS analysis (Separate Original Signals)
-    L = 10
+    L = settings.SOS_HARMONICS
     w_rad = w / Fs * 2 * np.pi  # Convert to rad/sample for processing
     L_array = np.arange(-L, L+1)
     L_array = L_array[L_array != 0]

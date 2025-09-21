@@ -194,6 +194,11 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             # Normalize both time series
             data1_norm = (data1 - np.mean(data1)) / np.std(data1)
             data2_norm = (data2 - np.mean(data2)) / np.std(data2)
+            print(self.channel)
+            print(self.channel2)
+            print(data1)
+            print(data2)
+
 
             # Calculate coherence
             f, Cxy = coherence(
@@ -231,6 +236,11 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             # Normalize both time series
             data1_norm = (data1 - np.mean(data1)) / np.std(data1)
             data2_norm = (data2 - np.mean(data2)) / np.std(data2)
+            print("Channels and data")
+            print(self.channel)
+            print(self.channel2)
+            print(data1_norm)
+            print(data2_norm)
 
             # Calculate coherence
             f, Cxy = coherence(
@@ -242,12 +252,15 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 noverlap=noverlap
             )
             # ax.plot(f, Cxy)
+            print(Cxy)
 
         f_low_index = np.searchsorted(f, self.frequency_range_low)
         f_high_index = np.searchsorted(
             f, self.frequency_range_high, side='right')
-        # Convert power spectral density to amplitude spectrum (sqrt of power)
+
         amplitude_spectrum = Cxy
+        print("Amp")
+        print(amplitude_spectrum)
 
         if self.ax:
             xlim = self.ax.get_xlim()
@@ -260,6 +273,8 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         self.amplitudes = amplitude_spectrum[f_low_index:f_high_index]
 
         ax.plot(self.frequencies, self.amplitudes)
+        print(self.frequencies)
+        print(self.amplitudes)
         if settings.SPECTRUM_LOGARITHMIC_SCALE:
             ax.set_yscale("log")
             ax.yaxis.set_major_locator(LogLocator(

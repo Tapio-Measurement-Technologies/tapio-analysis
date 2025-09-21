@@ -26,6 +26,7 @@ from gui.paper_machine_data import PaperMachineDataWindow
 import numpy as np
 import pandas as pd
 import settings
+import matplotlib.patheffects as path_effects
 from utils import store
 analysis_name = "Spectrum"
 analysis_types = ["MD", "CD"]
@@ -406,6 +407,24 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                                     alpha=1 - (1 / settings.MAX_HARMONICS_DISPLAY) * i,
                                     label=label)
                     self.current_vlines.append(vl)
+
+                    # Draw harmonic number below the line
+                    harmonic_x = self.selected_freqs[-1] * i
+                    ymin, ymax = ax.get_ylim()
+                    txt = ax.text(
+                        harmonic_x,
+                        ymin + 0.02 * (ymax - ymin),  # Slightly above the bottom
+                        f"{i}",
+                        ha='center',
+                        va='bottom',
+                        fontsize=8,
+                        color="tab:gray",
+                        alpha=0.8
+                    )
+                    txt.set_path_effects([
+                        path_effects.Stroke(linewidth=2, foreground='white'),
+                        path_effects.Normal()
+                    ])
 
         colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
