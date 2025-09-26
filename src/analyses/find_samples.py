@@ -16,6 +16,7 @@ analysis_name = "Find samples"
 analysis_types = ["MD"]
 allow_multiple_instances = False
 
+
 class AnalysisController(AnalysisControllerBase):
     band_pass_low: float
     band_pass_high: float
@@ -34,8 +35,10 @@ class AnalysisController(AnalysisControllerBase):
         self.highlighted_intervals = []
         self.zoomed_in = False
 
-        self.set_default('band_pass_low', settings.FIND_SAMPLES_BAND_PASS_LOW_DEFAULT_1M)
-        self.set_default('band_pass_high', settings.FIND_SAMPLES_BAND_PASS_HIGH_DEFAULT_1M)
+        self.set_default(
+            'band_pass_low', settings.FIND_SAMPLES_BAND_PASS_LOW_DEFAULT_1M)
+        self.set_default('band_pass_high',
+                         settings.FIND_SAMPLES_BAND_PASS_HIGH_DEFAULT_1M)
         self.set_default('min_length', settings.CD_SAMPLE_MIN_LENGTH_M)
         self.set_default('max_length', settings.CD_SAMPLE_MAX_LENGTH_M)
 
@@ -45,7 +48,8 @@ class AnalysisController(AnalysisControllerBase):
         ax = self.figure.add_subplot(111)
         ax.set_title(f"{self.measurement.measurement_label} ({self.channel})")
         ax.set_xlabel("Distance [m]")
-        ax.set_ylabel(f"{self.channel} [{self.measurement.units[self.channel]}]")
+        ax.set_ylabel(
+            f"{self.channel} [{self.measurement.units[self.channel]}]")
 
         self.distances = self.measurement.distances
         self.data = self.measurement.channel_df[self.channel]
@@ -142,10 +146,7 @@ class AnalysisController(AnalysisControllerBase):
                     center = x[start] + (x[end] - x[start]) / 2
 
                     # Check if this is the first peak or if the distance from last peak is within bounds
-                    if last_peak_end is None or (
-                        min_length_meters <= (
-                            x[start] - x[last_peak_end]) <= max_length_meters
-                    ):
+                    if last_peak_end is None or (min_length_meters <= (x[start] - x[last_peak_end])):
                         peaks.append(center)
                     last_peak_end = end
                     start = None
@@ -299,12 +300,15 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], ChannelMixin, BandP
             chk_box_item = QTableWidgetItem()
             chk_box_item.setFlags(
                 Qt.ItemFlag.ItemIsUserCheckable | Qt.ItemFlag.ItemIsEnabled)
-            if (i in self.controller.selected_samples) or select_all:
+            sample_length = (
+                self.controller.peaks[i + 1] - self.controller.peaks[i]) - (settings.TAPE_WIDTH_MM / 1000)
+            # Automatically uncheck if sample_length exceeds max_length
+            if sample_length > self.controller.max_length:
+                chk_box_item.setCheckState(Qt.CheckState.Unchecked)
+            elif (i in self.controller.selected_samples) or select_all:
                 chk_box_item.setCheckState(Qt.CheckState.Checked)
             else:
                 chk_box_item.setCheckState(Qt.CheckState.Unchecked)
-            sample_length = (
-                self.controller.peaks[i + 1] - self.controller.peaks[i]) - (settings.TAPE_WIDTH_MM / 1000)
             chk_box_item.setText(f"{sample_length:.2f}")
             self.table.setItem(i, 0, chk_box_item)
 

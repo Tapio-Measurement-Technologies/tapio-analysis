@@ -449,12 +449,29 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             for i in range(1, settings.MAX_HARMONICS_DISPLAY):
                 f = element["spatial_frequency"]
                 if (f * i > xlim[1]) or (f * i < xlim[0]):
-                    # Skip drawing the line if it is out of bounds
                     continue
-                label = element["name"] if (i == 1) else None
+                label = None
+                if i == 1:
+                    name = element.get("name", "Element")
+                    freq = f
+                    wavelength = 1 / freq if freq else None
+                    amplitude = None
+                    # Find amplitude at this frequency if possible
+                    if hasattr(self, "frequencies") and hasattr(self, "amplitudes") and freq:
+                        freq_idx = np.searchsorted(self.frequencies, freq)
+                        if 0 <= freq_idx < len(self.amplitudes):
+                            amplitude = self.amplitudes[freq_idx]
+                    if self.window_type == "MD":
+                        freq_hz = freq * self.machine_speed / 60 if freq else None
+                        label = f"{name}: {freq:.2f} 1/m {freq_hz:.2f} Hz λ = {100*wavelength:.2f} cm"
+                        if amplitude is not None:
+                            label += f" A = {amplitude:.2f} {self.measurement.units[self.channel]}"
+                    else:
+                        label = f"{name}: {freq:.2f} 1/m λ = {100*wavelength:.2f} cm"
+                        if amplitude is not None:
+                            label += f" A = {amplitude:.2f} {self.measurement.units[self.channel]}"
                 color_index = index % len(colors)
                 current_color = colors[color_index]
-
                 vl = ax.axvline(x=f * i,
                                 linestyle='--',
                                 alpha=1 -
