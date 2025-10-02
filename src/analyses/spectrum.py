@@ -31,6 +31,7 @@ from utils import store
 analysis_name = "Spectrum"
 analysis_types = ["MD", "CD"]
 
+
 def tabular_legend(ax, col_labels, data, *args, **kwargs):
     """
     Custom legend function
@@ -136,20 +137,30 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
         self.set_default('nperseg', config["nperseg"])
         self.set_default('overlap', config["overlap"])
-        self.set_default('frequency_range_low', self.max_freq * config["range_min"])
-        self.set_default('frequency_range_high', self.max_freq * config["range_max"])
-        self.set_default('peak_detection_range_min', config["peak_detection_range_min"])
-        self.set_default('peak_detection_range_max', config["peak_detection_range_max"])
-        self.set_default('spectrum_length_slider_min', config["spectrum_length_slider_min"])
-        self.set_default('spectrum_length_slider_max', config["spectrum_length_slider_max"])
-        self.set_default('analysis_range_low', config["analysis_range_low"] * self.max_dist)
-        self.set_default('analysis_range_high', config["analysis_range_high"] * self.max_dist)
+        self.set_default('frequency_range_low',
+                         self.max_freq * config["range_min"])
+        self.set_default('frequency_range_high',
+                         self.max_freq * config["range_max"])
+        self.set_default('peak_detection_range_min',
+                         config["peak_detection_range_min"])
+        self.set_default('peak_detection_range_max',
+                         config["peak_detection_range_max"])
+        self.set_default('spectrum_length_slider_min',
+                         config["spectrum_length_slider_min"])
+        self.set_default('spectrum_length_slider_max',
+                         config["spectrum_length_slider_max"])
+        self.set_default('analysis_range_low',
+                         config["analysis_range_low"] * self.max_dist)
+        self.set_default('analysis_range_high',
+                         config["analysis_range_high"] * self.max_dist)
         self.set_default('machine_speed', settings.PAPER_MACHINE_SPEED_DEFAULT)
         self.set_default('selected_elements', [])
-        self.set_default('selected_samples', self.measurement.selected_samples.copy())
+        self.set_default('selected_samples',
+                         self.measurement.selected_samples.copy())
         self.set_default('selected_freqs', [])
         self.set_default('show_wavelength', settings.SHOW_WAVELENGTH_DEFAULT)
-        self.set_default('auto_detect_peaks', settings.AUTO_DETECT_PEAKS_DEFAULT)
+        self.set_default('auto_detect_peaks',
+                         settings.AUTO_DETECT_PEAKS_DEFAULT)
 
     def plot(self):
         self.figure.clear()
@@ -292,7 +303,8 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
             # First detect peaks in the full spectrum within peak detection range
             pf_low_index = np.searchsorted(f, self.peak_detection_range_min)
-            pf_high_index = np.searchsorted(f, self.peak_detection_range_max, side='right')
+            pf_high_index = np.searchsorted(
+                f, self.peak_detection_range_max, side='right')
 
             # Only proceed with peak detection if we have a valid range
             if pf_high_index > pf_low_index:
@@ -306,11 +318,12 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 peaks_global = peaks + pf_low_index
 
                 # Sort peaks based on their amplitudes
-                sorted_peak_indices = peaks_global[np.argsort(amplitude_spectrum[peaks_global])][::-1]
+                sorted_peak_indices = peaks_global[np.argsort(
+                    amplitude_spectrum[peaks_global])][::-1]
 
                 # Filter peaks to only include those within the visible range
                 visible_peaks = [idx for idx in sorted_peak_indices
-                               if f_low_index <= idx < f_high_index]
+                                 if f_low_index <= idx < f_high_index]
 
                 if settings.MULTIPLE_SELECT_MODE:
                     top_peaks = visible_peaks[:settings.SPECTRUM_AUTO_DETECT_PEAKS]
@@ -379,7 +392,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                     self.current_vlines.append(vl)
 
             else:
-                for i in range(1, settings.MAX_HARMONICS_DISPLAY):
+                for i in range(1, 1+settings.MAX_HARMONICS_DISPLAY):
                     if (self.selected_freqs[-1] * i > xlim[1]) or (self.selected_freqs[-1] * i < xlim[0]):
                         # Skip drawing the line if it is out of bounds
                         continue
@@ -404,27 +417,30 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                     vl = ax.axvline(x=self.selected_freqs[-1] * i,
                                     color='r',
                                     linestyle='--',
-                                    alpha=1 - (1 / settings.MAX_HARMONICS_DISPLAY) * i,
+                                    alpha=1 -
+                                    (1 / settings.MAX_HARMONICS_DISPLAY) * i,
                                     label=label)
                     self.current_vlines.append(vl)
 
                     # Draw harmonic number below the line
-                    harmonic_x = self.selected_freqs[-1] * i
-                    ymin, ymax = ax.get_ylim()
-                    txt = ax.text(
-                        harmonic_x,
-                        ymin + 0.02 * (ymax - ymin),  # Slightly above the bottom
-                        f"{i}",
-                        ha='center',
-                        va='bottom',
-                        fontsize=8,
-                        color="tab:gray",
-                        alpha=0.8
-                    )
-                    txt.set_path_effects([
-                        path_effects.Stroke(linewidth=2, foreground='white'),
-                        path_effects.Normal()
-                    ])
+                    if settings.SPECTRUM_SHOW_HARMONICS_NUMBERS:
+                        harmonic_x = self.selected_freqs[-1] * i
+                        ymin, ymax = ax.get_ylim()
+                        txt = ax.text(
+                            harmonic_x,
+                            # Slightly above the bottom
+                            ymin + 0.02 * (ymax - ymin),
+                            f"{i}",
+                            ha='center',
+                            va='bottom',
+                            fontsize=8,
+                            color="tab:gray",
+                            alpha=0.8
+                        )
+                        txt.set_path_effects([
+                            path_effects.Stroke(linewidth=2, foreground='white'),
+                            path_effects.Normal()
+                        ])
 
         colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
@@ -458,7 +474,8 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 current_color = colors[color_index]
                 vl = ax.axvline(x=f * i,
                                 linestyle='--',
-                                alpha=1 - (1 / settings.MAX_HARMONICS_DISPLAY) * i,
+                                alpha=1 -
+                                (1 / settings.MAX_HARMONICS_DISPLAY) * i,
                                 label=label,
                                 color=current_color)
                 self.current_vlines.append(vl)
@@ -605,7 +622,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
 
     def toggleSOSAnalysis(self, checked):
         if self.sosAnalysisWindow is None:
-            self.sosAnalysis = Analysis(self.measurement, 'sos', self.window_type)
+            self.sosAnalysis = Analysis(
+                self.measurement, 'sos', self.window_type)
             self.sosAnalysisWindow = self.sosAnalysis.window
             self.sosAnalysisWindow.show()
             self.sosAnalysisWindow.closed.connect(self.onSOSAnalysisClosed)
@@ -619,7 +637,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.sosAnalysisAction.setChecked(False)
 
     def initUI(self):
-        self.setWindowTitle(f"{analysis_name} ({self.controller.window_type}) - {self.measurement.measurement_label}")
+        self.setWindowTitle(
+            f"{analysis_name} ({self.controller.window_type}) - {self.measurement.measurement_label}")
         self.resize(*settings.SPECTRUM_WINDOW_SIZE)
 
         self.initMenuBar()
@@ -630,7 +649,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
 
         # Left panel for controls
         self.controlsPanel = ControlsPanelWidget()
-        mainHorizontalLayout.addWidget(self.controlsPanel, 0) # Controls take less space
+        mainHorizontalLayout.addWidget(
+            self.controlsPanel, 0)  # Controls take less space
 
         # Data Selection Group
         dataSelectionGroup = QGroupBox("Data Selection")
@@ -671,7 +691,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
 
         # Right panel for plot and stats
         plotStatsLayout = QVBoxLayout()
-        mainHorizontalLayout.addLayout(plotStatsLayout, 1) # Plot/stats take more space
+        # Plot/stats take more space
+        mainHorizontalLayout.addLayout(plotStatsLayout, 1)
 
         # Add selected frequency label
         self.selectedFrequencyLabel = QLabel("Selected frequency: None")
