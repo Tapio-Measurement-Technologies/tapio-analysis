@@ -22,6 +22,7 @@ from gui.paper_machine_data import PaperMachineDataWindow
 from utils import store
 import settings
 import numpy as np
+from scipy.signal import spectrogram
 
 analysis_name = "Spectrogram"
 analysis_types = ["MD", "CD"]
@@ -137,15 +138,40 @@ class AnalysisController(AnalysisControllerBase):
 
             unfiltered_data = [self.measurement.segments[self.channel][sample_idx]
                                [self.low_index:self.high_index] for sample_idx in self.selected_samples]
-            mean_profile = np.mean(unfiltered_data, axis=0)
-            mean_profile = mean_profile - np.mean(mean_profile)
 
 
-            Pxx, freqs, bins, im = ax.specgram(mean_profile,
-                                               NFFT=self.nperseg,
-                                               Fs=self.fs,
-                                               noverlap=noverlap,
-                                               window=np.hanning(self.nperseg))
+            Pxx_sum = None
+            freqs = None
+            bins = None
+            for profile in unfiltered_data:
+                profile = profile - np.mean(profile)
+                freqs, bins, Pxx_i = spectrogram(
+                    profile,
+                    fs=self.fs,
+                    window=np.hanning(self.nperseg),
+                    nperseg=self.nperseg,
+                    noverlap=noverlap,
+                    mode='psd',
+                    scaling="density"
+                )
+                if Pxx_sum is None:
+                    Pxx_sum = Pxx_i
+                else:
+                    Pxx_sum += Pxx_i
+
+            Pxx = Pxx_sum / len(unfiltered_data)
+
+
+
+            # mean_profile = np.mean(unfiltered_data, axis=0)
+            # mean_profile = mean_profile - np.mean(mean_profile)
+
+
+            # Pxx, freqs, bins, im = ax.specgram(mean_profile,
+            #                                    NFFT=self.nperseg,
+            #                                    Fs=self.fs,
+            #                                    noverlap=noverlap,
+            #                                    window=np.hanning(self.nperseg))
 
 
 
