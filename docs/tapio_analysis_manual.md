@@ -58,7 +58,7 @@ and then run the installation script again (only necessary if packages have been
 - The bottom toolbar has buttons for zooming and panning the plot as well as exporting it as an image.
 
 ## Opening files
-### WinTapio files
+### Tapio measurement and supplementary files 
 
 - Use the dropzone to open files in Tapio Analysis. Drop the files in the dropzone simultaneously or packaged into a .zip file. Alternatively, use the File->Open menu to select a suitable data loader.
 - To open a measurement, provide at least a calibration file and a data file simultaneously.
