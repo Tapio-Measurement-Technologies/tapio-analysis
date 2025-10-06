@@ -235,7 +235,7 @@ When loaded, Tapio Analysis calculates the frequencies or wavelengths of each co
 The paper machine data file is in **JSON format**, and it contains two main sections:
 
 - **MD** – Describes the rotating elements of the machine (e.g. rolls, cylinders, press components).  
-  Each element must have a `name` and `diameter` in meters.
+  Each element must have a `name` and `diameter` (meters) or `frequency` (Hz) and optionally a `num_vanes` frequency multiplier.
 
 - **CD** – Describes the cross-machine components (e.g. actuators, sprays, headbox elements).  
   Each element must have a `name` and `length` in meters (distance or spacing).
@@ -260,7 +260,7 @@ Below is a complete example of a typical `paper_machine.pmdata.json` file:
     {
       "groupName": "Size press rolls",
       "elements": [
-        { "name": "Size 1", "diameter": 0.320 },
+        { "name": "Size 1", "frequency": 10.320 },
         { "name": "Size 2", "diameter": 0.224 },
         { "name": "Size 3", "diameter": 0.403 }
       ]
@@ -291,7 +291,7 @@ Below is a complete example of a typical `paper_machine.pmdata.json` file:
     }
   ]
 }
-
+```
 
 ## Reports
 - Tools for automatic report generation. The report structure can be specified in settings in JSON format.

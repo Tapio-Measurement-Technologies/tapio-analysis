@@ -14,11 +14,11 @@
             "elements": [
                 {
                     "name": "Size 1",
-                    "diameter": 0.320
+                    "frequency": 10.1
                 },
                 {
                     "name": "Size 2",
-                    "diameter": 0.224
+                    "frequency": 0.224
                 },
                 {
                     "name": "Size 3",
