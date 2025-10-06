@@ -7,7 +7,8 @@
 4. [Settings system](#settings-system)
 5. [MD Analysis](#md-analysis)
 6. [CD Analysis](#cd-analysis)
-7. [Reports](#reports)
+7. [Paper Machine Data File](#pm-data-file)
+8. [Reports](#reports)
 
 ## Installing Tapio Analysis
 
@@ -44,10 +45,10 @@ and then run the installation script again (only necessary if packages have been
 
 ## User interface overview
 <br><img src="img/ui-overview.png" alt="User interface overview" width="40%"><br><small></small><br>
-1. **File menu** for opening files and exporting data
-2. **Currently open files**
+1. **File menu** for opening files, exporting data, viewing logs, setting temporary settings
+2. **Dropzone for opening files and viewing currently open files**
 3. **MD Analysis tools**
-4. **CD Analysis tools** (these buttons are active only if the data has been split into CD samples with the Find samples tool)
+4. **CD Analysis tools** (these buttons are active only if the data has been split into CD samples with the Find samples tool or by providing sample location files on data load)
 5. **Tools for automatic report generation**
 
 ## General information
@@ -58,13 +59,15 @@ and then run the installation script again (only necessary if packages have been
 
 ## Opening files
 ### WinTapio files
-- To open WinTapio files, select a header file, calibration file, and a data file all at once and press the open button.
-- You can additionally select a JSON format paper machine file or a CD samples file along with any file open operation.
+
+- Use the dropzone to open files in Tapio Analysis. Drop the files in the dropzone simultaneously or packaged into a .zip file. Alternatively, use the File->Open menu to select a suitable data loader.
+- To open a measurement, provide at least a calibration file and a data file simultaneously.
+- You can additionally include header files, CD sample locations, analysis window files (will open at data load), custom settings or paper machine data files
 
 <br><img src="img/opening-files.png" alt="Opening files" width="40%"><br><small></small><br>
 
 ### Other data files
-- The software uses data loaded in a Pandas dataframe. Please contact info@tapiotechnologies.com for more information.
+- The software uses data loaded in a Pandas dataframe. Any data can be loaded and customization of the loader system is possible. Please contact info@tapiotechnologies.com for more information.
 
 
 ## Settings System
@@ -77,7 +80,7 @@ TAPE_WIDTH_MM = 25
 ```
 
 #### Note:
-It is possible to edit settings directly in  `src/settings.py`, but this will be re-written on updates of the software. Use `src/local_settings.py` to override default settings.
+In an installation from source, use `src/local_settings.py` to override default settings.
 
 
 ### Calculated Channels
@@ -215,6 +218,80 @@ It is typical for rotating elements to cause peaks in the spectrum at integer mu
 
 ### CD Formation
 - Investigate the mean formation index of the CD profiles in different CD locations.
+
+
+## Paper Machine Data File
+
+The **paper machine data file** (`.pmdata.json`) contains information about the main mechanical elements in the production line.  This data is used to display the **rotating frequencies** (for MD) and **actuator or component spacings** (for CD) on top of the spectrum and spectrogram plots in Tapio Analysis.
+
+The file should be placed in the same folder as the measurement files and can be loaded together with them.  
+
+When loaded, Tapio Analysis calculates the frequencies or wavelengths of each component based on its **diameter** (for MD) or **length/spacing** (for CD) and overlays them on the relevant plots. It is also possible to directly provide frequencies for components.
+
+---
+
+### Paper Machine File structure
+
+The paper machine data file is in **JSON format**, and it contains two main sections:
+
+- **MD** – Describes the rotating elements of the machine (e.g. rolls, cylinders, press components).  
+  Each element must have a `name` and `diameter` in meters.
+
+- **CD** – Describes the cross-machine components (e.g. actuators, sprays, headbox elements).  
+  Each element must have a `name` and `length` in meters (distance or spacing).
+
+Each section can contain one or more *groups*, each with a `groupName` (optional) and a list of `elements`.
+
+---
+
+#### Example
+
+Below is a complete example of a typical `paper_machine.pmdata.json` file:
+
+```json
+{
+  "MD": [
+    {
+      "groupName": "Guide rolls",
+      "elements": [
+        { "name": "Wire 1", "diameter": 0.350 }
+      ]
+    },
+    {
+      "groupName": "Size press rolls",
+      "elements": [
+        { "name": "Size 1", "diameter": 0.320 },
+        { "name": "Size 2", "diameter": 0.224 },
+        { "name": "Size 3", "diameter": 0.403 }
+      ]
+    },
+    {
+      "elements": [
+        { "name": "Breast roll", "diameter": 0.200 },
+        { "name": "Press rolls", "diameter": 0.200 },
+        { "name": "Dryer", "diameter": 0.403 },
+        { "name": "Couch roll", "diameter": 0.263 },
+        { "name": "Reel", "diameter": 0.317 },
+        { "name": "Hard nip calander", "diameter": 0.115 }
+      ]
+    }
+  ],
+  "CD": [
+    {
+      "elements": [
+        { "name": "Sprays", "length": 0.6 },
+        { "name": "Wire spacing", "length": 0.1 }
+      ]
+    },
+    {
+      "groupName": "Group 1",
+      "elements": [
+        { "name": "Headbox lip actuators", "length": 0.200 }
+      ]
+    }
+  ]
+}
+
 
 ## Reports
 - Tools for automatic report generation. The report structure can be specified in settings in JSON format.

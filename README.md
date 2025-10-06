@@ -80,7 +80,7 @@ For instructions on using Tapio Analysis, please refer to the [User manual](docs
 # License
 Tapio Analysis
 
-Copyright 2024 Tapio Measurement Technologies Oy
+Copyright 2025 Tapio Measurement Technologies Oy
 
 Tapio Analysis is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
