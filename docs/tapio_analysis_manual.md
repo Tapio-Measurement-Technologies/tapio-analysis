@@ -14,7 +14,7 @@
 
 ### Standard installation
 - Download the latest release executable from the [Tapio Analysis releases page](https://github.com/Tapio-Measurement-Technologies/tapio-analysis/releases)
-- The system does not require any installation, place the executable in a suitable place and create shortcuts as needed.
+- The software does not require any installation, it can be run directly. Place the executable in a suitable place and create shortcuts as needed.
 - Any default settings can be overridden by providing a path to local_settings.py as an argument to the executable.
 
 ### Installing from source code
