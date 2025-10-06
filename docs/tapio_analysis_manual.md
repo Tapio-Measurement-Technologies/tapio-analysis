@@ -33,7 +33,7 @@ cd tapio-analysis
 ./install.bat
 ```
 
-### Updating Tapio Analysis
+### Updating Tapio Analysis (if installed from source code)
 To update to the most recent version , open a command prompt in the install folder and run the commands:
 ```bash
 git pull
@@ -59,8 +59,7 @@ and then run the installation script again (only necessary if packages have been
 
 ## Opening files
 ### Tapio measurement and supplementary files 
-
-- Use the dropzone to open files in Tapio Analysis. Drop the files in the dropzone simultaneously or packaged into a .zip file. Alternatively, use the File->Open menu to select a suitable data loader.
+- Use the dropzone to open files in Tapio Analysis. Drop the files in the dropzone simultaneously or as a single .zip package.
 - To open a measurement, provide at least a calibration file and a data file simultaneously.
 - You can additionally include header files, CD sample locations, analysis window files (will open at data load), custom settings or paper machine data files
 
@@ -180,6 +179,9 @@ It is typical for rotating elements to cause peaks in the spectrum at integer mu
 ### Formation
 - Obtain a formation profile, describing the formation index over the length of the sample. The formation index is calculated from 1 mm aperture Transmission sensor data automatically correlated to basis weight sensor data to estimate basis weight.
 
+### Coherence
+- Investigate if different channels have the same spectral content.
+
 ## CD Analysis
 - The CD analysis tools in Tapio Analysis are based on splitting a measurement of a sample roll consisting of multiple CD Strips separated by tapes into multiple CD profiles. The splitting is based on detecting the peaks caused by the tapes.
 - CD analysis tools make use of the mean profile calculated from the individual CD strips.
@@ -197,6 +199,7 @@ It is typical for rotating elements to cause peaks in the spectrum at integer mu
 
 ### CD Profile waterfall
 - View all CD profiles at once.
+- Set default offsets between profiles for each channel separately by specifying CD_PROFILE_WATERFALL_DEFAULT_CHANNEL_OFFSETS
 
 ### CD Spectrum
 - Identify wavelengths and amplitudes of periodic components in the CD data, visualize the known actuator spacings of the production line.
@@ -219,8 +222,11 @@ It is typical for rotating elements to cause peaks in the spectrum at integer mu
 ### CD Formation
 - Investigate the mean formation index of the CD profiles in different CD locations.
 
+### CD Coherence
+- Investigate if different channels have the same spectral content.
 
-## Paper Machine Data File
+
+## Paper Machine Data Files
 
 The **paper machine data file** (`.pmdata.json`) contains information about the main mechanical elements in the production line.  This data is used to display the **rotating frequencies** (for MD) and **actuator or component spacings** (for CD) on top of the spectrum and spectrogram plots in Tapio Analysis.
 
