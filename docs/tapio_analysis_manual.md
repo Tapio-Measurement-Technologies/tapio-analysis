@@ -7,7 +7,7 @@
 4. [Settings system](#settings-system)
 5. [MD Analysis](#md-analysis)
 6. [CD Analysis](#cd-analysis)
-7. [Paper Machine Data File](#pm-data-file)
+7. [Paper Machine Data Files](#paper-machine-data-files)
 8. [Reports](#reports)
 
 ## Installing Tapio Analysis
