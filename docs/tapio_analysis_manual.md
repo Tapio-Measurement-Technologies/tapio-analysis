@@ -1,7 +1,7 @@
 # Tapio Analysis User Manual
 
 ## Table of contents
-1. [Installing and updating the software](#installing-and-updating)
+1. [Installing and updating the software](#installing-tapio-analysis)
 2. [User interface overview](#user-interface-overview)
 3. [Opening files](#opening-files)
 4. [Settings system](#settings-system)
@@ -67,6 +67,12 @@ and then run the installation script again (only necessary if packages have been
 
 ### Other data files
 - The software uses data loaded in a Pandas dataframe. Any data can be loaded and customization of the loader system is possible. Please contact info@tapiotechnologies.com for more information.
+
+
+### Example data files
+- Example data is available for download in the [Tapio Analysis repository test-data folder](https://github.com/Tapio-Measurement-Technologies/tapio-analysis/tree/main/test-data)
+
+
 
 
 ## Settings System
