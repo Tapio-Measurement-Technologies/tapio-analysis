@@ -260,6 +260,8 @@ CD_PROFILE_RANGE_HIGH_DEFAULT = 1
 
 CD_PROFILE_WATERFALL_OFFSET_DEFAULT = 40
 CD_PROFILE_WATERFALL_DEFAULT_CHANNEL_OFFSETS = None
+CD_PROFILE_WATERFALL_RELATIVE_OFFSET = None
+
 ### Example for setting default offsets per channel, if desired
 ### NOTE: Disables manual adjustment of offsets in the UI
 # CD_PROFILE_WATERFALL_DEFAULT_CHANNEL_OFFSETS = {
