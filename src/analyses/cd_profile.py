@@ -16,7 +16,6 @@ from gui.components import (
     ShowLegendMixin,
     ShowConfidenceIntervalMixin,
     ShowMinMaxMixin,
-    WaterfallOffsetMixin,
     ExtraDataMixin,
     CopyPlotMixin,
     ChildWindowCloseMixin,
@@ -52,7 +51,6 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         self.set_default('band_pass_high', settings.CD_PROFILE_BAND_PASS_HIGH_DEFAULT_1M)
         self.set_default('analysis_range_low', settings.CD_PROFILE_RANGE_LOW_DEFAULT * self.max_dist)
         self.set_default('analysis_range_high', settings.CD_PROFILE_RANGE_HIGH_DEFAULT * self.max_dist)
-        self.set_default('waterfall_offset', settings.CD_PROFILE_WATERFALL_OFFSET_DEFAULT)
         self.set_default('confidence_interval', None)
         self.set_default('show_profiles', False)
         self.set_default('show_min_max', False)
@@ -265,7 +263,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         return pd.DataFrame(data)
 
 
-class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowLegendMixin, ShowConfidenceIntervalMixin, ShowMinMaxMixin, WaterfallOffsetMixin, ExtraDataMixin, CopyPlotMixin, ChildWindowCloseMixin):
+class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin, ChannelMixin, BandPassFilterMixin, SampleSelectMixin, StatsMixin, ShowProfilesMixin, ShowLegendMixin, ShowConfidenceIntervalMixin, ShowMinMaxMixin,  ExtraDataMixin, CopyPlotMixin, ChildWindowCloseMixin):
     def __init__(self, controller: AnalysisController, window_type="CD"):
         super().__init__(controller, window_type)
         self.sampleSelectorWindow = None
