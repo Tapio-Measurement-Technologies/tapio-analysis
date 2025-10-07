@@ -275,10 +275,6 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         ax.plot(self.frequencies, self.amplitudes)
         print(self.frequencies)
         print(self.amplitudes)
-        if settings.SPECTRUM_LOGARITHMIC_SCALE:
-            ax.set_yscale("log")
-            ax.yaxis.set_major_locator(LogLocator(
-                base=10.0, subs=np.arange(1.0, 10.0) * 0.1, numticks=10))
 
         ax.set_ylim(0, 1.1)
 

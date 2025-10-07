@@ -230,14 +230,22 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 for sample_idx in self.selected_samples
             ]
 
-            # Calculate individual power spectra, then use the mean. This to prevent opposite phases canceling each other.
-            welches = np.array([
-                welch(y, fs=self.fs, window='hann', nperseg=self.nperseg,
-                      noverlap=noverlap, scaling='spectrum')
-                for y in unfiltered_data
-            ])
-            f = welches[0][0]
-            Pxx = np.mean(welches[:, 1], axis=0)
+            # Determine spectrum mode from settings, default to 'mean_spectrum_of_profiles'
+            spectrum_mode = getattr(settings, 'SPECTRUM_MODE', 'mean_spectrum_of_profiles')
+            if spectrum_mode == 'spectrum_of_mean_profile':
+                # Take mean profile, then spectrum
+                mean_profile = np.mean(unfiltered_data, axis=0)
+                f, Pxx = welch(mean_profile, fs=self.fs, window='hann', nperseg=self.nperseg,
+                               noverlap=noverlap, scaling='spectrum')
+            else:
+                # Take spectrum of each, then mean spectrum
+                welches = np.array([
+                    welch(y, fs=self.fs, window='hann', nperseg=self.nperseg,
+                          noverlap=noverlap, scaling='spectrum')
+                    for y in unfiltered_data
+                ])
+                f = welches[0][0]
+                Pxx = np.mean(welches[:, 1], axis=0)
 
         f_low_index = np.searchsorted(f, self.frequency_range_low)
         f_high_index = np.searchsorted(
@@ -257,7 +265,15 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         self.amplitudes = amplitude_spectrum[f_low_index:f_high_index]
 
         ax.plot(self.frequencies, self.amplitudes)
-        if settings.SPECTRUM_LOGARITHMIC_SCALE:
+
+        # Window-type log scale settings
+        log_scale = False
+        if self.window_type == "MD":
+            log_scale = settings.MD_SPECTRUM_LOGARITHMIC_SCALE
+        elif self.window_type == "CD":
+            log_scale = settings.CD_SPECTRUM_LOGARITHMIC_SCALE
+
+        if log_scale:
             ax.set_yscale("log")
             ax.yaxis.set_major_locator(LogLocator(
                 base=10.0, subs=np.arange(1.0, 10.0) * 0.1, numticks=10))
@@ -438,7 +454,8 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                             alpha=0.8
                         )
                         txt.set_path_effects([
-                            path_effects.Stroke(linewidth=2, foreground='white'),
+                            path_effects.Stroke(
+                                linewidth=2, foreground='white'),
                             path_effects.Normal()
                         ])
 

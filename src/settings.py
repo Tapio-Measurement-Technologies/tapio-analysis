@@ -25,13 +25,20 @@ ANALYSIS_SECTIONS = [
     MainWindowSection(
         name="MD Analysis",
         modules=[
-            MainWindowSectionModule(module_name="time_domain",         type="MD"),
-            MainWindowSectionModule(module_name="spectrum",            type="MD"),
-            MainWindowSectionModule(module_name="spectrogram",         type="MD"),
-            MainWindowSectionModule(module_name="channel_correlation", type="MD"),
-            MainWindowSectionModule(module_name="correlation_matrix",  type="MD"),
-            MainWindowSectionModule(module_name="formation",           type="MD"),
-            MainWindowSectionModule(module_name="coherence",           type="MD"),
+            MainWindowSectionModule(
+                module_name="time_domain",         type="MD"),
+            MainWindowSectionModule(
+                module_name="spectrum",            type="MD"),
+            MainWindowSectionModule(
+                module_name="spectrogram",         type="MD"),
+            MainWindowSectionModule(
+                module_name="channel_correlation", type="MD"),
+            MainWindowSectionModule(
+                module_name="correlation_matrix",  type="MD"),
+            MainWindowSectionModule(
+                module_name="formation",           type="MD"),
+            MainWindowSectionModule(
+                module_name="coherence",           type="MD"),
             # MainWindowSectionModule(module_name="cepstrum",            type="MD")
         ]
     ),
@@ -39,23 +46,34 @@ ANALYSIS_SECTIONS = [
         name="CD Analysis",
         modules=[
             MainWindowSectionModule(module_name="find_samples"),
-            MainWindowSectionModule(module_name="cd_profile",           type="CD"),
-            MainWindowSectionModule(module_name="cd_profile_waterfall", type="CD"),
-            MainWindowSectionModule(module_name="spectrum",             type="CD"),
-            MainWindowSectionModule(module_name="spectrogram",          type="CD"),
-            MainWindowSectionModule(module_name="channel_correlation",  type="CD"),
-            MainWindowSectionModule(module_name="correlation_matrix",   type="CD"),
-            MainWindowSectionModule(module_name="vca",                  type="CD"),
-            MainWindowSectionModule(module_name="formation",            type="CD"),
-            MainWindowSectionModule(module_name="coherence",            type="CD"),
+            MainWindowSectionModule(
+                module_name="cd_profile",           type="CD"),
+            MainWindowSectionModule(
+                module_name="cd_profile_waterfall", type="CD"),
+            MainWindowSectionModule(
+                module_name="spectrum",             type="CD"),
+            MainWindowSectionModule(
+                module_name="spectrogram",          type="CD"),
+            MainWindowSectionModule(
+                module_name="channel_correlation",  type="CD"),
+            MainWindowSectionModule(
+                module_name="correlation_matrix",   type="CD"),
+            MainWindowSectionModule(
+                module_name="vca",                  type="CD"),
+            MainWindowSectionModule(
+                module_name="formation",            type="CD"),
+            MainWindowSectionModule(
+                module_name="coherence",            type="CD"),
             # MainWindowSectionModule(module_name="cepstrum",             type="CD")
         ]
     ),
     MainWindowSection(
         name="Reports",
         modules=[
-            MainWindowSectionModule(module_name="report", analysis_name="MD Report", type="MD", callback_name="openReport"),
-            MainWindowSectionModule(module_name="report", analysis_name="CD Report", type="CD", callback_name="openReport")
+            MainWindowSectionModule(
+                module_name="report", analysis_name="MD Report", type="MD", callback_name="openReport"),
+            MainWindowSectionModule(
+                module_name="report", analysis_name="CD Report", type="CD", callback_name="openReport")
         ]
     )
 ]
@@ -247,7 +265,7 @@ NLS_STEP = 0.001
 NLS_RANGE = 0.1
 
 # CD Profile settings
-#THIS will flip loaded data in the parquet loader
+# THIS will flip loaded data in the parquet loader
 FLIP_LOADED_DATA = False
 
 CD_PROFILE_WINDOW_SIZE = (1200, 600)
@@ -262,8 +280,8 @@ CD_PROFILE_WATERFALL_OFFSET_DEFAULT = 40
 CD_PROFILE_WATERFALL_DEFAULT_CHANNEL_OFFSETS = None
 CD_PROFILE_WATERFALL_RELATIVE_OFFSET = None
 
-### Example for setting default offsets per channel, if desired
-### NOTE: Disables manual adjustment of offsets in the UI
+# Example for setting default offsets per channel, if desired
+# NOTE: Disables manual adjustment of offsets in the UI
 # CD_PROFILE_WATERFALL_DEFAULT_CHANNEL_OFFSETS = {
 #     "Caliper": 5,
 #     "Transmission": 1,
@@ -358,7 +376,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 ASSETS_DIR = os.path.join(script_dir, "assets")
 
 CALCULATED_CHANNELS = []
-# Examples: 
+# Examples:
 # def calc_bulk(dataframe):
 #     return (dataframe['Caliper']) / dataframe['Basis Weight']
 
@@ -375,15 +393,21 @@ CALCULATED_CHANNELS = []
 # ]
 
 
-
 MULTIPLE_SELECT_MODE = False
 
-DOUBLE_SLIDER_FINE_CONTROL_FACTOR = 0.1 # 10% of normal movement
-DOUBLE_SLIDER_HANDLE_RADIUS = 8 # px, adjust as needed
+DOUBLE_SLIDER_FINE_CONTROL_FACTOR = 0.1  # 10% of normal movement
+DOUBLE_SLIDER_HANDLE_RADIUS = 8  # px, adjust as needed
 
 SPECTRUM_TITLE_SHOW = True
 SPECTRUM_AUTO_DETECT_PEAKS = None
-SPECTRUM_LOGARITHMIC_SCALE = False
+
+CD_SPECTRUM_LOGARITHMIC_SCALE = False
+MD_SPECTRUM_LOGARITHMIC_SCALE = False
+
+# SPECTRUM_MODE = "spectrum_of_mean_profile"  # or "mean_spectrum_of_profiles"
+SPECTRUM_MODE = "mean_spectrum_of_profiles"  # or "spectrum_of_mean_profile"
+
+
 SPECTRUM_SHOW_HARMONICS_NUMBERS = True
 
 PLOT_COPY_FORMAT = "png"
@@ -412,17 +436,20 @@ def get_py_file_vars(py_file_path):
     Returns variables from python file dynamically using importlib.
     """
     if os.path.exists(py_file_path):
-        spec = importlib.util.spec_from_file_location("imported_module", py_file_path)
+        spec = importlib.util.spec_from_file_location(
+            "imported_module", py_file_path)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         return vars(module)
     return {}
+
 
 def apply_custom_settings_from_file(py_file_path):
     vars = get_py_file_vars(py_file_path)
     apply_custom_settings_from_dict(vars)
 
     return vars
+
 
 def apply_custom_settings_from_dict(settings_dict):
     globals().update(settings_dict)
@@ -436,16 +463,20 @@ def apply_custom_settings_from_dict(settings_dict):
 
 # Check if a local_settings.py path is provided as a parameter
 
+
 if len(sys.argv) > 1:
     supplied_local_settings = sys.argv[1]
     if not supplied_local_settings.lower().endswith('.py'):
-        print(f"WARNING: Provided local_settings file is not a .py file: {supplied_local_settings}")
+        print(
+            f"WARNING: Provided local_settings file is not a .py file: {supplied_local_settings}")
     elif os.path.exists(supplied_local_settings):
-        print(f"Loading local settings from provided argument {supplied_local_settings}")
+        print(
+            f"Loading local settings from provided argument {supplied_local_settings}")
         # Dynamically load settings from the provided path
         apply_custom_settings_from_file(supplied_local_settings)
     else:
-        print(f"WARNING: Provided local_settings.py not found at {supplied_local_settings}")
+        print(
+            f"WARNING: Provided local_settings.py not found at {supplied_local_settings}")
 else:
     # Fallback to default local_settings import if none is supplied
     try:
@@ -454,4 +485,3 @@ else:
     except ImportError:
         print(f"Could not load local settings from internal project folder")
         pass
-
