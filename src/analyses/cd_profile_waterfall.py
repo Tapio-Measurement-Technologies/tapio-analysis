@@ -267,7 +267,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
     def initUI(self):
         self.setWindowTitle(
             f"CD Profile (Waterfall) ({self.measurement.measurement_label})")
-        self.resize(*settings.CD_PROFILE_WINDOW_SIZE)
+
+        self.resize(*settings.CD_PROFILE_WATERFALL_WINDOW_SIZE)
 
         self.initMenuBar()
 

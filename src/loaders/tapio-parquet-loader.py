@@ -202,6 +202,8 @@ def load_data(fileNames: list[str]) -> Measurement | None:
                 apply_calibration_with_uniform_trimming(
                     measurement, calibration_data)
 
+
+
                 # Add calculated channels
                 for channel_config in settings.CALCULATED_CHANNELS:
                     name = channel_config['name']
@@ -433,16 +435,6 @@ def apply_calibration_with_uniform_trimming(measurement: Measurement, calibratio
     # Update distances to match the trimmed data length
     measurement.distances = measurement.distances[align_data_slices[min(
         align_data_slices, key=align_data_slices.get)]:][:data_len]
-
-    # Load CD samples data if available
-    if measurement.samples_file_path:
-        peak_channel, threshold, peak_locations, selected_samples = load_cd_samples_data(
-            measurement.samples_file_path)
-        measurement.peak_channel = peak_channel
-        measurement.threshold = threshold
-        measurement.peak_locations = peak_locations
-        measurement.selected_samples = selected_samples
-        measurement.split_data_to_segments()
 
     # Flip the data if specified in settings
     if settings.FLIP_LOADED_DATA:
