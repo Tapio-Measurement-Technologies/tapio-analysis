@@ -46,11 +46,9 @@ class MainWindow(QMainWindow):
         self.md_export_actions = []
         self.initUI()
 
-
-
         # Connect cleanup to application quit signal
         app = QApplication.instance()
-        if app: # Ensure QApplication instance exists
+        if app:  # Ensure QApplication instance exists
             app.aboutToQuit.connect(self._cleanup_temp_dirs)
 
     def initUI(self):
@@ -142,7 +140,8 @@ class MainWindow(QMainWindow):
         # reload_settings_action.triggered.connect(self.reload_settings)
         # settings_menu.addAction(reload_settings_action)
         set_settings_action = QAction("Set Settings", self)
-        set_settings_action.triggered.connect(lambda: open_setting_input_dialog(self))
+        set_settings_action.triggered.connect(
+            lambda: open_setting_input_dialog(self))
         settings_menu.addAction(set_settings_action)
 
         centralWidget = QWidget()
@@ -186,7 +185,8 @@ class MainWindow(QMainWindow):
                     shutil.rmtree(temp_dir)
                     print(f"Cleaned up temporary directory: {temp_dir}")
                 except Exception as e:
-                    print(f"Error cleaning up temporary directory {temp_dir}: {e}")
+                    print(
+                        f"Error cleaning up temporary directory {temp_dir}: {e}")
         self._temp_extraction_dirs = []
 
     def _preprocess_file_paths(self, file_paths: list[str]) -> list[str]:
@@ -200,11 +200,13 @@ class MainWindow(QMainWindow):
         for file_path in file_paths:
             if file_path.lower().endswith('.zip'):
                 print(f"Unpacking ZIP file: {file_path}")
-                extracted_files, temp_dir_path = unpack_zip_to_temp_with_password_prompt(file_path, self)
+                extracted_files, temp_dir_path = unpack_zip_to_temp_with_password_prompt(
+                    file_path, self)
                 if extracted_files:
                     processed_paths.extend(extracted_files)
                     if temp_dir_path and temp_dir_path not in self._temp_extraction_dirs:
-                        self._temp_extraction_dirs.append(temp_dir_path) # Track for cleanup
+                        self._temp_extraction_dirs.append(
+                            temp_dir_path)  # Track for cleanup
             else:
                 processed_paths.append(file_path)
 
@@ -235,12 +237,15 @@ class MainWindow(QMainWindow):
         processed_file_paths = self._preprocess_file_paths(file_paths)
 
         if not processed_file_paths:
-            QMessageBox.information(self, "No Files", "No files were found after processing (e.g., empty ZIP or unpacking error).")
+            QMessageBox.information(
+                self, "No Files", "No files were found after processing (e.g., empty ZIP or unpacking error).")
             return
 
         # Separate .py settings files from measurement files after preprocessing
-        settings_files = [p for p in processed_file_paths if p.lower().endswith('.py')]
-        measurement_files = [p for p in processed_file_paths if not p.lower().endswith('.py')]
+        settings_files = [
+            p for p in processed_file_paths if p.lower().endswith('.py')]
+        measurement_files = [
+            p for p in processed_file_paths if not p.lower().endswith('.py')]
 
         # Handle settings files first
         if settings_files:
@@ -248,11 +253,13 @@ class MainWindow(QMainWindow):
                 try:
                     settings_vars = settings.get_py_file_vars(settings_file)
                     if settings_vars:
-                        accepted, applied_settings = show_custom_settings_dialog(settings_file, settings_vars, self)
+                        accepted, applied_settings = show_custom_settings_dialog(
+                            settings_file, settings_vars, self)
                         # If user cancels, just continue without applying settings
                         # Don't abort the measurement loading process
                 except Exception as e:
-                    QMessageBox.critical(self, "Settings Error", f"Error reading settings file {settings_file}: {str(e)}")
+                    QMessageBox.critical(
+                        self, "Settings Error", f"Error reading settings file {settings_file}: {str(e)}")
                     # Continue with measurement loading even if settings failed
 
         # Update processed_file_paths to only include measurement files
@@ -260,13 +267,17 @@ class MainWindow(QMainWindow):
 
         if not processed_file_paths:
             if settings_files:
-                QMessageBox.information(self, "Settings Applied", "Custom settings were processed, but no measurement files were found to load.")
+                QMessageBox.information(
+                    self, "Settings Applied", "Custom settings were processed, but no measurement files were found to load.")
             else:
-                QMessageBox.information(self, "No Files", "No measurement files were found after processing.")
+                QMessageBox.information(
+                    self, "No Files", "No measurement files were found after processing.")
             return
 
-        json_files = [p for p in processed_file_paths if p.lower().endswith('.json')]
-        is_only_json = all(p.lower().endswith('.json') for p in processed_file_paths)
+        json_files = [
+            p for p in processed_file_paths if p.lower().endswith('.json')]
+        is_only_json = all(p.lower().endswith('.json')
+                           for p in processed_file_paths)
 
         # If only JSON files are passed and a measurement is already loaded,
         # try to treat them as analysis files. If that fails, proceed to load them as a new measurement.
@@ -282,16 +293,17 @@ class MainWindow(QMainWindow):
         # Confirm if there are open windows
         if len(store.open_windows) > 0:
             response = QMessageBox.question(self, 'Confirm open new file',
-                                        'This will close all current analysis windows. Do you want to proceed?',
-                                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                                        QMessageBox.StandardButton.No)
+                                            'This will close all current analysis windows. Do you want to proceed?',
+                                            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                                            QMessageBox.StandardButton.No)
             if response == QMessageBox.StandardButton.No:
                 return
 
         # Load the files
         self.closeAll()
 
-        progress_dialog = QProgressDialog("Loading measurement file(s)...", None, 0, 0, self)
+        progress_dialog = QProgressDialog(
+            "Loading measurement file(s)...", None, 0, 0, self)
         progress_dialog.setWindowModality(Qt.WindowModality.WindowModal)
         progress_dialog.setWindowTitle("Loading...")
         progress_dialog.setCancelButton(None)
@@ -304,7 +316,8 @@ class MainWindow(QMainWindow):
 
             # Check if the loader returned None or an invalid measurement
             if measurement is None:
-                QMessageBox.critical(self, "Error", "Loader failed to load the measurement file(s).")
+                QMessageBox.critical(
+                    self, "Error", "Loader failed to load the measurement file(s).")
                 return
 
             store.loaded_measurement = measurement
@@ -328,7 +341,8 @@ class MainWindow(QMainWindow):
         processed_file_paths = self._preprocess_file_paths(file_paths)
 
         if not processed_file_paths:
-            QMessageBox.information(self, "No Files", "No files were found after processing dropped files (e.g., empty ZIP or unpacking error).")
+            QMessageBox.information(
+                self, "No Files", "No files were found after processing dropped files (e.g., empty ZIP or unpacking error).")
             return
 
         # Find appropriate loader based on file extension of the *first processed file*
@@ -358,7 +372,7 @@ class MainWindow(QMainWindow):
             # If file_paths is None here, it means we clicked the drop zone empty or a menu item
             # that doesn't pre-supply paths.
             # For now, if file_paths is None, we defer preprocessing until loadFiles.
-            pass # Preprocessing will be handled in loadFiles if paths are obtained via dialog there
+            pass  # Preprocessing will be handled in loadFiles if paths are obtained via dialog there
         else:
             # If file_paths are provided (e.g. from drop, download, or direct call with paths),
             # they should already be preprocessed by the caller.
@@ -366,7 +380,7 @@ class MainWindow(QMainWindow):
             # self._cleanup_temp_dirs() # Potentially redundant if called by loadFiles/handleDroppedFiles
             # actual_file_paths = self._preprocess_file_paths(file_paths) #This might be too broad here
             # The intent is that `file_paths` given to this function are ALREADY processed.
-            pass # Callers should ensure preprocessing.
+            pass  # Callers should ensure preprocessing.
 
         # If auto_loader is available, use it directly
         if 'auto_loader' in store.loaders:
@@ -384,20 +398,22 @@ class MainWindow(QMainWindow):
                     matching_loaders.append((module_name, module))
         else:
             # For "all" case, include all loaders
-            matching_loaders = [(name, module) for name, module in store.loaders.items()]
+            matching_loaders = [(name, module)
+                                for name, module in store.loaders.items()]
 
         # If no loaders available
         if not matching_loaders:
             if file_extension != "all":
                 QMessageBox.warning(self, "Unsupported File Type",
-                                  f"No loader available for files with extension {file_extension}")
+                                    f"No loader available for files with extension {file_extension}")
             else:
                 QMessageBox.warning(self, "No Loaders Available",
-                                  "No file loaders are available in the system.")
+                                    "No file loaders are available in the system.")
             return
 
         # Use the selection dialog to get the appropriate loader
-        selected_loader = select_loader_dialog(self, file_extension, matching_loaders)
+        selected_loader = select_loader_dialog(
+            self, file_extension, matching_loaders)
 
         if selected_loader:
             self.loadFiles(selected_loader, actual_file_paths)
@@ -413,18 +429,21 @@ class MainWindow(QMainWindow):
             file_types,
             options=options
         )
-        if fileName:
-            export_module.export_data(fileName)
+        if fileName and (store.loaded_measurement is not None):
+            export_module.export_data(fileName, store.loaded_measurement)
 
     def refresh(self):
-        main_window_modules = [module for section in settings.ANALYSIS_SECTIONS for module in section.modules]
+        main_window_modules = [
+            module for section in settings.ANALYSIS_SECTIONS for module in section.modules]
         measurement_loaded = store.loaded_measurement is not None
         # Disable the buttons and file entries which will be enabled if the correct data are found in the measurement
         md_functions = [self.closeAction]
         md_functions += self.md_export_actions
         md_functions += [module.button for module in main_window_modules if module.type == "MD"]
-        cd_functions = [module.button for module in main_window_modules if module.type == "CD"]
-        other_functions = [module.button for module in main_window_modules if module.type not in ["MD", "CD"]]
+        cd_functions = [
+            module.button for module in main_window_modules if module.type == "CD"]
+        other_functions = [
+            module.button for module in main_window_modules if module.type not in ["MD", "CD"]]
 
         [i.setEnabled(False) for i in md_functions]
         [i.setEnabled(False) for i in cd_functions]
@@ -472,7 +491,8 @@ class MainWindow(QMainWindow):
 
     def open_analysis_window(self, analysis_name, window_type, annotations=None, attributes=None):
         try:
-            analysis = Analysis(store.loaded_measurement, analysis_name, window_type, annotations, attributes)
+            analysis = Analysis(
+                store.loaded_measurement, analysis_name, window_type, annotations, attributes)
         except Exception as e:
             traceback.print_exc()
             print(f"Error opening analysis window: {e}")
@@ -486,7 +506,7 @@ class MainWindow(QMainWindow):
             for window in store.open_windows:
                 if (getattr(window, 'tapio_analysis_key', None) == analysis_name and
                     getattr(window, 'window_type', None) == window_type and
-                    getattr(window, 'tapio_measurement', None) == store.loaded_measurement):
+                        getattr(window, 'tapio_measurement', None) == store.loaded_measurement):
 
                     # Found existing window, bring it to front
                     window.bring_to_front()
@@ -494,8 +514,8 @@ class MainWindow(QMainWindow):
 
         # Create new window
         newWindow = analysis.window
-        newWindow.tapio_analysis_key = analysis_name # Store the analysis key
-        newWindow.tapio_measurement = store.loaded_measurement # Store the measurement
+        newWindow.tapio_analysis_key = analysis_name  # Store the analysis key
+        newWindow.tapio_measurement = store.loaded_measurement  # Store the measurement
         newWindow.closed.connect(lambda: store.open_windows.remove(newWindow))
         self.add_window(newWindow)
 
@@ -549,7 +569,8 @@ class MainWindow(QMainWindow):
             if downloaded_zip_path:
                 try:
                     # Preprocess the downloaded ZIP. This will unpack it to a managed temp dir.
-                    processed_paths = self._preprocess_file_paths([downloaded_zip_path])
+                    processed_paths = self._preprocess_file_paths(
+                        [downloaded_zip_path])
 
                     if processed_paths:
                         # At this point, `processed_paths` contains paths to files *extracted* from the ZIP.
@@ -560,11 +581,13 @@ class MainWindow(QMainWindow):
                     # Ensure the originally downloaded temporary ZIP file is deleted
                     # after attempting to process it, regardless of success/failure of unpacking or loading.
                     if os.path.exists(downloaded_zip_path):
-                        print(f"Cleaning up downloaded temporary ZIP: {downloaded_zip_path}")
+                        print(
+                            f"Cleaning up downloaded temporary ZIP: {downloaded_zip_path}")
                         try:
                             os.remove(downloaded_zip_path)
                         except Exception as e_del:
-                            print(f"Error deleting temporary downloaded ZIP {downloaded_zip_path}: {e_del}")
+                            print(
+                                f"Error deleting temporary downloaded ZIP {downloaded_zip_path}: {e_del}")
             # else: download_zip_to_temp already showed an error message
 
     @pyqtSlot()
@@ -575,11 +598,13 @@ class MainWindow(QMainWindow):
             int: The number of analyses loaded.
         """
         if not store.loaded_measurement:
-            QMessageBox.warning(self, "No measurement loaded", "No measurement loaded. Please load a measurement first.")
+            QMessageBox.warning(self, "No measurement loaded",
+                                "No measurement loaded. Please load a measurement first.")
             return 0
 
         if file_path is None:
-            file_path, _ = QFileDialog.getOpenFileName(self, "Open JSON file", "", "JSON Files (*.json)")
+            file_path, _ = QFileDialog.getOpenFileName(
+                self, "Open JSON file", "", "JSON Files (*.json)")
 
         if not file_path:
             return 0
@@ -592,7 +617,8 @@ class MainWindow(QMainWindow):
                 return 0  # Not a valid analysis file or empty list
 
             for analysis in data:
-                self.open_analysis_window(analysis.analysis_name, analysis.analysis_type, analysis.annotations, analysis.attributes)
+                self.open_analysis_window(
+                    analysis.analysis_name, analysis.analysis_type, analysis.annotations, analysis.attributes)
             return len(data)
         except Exception as e:
             print(f"Could not process {file_path} as analysis file: {e}")
@@ -602,7 +628,8 @@ class MainWindow(QMainWindow):
     def save_analysis_windows(self):
         dialog = QFileDialog()
         options = QFileDialog.options(dialog)
-        fileName, _ = QFileDialog.getSaveFileName(self, "Save analysis windows as...", "", "JSON Files (*.json)", options=options)
+        fileName, _ = QFileDialog.getSaveFileName(
+            self, "Save analysis windows as...", "", "JSON Files (*.json)", options=options)
         if not fileName:
             return
 
@@ -621,9 +648,9 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         if len(store.open_windows) > 0:
             response = QMessageBox.question(self, 'Confirm close',
-                                        'This will close all current analysis windows. Do you want to proceed?',
-                                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                                        QMessageBox.StandardButton.No)
+                                            'This will close all current analysis windows. Do you want to proceed?',
+                                            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                                            QMessageBox.StandardButton.No)
             if response == QMessageBox.StandardButton.No:
                 event.ignore()
                 return

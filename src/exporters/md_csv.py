@@ -1,8 +1,8 @@
 from utils.measurement import Measurement
 import pandas as pd
 
-menu_text = "Export to CSV (MD)"
-file_types = "CSV Files (*.md.csv)"
+menu_text = "Export raw data to CSV"
+file_types = "CSV Files (*.csv)"
 
 def export_data(fileName: str, measurement: Measurement) -> None:
     """
