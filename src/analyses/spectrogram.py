@@ -27,6 +27,7 @@ from scipy.signal import spectrogram
 analysis_name = "Spectrogram"
 analysis_types = ["MD", "CD"]
 
+
 class AnalysisController(AnalysisControllerBase):
     nperseg: float
     overlap: float
@@ -75,15 +76,22 @@ class AnalysisController(AnalysisControllerBase):
 
         self.set_default('nperseg', config["nperseg"])
         self.set_default('overlap', config["overlap"])
-        self.set_default('frequency_range_low', self.max_freq * config["range_min"])
-        self.set_default('frequency_range_high', self.max_freq * config["range_max"])
-        self.set_default('spectrum_length_slider_min', config["spectrum_length_slider_min"])
-        self.set_default('spectrum_length_slider_max', config["spectrum_length_slider_max"])
-        self.set_default('analysis_range_low', config["analysis_range_low"] * self.max_dist)
-        self.set_default('analysis_range_high', config["analysis_range_high"] * self.max_dist)
+        self.set_default('frequency_range_low',
+                         self.max_freq * config["range_min"])
+        self.set_default('frequency_range_high',
+                         self.max_freq * config["range_max"])
+        self.set_default('spectrum_length_slider_min',
+                         config["spectrum_length_slider_min"])
+        self.set_default('spectrum_length_slider_max',
+                         config["spectrum_length_slider_max"])
+        self.set_default('analysis_range_low',
+                         config["analysis_range_low"] * self.max_dist)
+        self.set_default('analysis_range_high',
+                         config["analysis_range_high"] * self.max_dist)
         self.set_default('machine_speed', settings.PAPER_MACHINE_SPEED_DEFAULT)
         self.set_default('selected_elements', [])
-        self.set_default('selected_samples', self.measurement.selected_samples.copy())
+        self.set_default('selected_samples',
+                         self.measurement.selected_samples.copy())
         self.set_default('selected_freqs', [])
         self.set_default('show_wavelength', False)
 
@@ -104,6 +112,7 @@ class AnalysisController(AnalysisControllerBase):
         noverlap = round(self.nperseg * overlap_per)
 
         # Extract the segment of data for analysis
+
         if self.window_type == "MD":
             self.low_index = np.searchsorted(
                 self.measurement.distances, self.analysis_range_low)
@@ -135,18 +144,17 @@ class AnalysisController(AnalysisControllerBase):
                 return
 
             x = self.measurement.cd_distances[self.low_index:self.high_index]
-
             unfiltered_data = [self.measurement.segments[self.channel][sample_idx]
                                [self.low_index:self.high_index] for sample_idx in self.selected_samples]
 
-
-            Pxx_sum = None
-            freqs = None
-            bins = None
-            for profile in unfiltered_data:
-                profile = profile - np.mean(profile)
-                freqs, bins, Pxx_i = spectrogram(
-                    profile,
+            spectrum_mode = getattr(
+                settings, 'SPECTRUM_MODE', 'mean_spectrum_of_profiles')
+            if spectrum_mode == 'spectrum_of_mean_profile':
+                # Take mean profile, then spectrogram
+                mean_profile = np.mean(unfiltered_data, axis=0)
+                mean_profile = mean_profile - np.mean(mean_profile)
+                freqs, bins, Pxx = spectrogram(
+                    mean_profile,
                     fs=self.fs,
                     window=np.hanning(self.nperseg),
                     nperseg=self.nperseg,
@@ -154,26 +162,27 @@ class AnalysisController(AnalysisControllerBase):
                     mode='psd',
                     scaling="density"
                 )
-                if Pxx_sum is None:
-                    Pxx_sum = Pxx_i
-                else:
-                    Pxx_sum += Pxx_i
-
-            Pxx = Pxx_sum / len(unfiltered_data)
-
-
-
-            # mean_profile = np.mean(unfiltered_data, axis=0)
-            # mean_profile = mean_profile - np.mean(mean_profile)
-
-
-            # Pxx, freqs, bins, im = ax.specgram(mean_profile,
-            #                                    NFFT=self.nperseg,
-            #                                    Fs=self.fs,
-            #                                    noverlap=noverlap,
-            #                                    window=np.hanning(self.nperseg))
-
-
+            else:
+                # Take spectrogram of each, then calculate mean spectrogram
+                Pxx_sum = None
+                freqs = None
+                bins = None
+                for profile in unfiltered_data:
+                    profile = profile - np.mean(profile)
+                    freqs, bins, Pxx_i = spectrogram(
+                        profile,
+                        fs=self.fs,
+                        window=np.hanning(self.nperseg),
+                        nperseg=self.nperseg,
+                        noverlap=noverlap,
+                        mode='psd',
+                        scaling="density"
+                    )
+                    if Pxx_sum is None:
+                        Pxx_sum = Pxx_i
+                    else:
+                        Pxx_sum += Pxx_i
+                Pxx = Pxx_sum / len(unfiltered_data)
 
         amplitudes = np.sqrt(Pxx*2) * settings.SPECTRUM_AMPLITUDE_SCALING
         freq_indices = (freqs >= self.frequency_range_low) & (
@@ -249,10 +258,10 @@ class AnalysisController(AnalysisControllerBase):
                                  alpha=0.8*(1-i*1/settings.MAX_HARMONICS_DISPLAY))
                 self.current_hlines.append(hlw)
 
-                hl=ax.axhline(y=f * i, linestyle='--', alpha=1 -
+                hl = ax.axhline(y=f * i, linestyle='--', alpha=1 -
                                 (1/settings.MAX_HARMONICS_DISPLAY) * i, label=label, color=current_color)
                 self.current_hlines.append(hl)
-        handles, labels=ax.get_legend_handles_labels()
+        handles, labels = ax.get_legend_handles_labels()
         if labels:  # This list will be non-empty if there are items to include in the legend
             ax.legend(handles, labels, loc="upper right")
 
@@ -267,7 +276,8 @@ class AnalysisController(AnalysisControllerBase):
             wavelength = 1 / self.selected_freqs[-1]
             stats.append(["Selected frequency:", ""])
             if self.window_type == "MD":
-                frequency_in_hz = self.selected_freqs[-1] * self.machine_speed / 60
+                frequency_in_hz = self.selected_freqs[-1] * \
+                    self.machine_speed / 60
                 stats.append([
                     "Frequency:\nWavelength:",
                     f"{self.selected_freqs[-1]:.2f} 1/m ({frequency_in_hz:.2f} Hz)\n{100*wavelength:.2f} m"])
@@ -353,7 +363,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
 
     def toggleSOSAnalysis(self, checked):
         if self.sosAnalysisWindow is None:
-            self.sosAnalysis = Analysis(self.measurement, 'sos', self.window_type)
+            self.sosAnalysis = Analysis(
+                self.measurement, 'sos', self.window_type)
             self.sosAnalysisWindow = self.sosAnalysis.window
             self.sosAnalysisWindow.show()
             self.sosAnalysisWindow.closed.connect(self.onSOSAnalysisClosed)
@@ -371,7 +382,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.refresh()  # Refresh the plot with the new spectrum length
 
     def initUI(self):
-        self.setWindowTitle(f"{analysis_name} ({self.controller.window_type}) - {self.measurement.measurement_label}")
+        self.setWindowTitle(
+            f"{analysis_name} ({self.controller.window_type}) - {self.measurement.measurement_label}")
         self.resize(*settings.SPECTROGRAM_WINDOW_SIZE)
 
         self.initMenuBar()
@@ -418,7 +430,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         plotStatsLayout = QVBoxLayout()
         mainHorizontalLayout.addLayout(plotStatsLayout, 1)
 
-        self.selectedFrequencyLabel = QLabel("Selected frequency: None") # Keep this label as it's updated in onclick
+        # Keep this label as it's updated in onclick
+        self.selectedFrequencyLabel = QLabel("Selected frequency: None")
         plotStatsLayout.addWidget(self.selectedFrequencyLabel)
 
         # Matplotlib figure and canvas
