@@ -404,6 +404,9 @@ SPECTRUM_AUTO_DETECT_PEAKS = None
 CD_SPECTRUM_LOGARITHMIC_SCALE = False
 MD_SPECTRUM_LOGARITHMIC_SCALE = False
 
+MD_SPECTRUM_SECONDARY_X_LABEL_EXPR = "f'Frequency [Hz] at machine speed {self.machine_speed:.1f} m/min'"
+
+
 # SPECTRUM_MODE = "spectrum_of_mean_profile"  # or "mean_spectrum_of_profiles"
 SPECTRUM_MODE = "mean_spectrum_of_profiles"  # or "spectrum_of_mean_profile"
 

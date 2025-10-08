@@ -231,7 +231,8 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             ]
 
             # Determine spectrum mode from settings, default to 'mean_spectrum_of_profiles'
-            spectrum_mode = getattr(settings, 'SPECTRUM_MODE', 'mean_spectrum_of_profiles')
+            spectrum_mode = getattr(
+                settings, 'SPECTRUM_MODE', 'mean_spectrum_of_profiles')
             if spectrum_mode == 'spectrum_of_mean_profile':
                 # Take mean profile, then spectrum
                 mean_profile = np.mean(unfiltered_data, axis=0)
@@ -305,8 +306,9 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 secax.set_xticklabels(
                     [f"{tick:.2f}" for tick in secondary_ticks])
 
-            secax.set_xlabel(f"Frequency [Hz] at machine speed {
-                             self.machine_speed:.1f} m/min")
+            label = eval(
+                settings.MD_SPECTRUM_SECONDARY_X_LABEL_EXPR, {}, {"self": self})
+            secax.set_xlabel(label)
 
         ax.set_zorder(secax.get_zorder() + 1)
         update_secax()  # Initial call to update secondary axis
