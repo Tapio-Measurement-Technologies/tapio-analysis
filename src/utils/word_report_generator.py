@@ -142,7 +142,7 @@ class WordReportGenerator(ReportGenerator):
             cell2.paragraphs[0].clear()
             self._add_stats_table(cell2, analysis)
 
-        elif layout_mode in ["stats-below", "stats-above"]:
+        elif layout_mode in ["stats-below", "stats-above", "image-only"]:
             table = doc.add_table(rows=2, cols=1)
             table.autofit = True
 
@@ -158,7 +158,8 @@ class WordReportGenerator(ReportGenerator):
                             width=Mm(analysis.image_width_mm or (total_width_mm - 5)))
             img_cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
             stats_cell.vertical_alignment = WD_ALIGN_VERTICAL.TOP
-            self._add_stats_table(stats_cell, analysis)
+            if layout_mode != "image-only":
+                self._add_stats_table(stats_cell, analysis)
 
     def _add_stats_table(self, cell, analysis):
         data = analysis.controller.getStatsTableData()
