@@ -202,6 +202,9 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 self.updated.emit()
                 return self.canvas
 
+            # Test with synthetic data: sine wave at 5 Hz amplitude zero-to-peak is 1, RMS 1/sqrt(2) and peak-to-peak 2
+            # self.data = np.sin(2 * np.pi * 5 * np.arange(len(self.data)) / self.fs)
+
             f, Pxx = welch(self.data,
                            fs=self.fs,
                            window=self.spectral_window,
