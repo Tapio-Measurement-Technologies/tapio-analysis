@@ -56,34 +56,8 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                          self.measurement.selected_samples.copy())
 
         # Compute a temporary mean_profile for offset calculation if needed
-        temp_mean_profile = None
-        if hasattr(settings, 'CD_PROFILE_WATERFALL_RELATIVE_OFFSET') and settings.CD_PROFILE_WATERFALL_RELATIVE_OFFSET is not None:
-            # Calculate indices for the analysis range
-            low_index = np.searchsorted(
-                self.measurement.cd_distances, self.analysis_range_low)
-            high_index = np.searchsorted(
-                self.measurement.cd_distances, self.analysis_range_high, side='right')
-            # Get unfiltered data for selected samples
-            unfiltered_data = [
-                self.measurement.segments[self.channel][sample_idx][low_index:high_index]
-                for sample_idx in self.selected_samples
-            ]
-            # Apply bandpass filter
-            filtered_data = [bandpass_filter(
-                i, self.band_pass_low, self.band_pass_high, self.fs) for i in unfiltered_data]
-            # Compute mean profile
-            temp_mean_profile = np.mean(filtered_data, axis=0)
-
-        if hasattr(settings, 'CD_PROFILE_WATERFALL_RELATIVE_OFFSET') and settings.CD_PROFILE_WATERFALL_RELATIVE_OFFSET is not None and temp_mean_profile is not None and len(temp_mean_profile) > 0:
-            initial_waterfall_offset = settings.CD_PROFILE_WATERFALL_RELATIVE_OFFSET * \
-                np.mean(temp_mean_profile)
-        else:
-            initial_waterfall_offset = settings.CD_PROFILE_WATERFALL_DEFAULT_CHANNEL_OFFSETS.get(
-                self.channel,
-                settings.CD_PROFILE_WATERFALL_OFFSET_DEFAULT
-            ) if settings.CD_PROFILE_WATERFALL_DEFAULT_CHANNEL_OFFSETS is not None else settings.CD_PROFILE_WATERFALL_OFFSET_DEFAULT
-
-        self.set_default('waterfall_offset', initial_waterfall_offset)
+        self.set_default('waterfall_offset',
+                         settings.CD_PROFILE_WATERFALL_OFFSET_DEFAULT)
 
     def plot(self):
         # logging.info("Refresh")
@@ -126,6 +100,12 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             i, self.band_pass_low, self.band_pass_high, self.fs) for i in unfiltered_data]
 
         self.mean_profile = np.mean(filtered_data, axis=0)
+
+        if settings.CD_PROFILE_WATERFALL_RELATIVE_OFFSET:
+            waterfall_offset = np.mean(self.mean_profile) * settings.CD_PROFILE_WATERFALL_RELATIVE_OFFSET
+
+            self.waterfall_offset = waterfall_offset
+
 
         tableau_color_cycle = plt.get_cmap('tab10')
 
@@ -338,40 +318,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         # Recalculate offset on channel change, using the same logic as in AnalysisController __init__
         import numpy as np
         from utils.filters import bandpass_filter
-        # Get current settings from controller
-        band_pass_low = self.controller.band_pass_low
-        band_pass_high = self.controller.band_pass_high
-        analysis_range_low = self.controller.analysis_range_low
-        analysis_range_high = self.controller.analysis_range_high
-        selected_samples = self.controller.selected_samples
-        measurement = self.controller.measurement
-        fs = self.controller.fs
 
-        temp_mean_profile = None
-        if hasattr(settings, 'CD_PROFILE_WATERFALL_RELATIVE_OFFSET') and settings.CD_PROFILE_WATERFALL_RELATIVE_OFFSET is not None:
-            low_index = np.searchsorted(
-                measurement.cd_distances, analysis_range_low)
-            high_index = np.searchsorted(
-                measurement.cd_distances, analysis_range_high, side='right')
-            unfiltered_data = [
-                measurement.segments[channel][sample_idx][low_index:high_index]
-                for sample_idx in selected_samples
-            ]
-            filtered_data = [bandpass_filter(
-                i, band_pass_low, band_pass_high, fs) for i in unfiltered_data]
-            temp_mean_profile = np.mean(filtered_data, axis=0)
-
-        if hasattr(settings, 'CD_PROFILE_WATERFALL_RELATIVE_OFFSET') and settings.CD_PROFILE_WATERFALL_RELATIVE_OFFSET is not None and temp_mean_profile is not None and len(temp_mean_profile) > 0:
-            waterfall_offset = settings.CD_PROFILE_WATERFALL_RELATIVE_OFFSET * \
-                np.mean(temp_mean_profile)
-        else:
-            if settings.CD_PROFILE_WATERFALL_DEFAULT_CHANNEL_OFFSETS is not None:
-                waterfall_offset = settings.CD_PROFILE_WATERFALL_DEFAULT_CHANNEL_OFFSETS.get(
-                    channel,
-                    settings.CD_PROFILE_WATERFALL_OFFSET_DEFAULT
-                )
-            else:
-                waterfall_offset = settings.CD_PROFILE_WATERFALL_OFFSET_DEFAULT
+        waterfall_offset = settings.CD_PROFILE_WATERFALL_OFFSET_DEFAULT
 
         self.controller.waterfall_offset = waterfall_offset
         self.waterfallOffsetSlider.setValue(waterfall_offset)
