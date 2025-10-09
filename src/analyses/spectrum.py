@@ -241,6 +241,10 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 for sample_idx in self.selected_samples
             ]
 
+            # Test with synthetic CD Data with p-p amplitude 1
+            # unfiltered_data = [np.sin(2 * np.pi * 5 * np.arange(len(self.measurement.segments[self.channel][sample_idx][self.low_index:self.high_index])) / self.fs) for sample_idx in self.selected_samples]
+
+
             # Determine spectrum mode from settings, default to 'mean_spectrum_of_profiles'
             spectrum_mode = getattr(
                 settings, 'SPECTRUM_MODE', 'mean_spectrum_of_profiles')
