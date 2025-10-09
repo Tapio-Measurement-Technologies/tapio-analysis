@@ -156,6 +156,8 @@ The old calculated channels from **WinTapio** do not work in **Tapio Analysis**.
 
 <br><img src="img/selected-frequency-spectrum.png" alt="Selection of frequency in the spectrum" width="40%"><br><small></small><br>
 
+
+
 #### Note about spectral calculations in Tapio Analysis
 All spectral calculations in the software are based on the Welch method, which involves splitting the data into overlapping windows, calculating the a spectrum for each window and averaging the results. This method helps reduce noise and deal with data instationarities but reduces frequencyt resolution. The choice of window length influences both the frequency resolution and noise levels in the spectrum.
 
@@ -163,10 +165,12 @@ The window length can be adjusted to balance between noise reduction and resolut
 
 The maximum frequency is determined by the Nyquist frequency, which depends on the sampling interval. For instance, if the sampling interval is 12.8 mm, the maximum frequency will be half of the sample rate (e.g. 625 cycles per meter for a 12.8 mm sampling interval).
 
+By default, all spectra are amplitude spectra where the amplitudes are shown as zero-to-peak amplitudes. This behaviour can be customized in settings with the SPECTRUM_AMPLITUDE_SCALING setting.
+<br><img src="img/sine_wave.png" alt="Amplitude display" width="40%"><br><small></small><br>
+
+
 # Visualization of harmonics
 It is typical for rotating elements to cause peaks in the spectrum at integer multiples (harmonics) of their rotating frequency. The software provides tools to visualize these harmonics.  You can control how many harmonic frequencies are displayed by adjusting the setting MAX_HARMONICS_DISPLAY in the local_settings.py file.
-
-
 
 
 
