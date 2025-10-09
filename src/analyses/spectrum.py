@@ -1,3 +1,4 @@
+import logging
 from PyQt6.QtWidgets import QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QGroupBox
 from PyQt6.QtGui import QAction
 from utils.measurement import Measurement
@@ -185,8 +186,6 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             ax.set_title(f"{self.measurement.measurement_label} ({
                 self.channel}) - Spectrum")
 
-        overlap_per = self.overlap
-        noverlap = round(self.nperseg) * overlap_per
 
         # Extract the segment of data for analysis
         if self.window_type == "MD":
@@ -197,10 +196,15 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 self.measurement.distances, self.analysis_range_high, side='right')
             self.data = self.measurement.channel_df[self.channel][self.low_index:self.high_index]
 
-            if self.nperseg >= (self.high_index - self.low_index):
-                self.canvas.draw()
-                self.updated.emit()
-                return self.canvas
+            if self.nperseg > (self.high_index - self.low_index):
+                self.nperseg = self.high_index - self.low_index
+                logging.warning("Using lower nperseg because data is shorter than nperseg")
+
+            overlap_per = self.overlap
+            noverlap = round(self.nperseg) * overlap_per
+            # self.canvas.draw()
+            # self.updated.emit()
+            # # return self.canvas
 
             # Test with synthetic data: sine wave at 5 Hz amplitude zero-to-peak is 1, RMS 1/sqrt(2) and peak-to-peak 2
             # self.data = np.sin(2 * np.pi * 5 * np.arange(len(self.data)) / self.fs)
@@ -221,10 +225,14 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             self.high_index = np.searchsorted(
                 self.measurement.cd_distances, self.analysis_range_high, side='right')
 
-            if self.nperseg >= (self.high_index - self.low_index):
-                self.canvas.draw()
-                self.updated.emit()
-                return self.canvas
+
+            if self.nperseg > (self.high_index - self.low_index):
+                self.nperseg = self.high_index - self.low_index
+                logging.warning("Using lower nperseg because data is shorter than nperseg")
+
+            overlap_per = self.overlap
+            noverlap = round(self.nperseg) * overlap_per
+
 
             x = self.measurement.cd_distances[self.low_index:self.high_index]
 
