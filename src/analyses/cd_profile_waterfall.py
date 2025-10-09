@@ -160,7 +160,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
             # Add actual sample index on the right side
             ax.text(
-                x[-1] + 0.02 * (x[-1] - x[0]),
+                x[-1] + 0.01 * (x[-1] - x[0]),
                 mean_value,
                 f"#{sample_idx + 1}",
                 ha='left',
