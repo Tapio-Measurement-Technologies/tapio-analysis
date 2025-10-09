@@ -160,12 +160,14 @@ def load_data(fileNames: list[str]) -> Measurement | None:
                 resampled_data = np.array([]).reshape(
                     0, aggregated_data.shape[1])
                 measurement.sample_step = (RESAMPLE_STEP_DEFAULT_MM / 1000)
+        # Finish distance generation
 
         measurement.channel_df = pd.DataFrame(
             resampled_data, columns=data_df.columns[1:])
         measurement.distances = resampled_distances
         measurement.channels = measurement.channel_df.columns
         valid_files_processed = True
+
 
     except Exception as e:
         print(
@@ -203,7 +205,6 @@ def load_data(fileNames: list[str]) -> Measurement | None:
                     measurement, calibration_data)
 
 
-
                 # Add calculated channels
                 for channel_config in settings.CALCULATED_CHANNELS:
                     name = channel_config['name']
@@ -226,6 +227,18 @@ def load_data(fileNames: list[str]) -> Measurement | None:
                 measurement.channel_df = measurement.channel_df.drop(
                     columns=settings.IGNORE_CHANNELS, errors='ignore')
                 measurement.channels = measurement.channel_df.columns
+
+                # If CD segments exist already, the split can now be done
+                if measurement.samples_file_path:
+                    peak_channel, threshold, peak_locations, selected_samples = load_cd_samples_data(
+                        measurement.samples_file_path)
+                    measurement.peak_channel = peak_channel
+                    measurement.threshold = threshold
+                    measurement.peak_locations = peak_locations
+                    measurement.selected_samples = selected_samples
+                    measurement.split_data_to_segments()
+
+
         except Exception as e:
             print(f"Error processing TCAL file {tcal_file_path}: {e}")
             traceback.print_exc()  # TCAL processing error is not fatal for measurement object
