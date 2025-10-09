@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import settings
+import logging
 
 def mirror_pad(data, numtaps):
     """
@@ -42,6 +43,7 @@ def bandpass_filter(data, lowcut, highcut, fs, numtaps=settings.FILTER_NUMTAPS, 
         # Ensure we have at least 3 taps for a meaningful filter
         new_numtaps = max(3, new_numtaps)
         numtaps = new_numtaps
+        logging.warning("Data length too small for filter length. Using smaller filter window length.")
 
     epsilon = 0.0001
     # Pad the data with a mirrored copy if mirror is True
