@@ -948,6 +948,8 @@ class PlotMixin:
         self.figure = Figure()
         self.canvas = AnnotableCanvas(self.figure)
         self.toolbar = NavigationToolbar(self.canvas)
+        # Set toolbar reference on canvas so it can check for active modes
+        self.canvas.toolbar = self.toolbar
 
     def addPlot(self, layout):
         plotLayout = QVBoxLayout()

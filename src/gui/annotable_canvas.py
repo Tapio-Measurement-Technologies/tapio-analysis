@@ -77,6 +77,7 @@ class AnnotableCanvas(FigureCanvasQTAgg):
         self.selected_annotation: DraggableAnnotation | None = None
         self.editing_annotation: DraggableAnnotation | None = None
         self.editor = None
+        self.toolbar = None # Will be set by parent if toolbar is available
 
         self.mpl_connect('pick_event', self.on_pick)
         self.mpl_connect('button_press_event', self.on_press)
@@ -203,6 +204,10 @@ class AnnotableCanvas(FigureCanvasQTAgg):
             self.draw_idle()
 
     def _show_add_context_menu(self, event):
+        # Don't show context menu if zoom/pan mode is active
+        if self.toolbar and self.toolbar.mode:
+            return
+
         menu = QMenu(self)
         add_text_action = menu.addAction("Add Text Label")
         add_arrow_action = menu.addAction("Add Arrow")
@@ -250,6 +255,10 @@ class AnnotableCanvas(FigureCanvasQTAgg):
             ))
 
     def _show_remove_context_menu(self, event, annotation_to_remove: DraggableAnnotation):
+        # Don't show context menu if zoom/pan mode is active
+        if self.toolbar and self.toolbar.mode:
+            return
+
         menu = QMenu(self)
         remove_action = menu.addAction("Remove")
 
