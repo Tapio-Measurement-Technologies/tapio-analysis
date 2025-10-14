@@ -101,18 +101,13 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
         self.mean_profile = np.mean(filtered_data, axis=0)
 
-        if settings.CD_PROFILE_WATERFALL_RELATIVE_OFFSET:
-            waterfall_offset = np.mean(self.mean_profile) * settings.CD_PROFILE_WATERFALL_RELATIVE_OFFSET
-
-            self.waterfall_offset = waterfall_offset
-
+        # Calculate waterfall offset as relative to mean profile value (convert percent to fraction)
+        mean_profile_value = np.mean(self.mean_profile)
+        y_offset = mean_profile_value * (self.waterfall_offset / 100.0)
 
         tableau_color_cycle = plt.get_cmap('tab10')
 
-        y_offset = self.waterfall_offset
-
-        ax.set_ylim(1*self.waterfall_offset, -1 *
-                    self.waterfall_offset * (len(self.selected_samples)))
+        ax.set_ylim(1*y_offset, -1 * y_offset * (len(self.selected_samples)))
 
         for offset_index, sample_idx in enumerate(self.selected_samples):
             unfiltered_data = self.measurement.segments[self.channel][sample_idx][low_index:high_index]
@@ -313,13 +308,3 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
     def updateStatistics(self, profile_data):
         unit = self.measurement.units[self.controller.channel]
         self.stats_widget.update_statistics(profile_data, unit)
-
-    def on_channel_changed(self, channel):
-        # Recalculate offset on channel change, using the same logic as in AnalysisController __init__
-        import numpy as np
-        from utils.filters import bandpass_filter
-
-        waterfall_offset = settings.CD_PROFILE_WATERFALL_OFFSET_DEFAULT
-
-        self.controller.waterfall_offset = waterfall_offset
-        self.waterfallOffsetSlider.setValue(waterfall_offset)

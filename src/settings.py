@@ -278,9 +278,8 @@ CD_PROFILE_RANGE_LOW_DEFAULT = 0
 CD_PROFILE_RANGE_HIGH_DEFAULT = 1
 
 
-CD_PROFILE_WATERFALL_OFFSET_DEFAULT = 40
+CD_PROFILE_WATERFALL_OFFSET_DEFAULT = 10  # Relative offset in percent (e.g., 10 = 10% of mean profile value)
 CD_PROFILE_WATERFALL_DEFAULT_CHANNEL_OFFSETS = None
-CD_PROFILE_WATERFALL_RELATIVE_OFFSET = None
 
 # Example for setting default offsets per channel, if desired
 # NOTE: Disables manual adjustment of offsets in the UI
@@ -325,7 +324,7 @@ PAPER_MACHINE_WINDOW_SIZE = (500, 500)
 SAMPLE_SELECT_WINDOW_SIZE = (300, 600)
 REPORT_WINDOW_SIZE = (700, 700)
 
-# Waterfall plot settings
+# Waterfall plot settings (relative to mean profile value, in percent)
 WATERFALL_OFFSET_LOW_DEFAULT = 0
 WATERFALL_OFFSET_HIGH_DEFAULT = 100
 
