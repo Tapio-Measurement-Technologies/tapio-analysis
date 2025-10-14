@@ -98,8 +98,9 @@ class ReportWindow(QWidget):
         self.header_image_layout = QHBoxLayout()
         self.header_image_label = QLabel("Logo image:")
         self.header_image_path_input = QLineEdit(self.header_image_path)
+        self.header_image_path_input.editingFinished.connect(self.on_header_image_input_editing_finished)
         self.header_image_path_button = QPushButton("Choose Image")
-        self.header_image_path_button.clicked.connect(self.choose_image)
+        self.header_image_path_button.clicked.connect(self.choose_header_image)
         self.header_image_layout.addWidget(self.header_image_label)
         self.header_image_layout.addWidget(self.header_image_path_input)
         self.header_image_layout.addWidget(self.header_image_path_button)
@@ -109,8 +110,9 @@ class ReportWindow(QWidget):
         self.sample_image_layout = QHBoxLayout()
         self.sample_image_label = QLabel("Sample image:")
         self.sample_image_path_input = QLineEdit(self.sample_image_path)
+        self.sample_image_path_input.editingFinished.connect(self.on_sample_image_input_editing_finished)
         self.sample_image_path_button = QPushButton("Choose Image")
-        self.sample_image_path_button.clicked.connect(self.choose_image)
+        self.sample_image_path_button.clicked.connect(self.choose_sample_image)
         self.sample_image_layout.addWidget(self.sample_image_label)
         self.sample_image_layout.addWidget(self.sample_image_path_input)
         self.sample_image_layout.addWidget(self.sample_image_path_button)
@@ -199,14 +201,30 @@ class ReportWindow(QWidget):
         self.report_subtitle = subtitle
         self.subtitle_input.setText(self.report_subtitle)
 
-    def choose_image(self):
+    def choose_image(self) -> str:
         dialog = QFileDialog(self)
         options = QFileDialog.options(dialog)
         file_name, _ = QFileDialog.getOpenFileName(
             self, "Choose Image", "", "Image Files (*.png *.jpg *.bmp *.gif)", options=options)
+        return file_name
+
+    def choose_header_image(self):
+        file_name = self.choose_image()
         if file_name:
             self.header_image_path = file_name
-            self.header_image_path_input.setText(file_name)
+            self.header_image_path_input.setText(self.header_image_path)
+
+    def choose_sample_image(self):
+        file_name = self.choose_image()
+        if file_name:
+            self.sample_image_path = file_name
+            self.sample_image_path_input.setText(self.sample_image_path)
+
+    def on_header_image_input_editing_finished(self):
+        self.header_image_path = self.header_image_path_input.text()
+
+    def on_sample_image_input_editing_finished(self):
+        self.sample_image_path = self.sample_image_path_input.text()
 
     def generate_report(self):
         # Prepare report data
