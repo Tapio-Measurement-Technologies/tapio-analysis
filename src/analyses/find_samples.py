@@ -3,7 +3,6 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QTableWidget,
                              QTableWidgetItem, QSizePolicy, QFileDialog, QHeaderView,
                              QLabel)
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
 from utils.types import AnalysisType, PlotAnnotation
@@ -169,17 +168,6 @@ class AnalysisController(AnalysisControllerBase):
         ax = self.figure.gca()
         ax.set_xlim(start + tape_width_meters / 2, end - tape_width_meters / 2)
         self.canvas.draw()
-
-
-class CustomNavigationToolbar(NavigationToolbar):
-    def __init__(self, canvas, parent):
-        super().__init__(canvas, parent)
-        self.parent = parent
-
-    def home(self):
-        # Override home button functionality to reset the view
-        self.parent.refresh()
-
 
 class AnalysisWindow(AnalysisWindowBase[AnalysisController], ChannelMixin, BandPassFilterMixin):
     def __init__(self, controller: AnalysisController, window_type: AnalysisType = "MD"):
