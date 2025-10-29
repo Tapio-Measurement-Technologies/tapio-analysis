@@ -596,6 +596,7 @@ def delete_paragraph(paragraph):
 
 def show_load_error_msgbox(errors):
     msgbox = QMessageBox()
+    msgbox.setWindowTitle("Report Loading Error")
     msgbox.setText("Errors occurred while loading report template:")
     msgbox.setInformativeText("\n".join(errors))
     msgbox.exec()

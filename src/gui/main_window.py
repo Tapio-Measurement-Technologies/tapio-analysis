@@ -248,12 +248,13 @@ class MainWindow(QMainWindow):
             p for p in processed_file_paths if not p.lower().endswith('.py')]
 
         # Handle settings files first
+        settings_accepted = False
         if settings_files:
             for settings_file in settings_files:
                 try:
                     settings_vars = settings.get_py_file_vars(settings_file)
                     if settings_vars:
-                        accepted, applied_settings = show_custom_settings_dialog(
+                        settings_accepted, applied_settings = show_custom_settings_dialog(
                             settings_file, settings_vars, self)
                         # If user cancels, just continue without applying settings
                         # Don't abort the measurement loading process
@@ -266,12 +267,12 @@ class MainWindow(QMainWindow):
         processed_file_paths = measurement_files
 
         if not processed_file_paths:
-            if settings_files:
+            if settings_accepted:
                 QMessageBox.information(
-                    self, "Settings Applied", "Custom settings were processed, but no measurement files were found to load.")
+                    self, "Settings Applied", "Custom settings were applied, but no measurement files were found to load.")
             else:
                 QMessageBox.information(
-                    self, "No Files", "No measurement files were found after processing.")
+                    self, "No Files", "No measurement files were found to load.")
             return
 
         json_files = [
