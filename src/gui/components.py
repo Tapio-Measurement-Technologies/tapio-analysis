@@ -4,7 +4,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QImage, QMouseEvent
 from PyQt6.QtWidgets import QVBoxLayout, QWidget
-from PyQt6.QtWidgets import QComboBox, QLabel, QDoubleSpinBox, QFileDialog, QCheckBox, QHBoxLayout, QMessageBox, QGridLayout, QPushButton, QScrollArea
+from PyQt6.QtWidgets import QComboBox, QLabel, QDoubleSpinBox, QFileDialog, QCheckBox, QHBoxLayout, QMessageBox, QGridLayout, QPushButton, QScrollArea, QProgressDialog
 from PyQt6.QtGui import QAction, QIcon
 from qtpy.QtCore import Qt, Signal
 from superqt import QLabeledDoubleRangeSlider, QLabeledSlider, QLabeledDoubleSlider
@@ -18,6 +18,45 @@ import io
 import traceback
 
 from gui.sample_selector import SampleSelectorWindow
+
+
+class LoadingProgressDialog:
+    """
+    A simple wrapper around QProgressDialog for showing loading progress.
+
+    Usage:
+        with LoadingProgressDialog(parent, total_items, "Loading items...") as progress:
+            for i, item in enumerate(items):
+                if progress.is_canceled():
+                    break
+                progress.update(i, f"Loading {item}...")
+                # do work
+    """
+
+    def __init__(self, parent, total: int, title: str = "Loading..."):
+        self.dialog = QProgressDialog(title, "Cancel", 0, total, parent)
+        self.dialog.setWindowTitle(title)
+        self.dialog.setWindowModality(Qt.WindowModality.WindowModal)
+        self.dialog.setMinimumDuration(0)
+        self.dialog.setValue(0)
+        self.total = total
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.dialog.close()
+        return False
+
+    def update(self, value: int, label: str = None):
+        """Update progress value and optionally change the label text."""
+        if label:
+            self.dialog.setLabelText(label)
+        self.dialog.setValue(value)
+
+    def is_canceled(self) -> bool:
+        """Check if the user canceled the operation."""
+        return self.dialog.wasCanceled()
 
 
 class FineControlMixin:
