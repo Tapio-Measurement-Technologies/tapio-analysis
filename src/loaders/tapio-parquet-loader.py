@@ -16,7 +16,7 @@ file_types = "All Files (*);;Parquet files (*.parquet);;Calibration files (*.tca
 
 RESAMPLE_STEP_DEFAULT_MM = 1
 GENERATE_DISTANCES = False
-SAMPLE_STEP_DEFAULT = 0.001
+SAMPLE_STEP_DEFAULT = 0.0001
 
 ASH_MAC = -100
 LOG_VALS_MAX = 1000  # Maximum allowed value for logarithmic calibration output
@@ -80,6 +80,18 @@ def load_data(fileNames: list[str]) -> Measurement | None:
         measurement.data_file_path = basename
         measurement.measurement_label = os.path.splitext(
             basename)[0]  # Label from parquet file
+
+        # Look for a distance column
+        distance_col = None
+        for col in data_df.columns:
+            if col == "Distance":
+                distance_col = col
+                break
+
+        if distance_col is None:
+            data_df.insert(0, "Distances", np.arange(len(data_df)))
+            distance_col = "Distances"
+
 
         # This logic was previously inside zip processing, ensure it's correctly placed
         if len(data_df) > 1000:
