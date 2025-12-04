@@ -11,6 +11,7 @@ import traceback
 import importlib.util
 from utils import store
 from utils.measurement import Measurement
+from gui.components import LoadingProgressDialog
 
 analysis_name_mapping = {
     module_name: analysis.analysis_name
@@ -318,54 +319,72 @@ class ReportWindow(QWidget):
 
                 sections = module.sections
 
-                for section in sections:
-                    section_name = section.get("section_name")
-                    section_widget = self.add_section(section_name)
-                    analyses = section.get("analyses", [])
+                # Count total analyses for progress tracking
+                total_analyses = sum(len(section.get("analyses", [])) for section in sections)
 
-                    for analysis in analyses:
-                        analysis_module_name = analysis.get("analysis")
+                # Create progress dialog
+                with LoadingProgressDialog(self, total_analyses, "Loading report template...") as progress:
+                    current_progress = 0
 
-                        channel = analysis.get("channel", "")
-                        channel2 = analysis.get("channel2", "")
+                    for section in sections:
+                        if progress.is_canceled():
+                            break
 
-                        invalid_channel = any(
-                            c and c not in self.measurement.channels for c in [channel, channel2]
-                        )
+                        section_name = section.get("section_name")
+                        section_widget = self.add_section(section_name)
+                        analyses = section.get("analyses", [])
 
-                        if invalid_channel:
-                            errors.append(
-                                f"{section_name}/{analysis_module_name}: Invalid channel name '{channel}'{f' or {channel2}' if channel2 else ''}"
+                        for analysis in analyses:
+                            if progress.is_canceled():
+                                break
+
+                            analysis_module_name = analysis.get("analysis")
+                            analysis_name = analysis_name_mapping.get(analysis_module_name, "Unknown Analysis")
+                            progress.update(current_progress, f"Loading {analysis_name}...")
+
+                            channel = analysis.get("channel", "")
+                            channel2 = analysis.get("channel2", "")
+
+                            invalid_channel = any(
+                                c and c not in self.measurement.channels for c in [channel, channel2]
                             )
-                            continue
 
-                        widget = AnalysisWidget(
-                            self.main_window,
-                            analysis_module_name,
-                            self.measurement,
-                            self.window_type,
-                            analysis_title=analysis.get("analysis_title"),
-                            info_string=analysis.get("info_string"),
-                            report_layout=analysis.get("report_layout"),
-                            image_width_mm=analysis.get("image_width_mm")
-                        )
+                            if invalid_channel:
+                                errors.append(
+                                    f"{section_name}/{analysis_module_name}: Invalid channel name '{channel}'{f' or {channel2}' if channel2 else ''}"
+                                )
+                                current_progress += 1
+                                continue
 
-                        # Assign attributes if they exist, note the naming must be same as class attribute
-                        for attr in [
-                            "channel", "channel2",
-                            "analysis_range_low", "analysis_range_high",
-                            "band_pass_low", "band_pass_high",
-                            "show_individual_profiles", "show_min_max", "show_legend",
-                            "show_wavelength_labels", "show_unfiltered_data",
-                            "machine_speed", "frequency_range_low", "frequency_range_high",
-                            "selected_frequencies", "nperseg", "peak_detection_range_min", "peak_detection_range_max"
-                        ]:
-                            if attr in analysis:
-                                setattr(widget.controller,
-                                        attr, analysis[attr])
+                            widget = AnalysisWidget(
+                                self.main_window,
+                                analysis_module_name,
+                                self.measurement,
+                                self.window_type,
+                                analysis_title=analysis.get("analysis_title"),
+                                info_string=analysis.get("info_string"),
+                                report_layout=analysis.get("report_layout"),
+                                image_width_mm=analysis.get("image_width_mm")
+                            )
 
-                        widget.preview_window.refresh()
-                        section_widget.add_analysis(widget)
+                            # Assign attributes if they exist, note the naming must be same as class attribute
+                            for attr in [
+                                "channel", "channel2",
+                                "analysis_range_low", "analysis_range_high",
+                                "band_pass_low", "band_pass_high",
+                                "show_individual_profiles", "show_min_max", "show_legend",
+                                "show_wavelength_labels", "show_unfiltered_data",
+                                "machine_speed", "frequency_range_low", "frequency_range_high",
+                                "selected_frequencies", "nperseg", "peak_detection_range_min", "peak_detection_range_max"
+                            ]:
+                                if attr in analysis:
+                                    setattr(widget.controller,
+                                            attr, analysis[attr])
+
+                            widget.preview_window.refresh()
+                            section_widget.add_analysis(widget)
+
+                            current_progress += 1
 
             except Exception as e:
                 traceback.print_exc()
@@ -577,6 +596,7 @@ def delete_paragraph(paragraph):
 
 def show_load_error_msgbox(errors):
     msgbox = QMessageBox()
+    msgbox.setWindowTitle("Report Loading Error")
     msgbox.setText("Errors occurred while loading report template:")
     msgbox.setInformativeText("\n".join(errors))
     msgbox.exec()
