@@ -97,7 +97,18 @@ def load_data(fileNames: list[str]) -> Measurement | None:
         if len(data_df) > 1000:
             data_df = data_df.iloc[1000:]
 
-        distances = data_df.iloc[:, 0].values
+        # Find the distance column (case-insensitive)
+        distance_col = None
+        for col in data_df.columns:
+            if col.lower() == 'distance':
+                distance_col = col
+                break
+
+        if distance_col is None:
+            print("Error: No 'distance' column found in parquet file")
+            return None
+
+        distances = data_df[distance_col].values
         distances = distances - distances[0]
 
         if GENERATE_DISTANCES:
@@ -129,7 +140,9 @@ def load_data(fileNames: list[str]) -> Measurement | None:
                 f"Total length of measurement [seconds]: {total_time_seconds:.2f}")
             print(f"Total distance of measurement [m]: {total_distance:.2f}")
 
-        raw_data = data_df.iloc[:, 1:].values
+        # Get all columns except the distance column
+        data_columns = [col for col in data_df.columns if col != distance_col]
+        raw_data = data_df[data_columns].values
 
         print("Ensuring unique distance")
         unique_distances, first_occurrence_indices = np.unique(
@@ -175,7 +188,7 @@ def load_data(fileNames: list[str]) -> Measurement | None:
         # Finish distance generation
 
         measurement.channel_df = pd.DataFrame(
-            resampled_data, columns=data_df.columns[1:])
+            resampled_data, columns=data_columns)
         measurement.distances = resampled_distances
         measurement.channels = measurement.channel_df.columns
         valid_files_processed = True
