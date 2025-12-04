@@ -15,8 +15,11 @@ menu_priority = 3
 file_types = "All Files (*);;Parquet files (*.parquet);;Calibration files (*.tcal);;Paper machine files (*.pmdata.json)"
 
 RESAMPLE_STEP_DEFAULT_MM = 1
+<<<<<<< HEAD
 GENERATE_DISTANCES = False
 SAMPLE_STEP_DEFAULT = 0.0001
+=======
+>>>>>>> 482bffe (Move loader parameters to settings)
 
 ASH_MAC = -100
 LOG_VALS_MAX = 1000  # Maximum allowed value for logarithmic calibration output
@@ -39,7 +42,7 @@ def get_sample_step():
     sample_step, ok = QInputDialog.getDouble(None,
                                              "Sample Step",
                                              "Enter sample step value [m]:",
-                                             SAMPLE_STEP_DEFAULT,
+                                             settings.PQ_LOADER_GENERATE_DISTANCES_SAMPLE_STEP_DEFAULT,
                                              decimals=5)
     if ok:
         return sample_step
@@ -104,7 +107,7 @@ def load_data(fileNames: list[str]) -> Measurement | None:
                 distance_col = col
                 break
 
-        if GENERATE_DISTANCES:
+        if settings.PQ_LOADER_GENERATE_DISTANCES:
             sample_step = get_sample_step()
             if sample_step is None:
                 return None  # User canceled the input
