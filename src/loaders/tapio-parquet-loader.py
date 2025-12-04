@@ -104,20 +104,22 @@ def load_data(fileNames: list[str]) -> Measurement | None:
                 distance_col = col
                 break
 
-        if distance_col is None:
-            print("Error: No 'distance' column found in parquet file")
-            return None
-
-        distances = data_df[distance_col].values
-        distances = distances - distances[0]
-
         if GENERATE_DISTANCES:
             sample_step = get_sample_step()
             if sample_step is None:
                 return None  # User canceled the input
             distances = np.arange(len(data_df)) * sample_step
             measurement.sample_step = sample_step
+            # Keep all columns as data columns when generating distances
+            data_columns = list(data_df.columns)
         else:
+            if distance_col is None:
+                print("Error: No 'distance' column found in parquet file")
+                return None
+
+            distances = data_df[distance_col].values
+            distances = distances - distances[0]
+
             if len(distances) > 1:
                 delta_distance = np.diff(distances).mean()
                 sampling_frequency = 1000  # Hz
@@ -140,8 +142,9 @@ def load_data(fileNames: list[str]) -> Measurement | None:
                 f"Total length of measurement [seconds]: {total_time_seconds:.2f}")
             print(f"Total distance of measurement [m]: {total_distance:.2f}")
 
-        # Get all columns except the distance column
-        data_columns = [col for col in data_df.columns if col != distance_col]
+            # Exclude distance column from data columns when using it for distances
+            data_columns = [col for col in data_df.columns if col != distance_col]
+
         raw_data = data_df[data_columns].values
 
         print("Ensuring unique distance")
