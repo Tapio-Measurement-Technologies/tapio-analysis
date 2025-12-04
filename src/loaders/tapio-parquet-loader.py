@@ -325,11 +325,14 @@ def apply_calibration_with_uniform_trimming(measurement: Measurement, calibratio
                 x_vals = np.array(x_vals)
                 y_vals = np.array(y_vals)
 
+                # Optional offset parameter for calibration
+                d = cal_data.get('d', 0)
+
                 # Calculate slope and intercept using linear regression
                 slope, intercept = np.polyfit(x_vals, y_vals, 1)
 
-                # Apply linear equation y = mx + b
-                calibrated_values = slope * voltage_values + intercept
+                # Apply linear equation y = mx + b + d
+                calibrated_values = slope * voltage_values + intercept + d
 
             except (ValueError, TypeError) as e:
                 print(
