@@ -165,6 +165,8 @@ def parse_preconfigured_analyses(data: str) -> list[PreconfiguredAnalysis]:
 
             analyses.append(PreconfiguredAnalysis(**item))
         return analyses
+    except TypeError: # Most likely not a preconfigured analysis JSON file
+        return []
     except Exception as e:
         print(f"Error parsing preconfigured analyses: {e}")
         return []
