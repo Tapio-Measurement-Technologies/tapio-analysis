@@ -315,6 +315,9 @@ def apply_calibration_with_uniform_trimming(measurement: Measurement, calibratio
 
         voltage_values = measurement.channel_df[channel_name].values
 
+        # Optional offset parameter for calibration, used in linregr and linint calibrations
+        d = cal_data.get('d', 0)
+
         # Apply calibration based on the type
         if cal_data['type'] == 'linregr':
             # Linear regression - using best-fit line
@@ -326,9 +329,6 @@ def apply_calibration_with_uniform_trimming(measurement: Measurement, calibratio
                 x_vals, y_vals = zip(*points)
                 x_vals = np.array(x_vals)
                 y_vals = np.array(y_vals)
-
-                # Optional offset parameter for calibration
-                d = cal_data.get('d', 0)
 
                 # Calculate slope and intercept using linear regression
                 slope, intercept = np.polyfit(x_vals, y_vals, 1)
@@ -360,7 +360,7 @@ def apply_calibration_with_uniform_trimming(measurement: Measurement, calibratio
                 # Create interpolation function
                 interpolator = interp1d(
                     x_vals, y_vals, kind='linear', bounds_error=False, fill_value="extrapolate")
-                calibrated_values = interpolator(voltage_values)
+                calibrated_values = interpolator(voltage_values) + d
 
             except (ValueError, TypeError) as e:
                 print(
