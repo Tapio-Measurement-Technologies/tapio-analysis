@@ -53,16 +53,23 @@ def load_data(fileNames: list[str]) -> Measurement | None:
     valid_files_processed = False
 
     # Find relevant files from the provided list
+
     for fn in fileNames:
+
+        is_json_cal = fn.endswith('.json') and "-calibration" in fn
+        is_tcal = fn.endswith('.tcal')
+
         if fn.endswith('.parquet') and not parquet_file_path:
             parquet_file_path = fn
         # Allow .tcal or -calibration.json
-        elif fn.endswith('.json') and ("-calibration" in fn or fn.endswith(".tcal")) and not tcal_file_path:
+        elif (is_json_cal or is_tcal) and not tcal_file_path:
             tcal_file_path = fn
         elif fn.endswith('.pmdata.json') and not pmdata_file_path:
             pmdata_file_path = fn
         elif fn.lower().endswith('.samples.json'):
             measurement.samples_file_path = fn
+
+    print(tcal_file_path)
 
     if not parquet_file_path:
         print("No parquet file found in the provided list of files.")
@@ -129,7 +136,8 @@ def load_data(fileNames: list[str]) -> Measurement | None:
             print(f"Total distance of measurement [m]: {total_distance:.2f}")
 
             # Exclude distance column from data columns when using it for distances
-            data_columns = [col for col in data_df.columns if col != distance_col]
+            data_columns = [
+                col for col in data_df.columns if col != distance_col]
 
         raw_data = data_df[data_columns].values
 
@@ -182,7 +190,6 @@ def load_data(fileNames: list[str]) -> Measurement | None:
         measurement.channels = measurement.channel_df.columns
         valid_files_processed = True
 
-
     except Exception as e:
         print(
             f"Error reading or processing parquet file {parquet_file_path}: {e}")
@@ -218,7 +225,6 @@ def load_data(fileNames: list[str]) -> Measurement | None:
                 apply_calibration_with_uniform_trimming(
                     measurement, calibration_data)
 
-
                 # Add calculated channels
                 for channel_config in settings.CALCULATED_CHANNELS:
                     name = channel_config['name']
@@ -251,7 +257,6 @@ def load_data(fileNames: list[str]) -> Measurement | None:
                     measurement.peak_locations = peak_locations
                     measurement.selected_samples = selected_samples
                     measurement.split_data_to_segments()
-
 
         except Exception as e:
             print(f"Error processing TCAL file {tcal_file_path}: {e}")
