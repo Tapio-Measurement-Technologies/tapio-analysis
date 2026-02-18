@@ -1,0 +1,38 @@
+name: Update release information to WordPress
+on:
+  workflow_run:
+    workflows: ["Build and Release Executable"]
+    types:
+      - completed
+  workflow_dispatch:
+
+jobs:
+  update-wp:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Get Release Data
+        id: release_data
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_JSON=$(gh release view --repo ${{ github.repository }} --json assets,body)
+          RAW_EXE_URL=$(echo "$RELEASE_JSON" | jq -r '.assets[] | select(.name | endswith(".exe")) | .url' | head -n 1)
+          RAW_BODY=$(echo "$RELEASE_JSON" | jq -r '.body')
+          PAYLOAD=$(jq -n \
+            --arg url "$RAW_EXE_URL" \
+            --arg desc "$RAW_BODY" \
+            '{meta: {analysis_release_download_url: $url, analysis_release_description: $desc}}')
+          echo "$PAYLOAD" > payload.json
+
+      - name: Update WordPress via REST API
+        env:
+          WP_URL: "https://tapiotechnologies.com/wp-json/wp/v2/pages/3920"
+          WP_AUTH: ${{ secrets.WP_AUTH_B64 }}
+        run: |
+          curl -X POST "$WP_URL" \
+            -H "Authorization: Basic $WP_AUTH" \
+            -H "Content-Type: application/json" \
+            --data-binary @payload.json
