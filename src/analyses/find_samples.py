@@ -2,7 +2,7 @@ from PyQt6.QtGui import QAction
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QTableWidget,
                              QTableWidgetItem, QSizePolicy, QFileDialog, QHeaderView,
-                             QLabel)
+                             QLabel, QCheckBox)
 from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
 from utils.types import AnalysisType, PlotAnnotation
@@ -33,6 +33,7 @@ class AnalysisController(AnalysisControllerBase):
         self.peak_lines = []
         self.highlighted_intervals = []
         self.zoomed_in = False
+        self.invert_data = False
 
         self.set_default(
             'band_pass_low', settings.FIND_SAMPLES_BAND_PASS_LOW_DEFAULT_1M)
@@ -55,6 +56,9 @@ class AnalysisController(AnalysisControllerBase):
 
         self.filtered_data = bandpass_filter(
             self.data, self.band_pass_low, self.band_pass_high, self.fs)
+
+        if self.invert_data:
+            self.filtered_data = -1 * self.filtered_data
 
         alpha = 0.4 if len(self.measurement.selected_samples) else 1
         # Draw the entire data line with lower alpha
@@ -119,12 +123,18 @@ class AnalysisController(AnalysisControllerBase):
             self.peak_lines.append(vl)
 
     def detect_peaks(self, channel):
+        if self.threshold is None:
+            return self.peaks
+
         x = self.measurement.distances
         y = self.measurement.channel_df[channel]
 
         # TODO: already use the filtered data in the plot method
         y = bandpass_filter(y, self.band_pass_low,
                             self.band_pass_high, self.fs)
+
+        if self.invert_data:
+            y = -1 * y
 
         peaks = []
         start = None
@@ -192,6 +202,12 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], ChannelMixin, BandP
         # Ensure this method is correctly defined elsewhere
         self.addChannelSelector(self.main_layout)
         self.addBandPassRangeSlider(self.main_layout)
+
+        # Add invert data checkbox
+        self.invertCheckbox = QCheckBox("Invert data")
+        self.invertCheckbox.setChecked(self.controller.invert_data)
+        self.invertCheckbox.stateChanged.connect(self.onInvertDataChanged)
+        self.main_layout.addWidget(self.invertCheckbox)
 
         # Add sample length range slider
         sampleLengthLabel = QLabel("Sample length range [m]")
@@ -275,6 +291,12 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], ChannelMixin, BandP
                 self.measurement.selected_samples = self.get_selected_samples()
                 self.measurement.split_data_to_segments()
                 self.refresh()
+
+    def onInvertDataChanged(self, state):
+        # PyQt6 stateChanged emits int (0/2), so compare against enum value.
+        self.controller.invert_data = (state == Qt.CheckState.Checked.value)
+        # Invert is a local view toggle only; sample detection is only triggered on click.
+        self.refresh()
 
     def update_table(self, select_all=False):
         if not self.controller.peaks:
