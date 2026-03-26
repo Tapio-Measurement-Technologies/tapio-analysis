@@ -34,7 +34,7 @@ class DropZoneWidget(QWidget):
         self.dropZoneWidget = QWidget()
         dropZoneLayout = QVBoxLayout(self.dropZoneWidget)
 
-        self.dropLabel = QLabel("Drop files here or click to browse")
+        self.dropLabel = QLabel("Drop files or folders here or click to browse")
         self.dropLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setNormalStyle(self.dropLabel)
 

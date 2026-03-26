@@ -47,6 +47,7 @@ def get_sample_step():
 
 def load_data(fileNames: list[str]) -> Measurement | None:
     measurement = Measurement()
+    measurement.distance_inverted = False
     parquet_file_path = None
     tcal_file_path = None
     pmdata_file_path = None
@@ -110,8 +111,16 @@ def load_data(fileNames: list[str]) -> Measurement | None:
                 print("Error: No 'distance' column found in parquet file")
                 return None
 
-            distances = data_df[distance_col].values
+            distances = data_df[distance_col].values.astype(float)
             distances = distances - distances[0]
+            measurement.distance_inverted = False
+
+            if len(distances) > 1 and np.nanmean(np.diff(distances)) < 0:
+                measurement.distance_inverted = True
+                # Preserve the exact measured spacing while reorienting the
+                # axis to increase from the first acquired sample.
+                distances = -distances
+                print("Detected decreasing distance axis. Flipped distances to increasing order while preserving measured spacing.")
 
             if len(distances) > 1:
                 delta_distance = np.diff(distances).mean()
@@ -219,11 +228,14 @@ def load_data(fileNames: list[str]) -> Measurement | None:
                         # Default to Volts if no calibration
                         units_dict[channel_name] = "V"
 
-                measurement.units = units_dict
-
                 # Apply calibrations
-                apply_calibration_with_uniform_trimming(
+                failed_calibrations = apply_calibration_with_uniform_trimming(
                     measurement, calibration_data)
+
+                for channel_name in failed_calibrations:
+                    units_dict[channel_name] = "V"
+
+                measurement.units = units_dict
 
                 # Add calculated channels
                 for channel_config in settings.CALCULATED_CHANNELS:
@@ -302,11 +314,17 @@ def apply_calibration_with_uniform_trimming(measurement: Measurement, calibratio
     calibrated_channels = {}
     align_data_slices = {}
     calibrated_values = {}
+    failed_calibrations = set()
+
+    # When the source measurement ran in reverse, the distance axis is regenerated
+    # in increasing order and the calibration offsets must be mirrored to keep the
+    # same physical alignment.
+    offset_sign = -1 if getattr(measurement, "distance_inverted", False) else 1
 
     # Calculate the zero offset to handle negative minimum distances
     sample_step = measurement.sample_step
     print(calibration_data.values())
-    min_distance_offset = min(cal_data.get('offset', 0)
+    min_distance_offset = min(offset_sign * cal_data.get('offset', 0)
                               for cal_data in calibration_data.values())
     distance_zero_offset = abs(
         min_distance_offset) if min_distance_offset < 0 else 0
@@ -319,12 +337,17 @@ def apply_calibration_with_uniform_trimming(measurement: Measurement, calibratio
             continue
 
         voltage_values = measurement.channel_df[channel_name].values
+        calibrated_values = voltage_values
 
         # Optional offset parameter for calibration, used in linregr and linint calibrations
         d = cal_data.get('d', 0)
 
         # Apply calibration based on the type
-        if cal_data['type'] == 'linregr':
+        calibration_type = cal_data.get('type', 'none')
+
+        if calibration_type == 'none':
+            pass
+        elif calibration_type == 'linregr':
             # Linear regression - using best-fit line
             try:
                 points = cal_data.get('points', [])
@@ -341,12 +364,13 @@ def apply_calibration_with_uniform_trimming(measurement: Measurement, calibratio
                 # Apply linear equation y = mx + b + d
                 calibrated_values = slope * voltage_values + intercept + d
 
-            except (ValueError, TypeError) as e:
+            except Exception as e:
                 print(
                     f"Warning: Invalid linear regression calibration for {channel_name}: {e}")
                 calibrated_values = voltage_values
+                failed_calibrations.add(channel_name)
 
-        elif cal_data['type'] == 'linint':
+        elif calibration_type == 'linint':
             # Linear interpolation
             try:
                 points = cal_data.get('points', [])
@@ -367,12 +391,13 @@ def apply_calibration_with_uniform_trimming(measurement: Measurement, calibratio
                     x_vals, y_vals, kind='linear', bounds_error=False, fill_value="extrapolate")
                 calibrated_values = interpolator(voltage_values) + d
 
-            except (ValueError, TypeError) as e:
+            except Exception as e:
                 print(
                     f"Warning: Invalid linear interpolation calibration for {channel_name}: {e}")
                 calibrated_values = voltage_values
+                failed_calibrations.add(channel_name)
 
-        elif cal_data['type'] == 'splog':
+        elif calibration_type == 'splog':
             # Single-point logarithmic calibration
             try:
                 points = cal_data.get('points', [])
@@ -404,12 +429,13 @@ def apply_calibration_with_uniform_trimming(measurement: Measurement, calibratio
                 # Apply calibration
                 calibrated_values = logarithmic_fit(voltage_values, k, a, b)
 
-            except (ValueError, TypeError) as e:
+            except Exception as e:
                 print(
                     f"Warning: Invalid splog calibration for {channel_name}: {e}")
                 calibrated_values = voltage_values
+                failed_calibrations.add(channel_name)
 
-        elif cal_data['type'] == 'mplog':
+        elif calibration_type == 'mplog':
             # Multi-point logarithmic calibration
             try:
                 points = cal_data.get('points', [])
@@ -438,13 +464,19 @@ def apply_calibration_with_uniform_trimming(measurement: Measurement, calibratio
                 # Apply calibration
                 calibrated_values = logarithmic_fit(voltage_values, k, a, b)
 
-            except (ValueError, TypeError) as e:
+            except Exception as e:
                 print(
                     f"Warning: Invalid mplog calibration for {channel_name}: {e}")
                 calibrated_values = voltage_values
+                failed_calibrations.add(channel_name)
+        else:
+            print(
+                f"Warning: Unknown calibration type '{calibration_type}' for {channel_name}. Using raw voltage values.")
+            calibrated_values = voltage_values
+            failed_calibrations.add(channel_name)
 
         # Calculate the starting trim index for alignment
-        offset = cal_data.get('offset', 0)
+        offset = offset_sign * cal_data.get('offset', 0)
         align_start_index = round(
             (distance_zero_offset + offset) / sample_step)
         align_data_slices[channel_name] = align_start_index
@@ -455,6 +487,16 @@ def apply_calibration_with_uniform_trimming(measurement: Measurement, calibratio
     # Determine the final uniform length for trimming based on the maximum alignment slice
     data_len = min(len(values) - align_data_slices[channel]
                    for channel, values in calibrated_channels.items())
+
+    if data_len <= 0:
+        offset_range = {
+            channel: offset_sign * calibration_data[channel].get('offset', 0)
+            for channel in calibrated_channels
+        }
+        raise ValueError(
+            "Calibration offsets leave no overlapping data span after alignment. "
+            f"Sample step: {sample_step}, offsets: {offset_range}"
+        )
 
     # Initialize a new array to store the aligned and trimmed data
     trimmed_data = np.empty((data_len, len(calibrated_channels)))
@@ -475,3 +517,5 @@ def apply_calibration_with_uniform_trimming(measurement: Measurement, calibratio
     if settings.FLIP_LOADED_DATA:
         measurement.channel_df = measurement.channel_df.iloc[::-1]
         # dataMixin.distances = np.flip(dataMixin.distances)
+
+    return failed_calibrations
