@@ -298,6 +298,7 @@ def logarithmic_fit(V, k, a, b):
 
 def apply_calibration_with_uniform_trimming(measurement: Measurement, calibration_data):
     """Apply calibration and uniform trimming across all channels based on offset values, aligning distances."""
+    print(f"DEBUG: Starting calibration for {len(calibration_data)} channels")
     # Dictionary to hold calibrated data temporarily and offset alignment values
     calibrated_channels = {}
     align_data_slices = {}
@@ -305,11 +306,12 @@ def apply_calibration_with_uniform_trimming(measurement: Measurement, calibratio
 
     # Calculate the zero offset to handle negative minimum distances
     sample_step = measurement.sample_step
-    print(calibration_data.values())
+    print(f"DEBUG: Sample step: {sample_step}")
     min_distance_offset = min(cal_data.get('offset', 0)
                               for cal_data in calibration_data.values())
     distance_zero_offset = abs(
         min_distance_offset) if min_distance_offset < 0 else 0
+    print(f"DEBUG: Min distance offset: {min_distance_offset}, distance zero offset: {distance_zero_offset}")
 
     # Calibrate and align data for each channel
     for channel_name, cal_data in calibration_data.items():
@@ -319,12 +321,19 @@ def apply_calibration_with_uniform_trimming(measurement: Measurement, calibratio
             continue
 
         voltage_values = measurement.channel_df[channel_name].values
+        print(f"DEBUG: {channel_name} - Input voltage stats: min={voltage_values.min():.6f}, max={voltage_values.max():.6f}, mean={voltage_values.mean():.6f}")
 
         # Optional offset parameter for calibration, used in linregr and linint calibrations
         d = cal_data.get('d', 0)
+        print(f"DEBUG: {channel_name} - Calibration type: {cal_data['type']}, d={d}")
 
         # Apply calibration based on the type
-        if cal_data['type'] == 'linregr':
+        if cal_data['type'] == 'none':
+            # No calibration applied
+            calibrated_values = voltage_values
+            print(f"DEBUG: {channel_name} - no calibration applied")
+
+        elif cal_data['type'] == 'linregr':
             # Linear regression - using best-fit line
             try:
                 points = cal_data.get('points', [])
@@ -334,12 +343,15 @@ def apply_calibration_with_uniform_trimming(measurement: Measurement, calibratio
                 x_vals, y_vals = zip(*points)
                 x_vals = np.array(x_vals)
                 y_vals = np.array(y_vals)
+                print(f"DEBUG: {channel_name} - linregr points: x={x_vals}, y={y_vals}")
 
                 # Calculate slope and intercept using linear regression
                 slope, intercept = np.polyfit(x_vals, y_vals, 1)
+                print(f"DEBUG: {channel_name} - linregr fitted: slope={slope:.6f}, intercept={intercept:.6f}")
 
                 # Apply linear equation y = mx + b + d
                 calibrated_values = slope * voltage_values + intercept + d
+                print(f"DEBUG: {channel_name} - linregr output stats: min={calibrated_values.min():.6f}, max={calibrated_values.max():.6f}, mean={calibrated_values.mean():.6f}")
 
             except (ValueError, TypeError) as e:
                 print(
@@ -356,6 +368,7 @@ def apply_calibration_with_uniform_trimming(measurement: Measurement, calibratio
                 x_vals, y_vals = zip(*points)
                 x_vals = np.array(x_vals)
                 y_vals = np.array(y_vals)
+                print(f"DEBUG: {channel_name} - linint points: x={x_vals}, y={y_vals}")
 
                 # Sort points by x values for proper interpolation
                 sort_idx = np.argsort(x_vals)
@@ -366,6 +379,7 @@ def apply_calibration_with_uniform_trimming(measurement: Measurement, calibratio
                 interpolator = interp1d(
                     x_vals, y_vals, kind='linear', bounds_error=False, fill_value="extrapolate")
                 calibrated_values = interpolator(voltage_values) + d
+                print(f"DEBUG: {channel_name} - linint output stats: min={calibrated_values.min():.6f}, max={calibrated_values.max():.6f}, mean={calibrated_values.mean():.6f}")
 
             except (ValueError, TypeError) as e:
                 print(
@@ -382,17 +396,21 @@ def apply_calibration_with_uniform_trimming(measurement: Measurement, calibratio
                 x_vals, y_vals = zip(*points)
                 x_vals = np.array(x_vals)
                 y_vals = np.array(y_vals)
+                print(f"DEBUG: {channel_name} - splog points: x={x_vals}, y={y_vals}")
 
                 # Remove minimum point to avoid asymptote issues
                 min_index = np.argmin(x_vals)
                 x_filtered = np.delete(x_vals, min_index)
                 y_filtered = np.delete(y_vals, min_index)
+                print(f"DEBUG: {channel_name} - splog filtered points: x={x_filtered}, y={y_filtered}")
 
                 # Fixed k parameter for single-point log
                 k = cal_data.get('k', ASH_MAC)
+                print(f"DEBUG: {channel_name} - splog k={k}")
 
                 # Fixed a parameter (typically close to minimum voltage)
                 a = min(x_vals)
+                print(f"DEBUG: {channel_name} - splog a={a}")
 
                 # Fit only the b parameter
                 popt, _ = curve_fit(
@@ -400,9 +418,11 @@ def apply_calibration_with_uniform_trimming(measurement: Measurement, calibratio
                     x_filtered, y_filtered, p0=[1], absolute_sigma=True
                 )
                 b = popt[0]
+                print(f"DEBUG: {channel_name} - splog fitted b={b:.6f}")
 
                 # Apply calibration
                 calibrated_values = logarithmic_fit(voltage_values, k, a, b)
+                print(f"DEBUG: {channel_name} - splog output stats: min={calibrated_values.min():.6f}, max={calibrated_values.max():.6f}, mean={calibrated_values.mean():.6f}")
 
             except (ValueError, TypeError) as e:
                 print(
@@ -419,14 +439,17 @@ def apply_calibration_with_uniform_trimming(measurement: Measurement, calibratio
                 x_vals, y_vals = zip(*points)
                 x_vals = np.array(x_vals)
                 y_vals = np.array(y_vals)
+                print(f"DEBUG: {channel_name} - mplog points: x={x_vals}, y={y_vals}")
 
                 # Remove minimum point to avoid asymptote issues
                 min_index = np.argmin(x_vals)
                 x_filtered = np.delete(x_vals, min_index)
                 y_filtered = np.delete(y_vals, min_index)
+                print(f"DEBUG: {channel_name} - mplog filtered points: x={x_filtered}, y={y_filtered}")
 
                 # Fixed a parameter (typically close to minimum voltage)
                 a = min(x_vals)
+                print(f"DEBUG: {channel_name} - mplog a={a}")
 
                 # Fit both k and b parameters
                 popt, _ = curve_fit(
@@ -434,20 +457,28 @@ def apply_calibration_with_uniform_trimming(measurement: Measurement, calibratio
                     x_filtered, y_filtered, p0=[-1, 1], absolute_sigma=True
                 )
                 k, b = popt  # Unpack the fitted parameters
+                print(f"DEBUG: {channel_name} - mplog fitted k={k:.6f}, b={b:.6f}")
 
                 # Apply calibration
                 calibrated_values = logarithmic_fit(voltage_values, k, a, b)
+                print(f"DEBUG: {channel_name} - mplog output stats: min={calibrated_values.min():.6f}, max={calibrated_values.max():.6f}, mean={calibrated_values.mean():.6f}")
 
             except (ValueError, TypeError) as e:
                 print(
                     f"Warning: Invalid mplog calibration for {channel_name}: {e}")
                 calibrated_values = voltage_values
 
+        else:
+            # Unknown calibration type
+            print(f"Warning: Unknown calibration type '{cal_data['type']}' for {channel_name}, using raw voltage values")
+            calibrated_values = voltage_values
+
         # Calculate the starting trim index for alignment
         offset = cal_data.get('offset', 0)
         align_start_index = round(
             (distance_zero_offset + offset) / sample_step)
         align_data_slices[channel_name] = align_start_index
+        print(f"DEBUG: {channel_name} - offset={offset}, distance_zero_offset={distance_zero_offset}, sample_step={sample_step}, align_start_index={align_start_index}")
 
         # Store the calibrated values temporarily
         calibrated_channels[channel_name] = calibrated_values
@@ -455,6 +486,16 @@ def apply_calibration_with_uniform_trimming(measurement: Measurement, calibratio
     # Determine the final uniform length for trimming based on the maximum alignment slice
     data_len = min(len(values) - align_data_slices[channel]
                    for channel, values in calibrated_channels.items())
+    print(f"DEBUG: Calculated data_len: {data_len}")
+    if data_len <= 0:
+        print(f"ERROR: data_len is {data_len}, which would result in empty data. Check offset values and sample_step.")
+        print(f"DEBUG: align_data_slices: {align_data_slices}")
+        print(f"DEBUG: data lengths: {[(channel, len(values)) for channel, values in calibrated_channels.items()]}")
+        # Skip trimming if data_len <= 0
+        measurement.channel_df = pd.DataFrame(calibrated_channels)
+        measurement.distances = measurement.distances
+        return
+    print(f"DEBUG: Final data length after trimming: {data_len}")
 
     # Initialize a new array to store the aligned and trimmed data
     trimmed_data = np.empty((data_len, len(calibrated_channels)))
@@ -462,10 +503,14 @@ def apply_calibration_with_uniform_trimming(measurement: Measurement, calibratio
         start_trim = align_data_slices[channel_name]
         # Align and trim each channel based on the calculated slice
         trimmed_data[:, index] = calibrated_values[start_trim:start_trim + data_len]
+        print(f"DEBUG: {channel_name} - trimmed data stats: min={trimmed_data[:, index].min():.6f}, max={trimmed_data[:, index].max():.6f}, mean={trimmed_data[:, index].mean():.6f}")
 
     # Update the dataMixin with the trimmed DataFrame
     measurement.channel_df = pd.DataFrame(
         trimmed_data, columns=calibrated_channels.keys())
+    print(f"DEBUG: Final channel_df shape: {measurement.channel_df.shape}")
+    for col in measurement.channel_df.columns:
+        print(f"DEBUG: Final {col} stats: min={measurement.channel_df[col].min():.6f}, max={measurement.channel_df[col].max():.6f}, mean={measurement.channel_df[col].mean():.6f}")
 
     # Update distances to match the trimmed data length
     measurement.distances = measurement.distances[align_data_slices[min(
@@ -474,4 +519,5 @@ def apply_calibration_with_uniform_trimming(measurement: Measurement, calibratio
     # Flip the data if specified in settings
     if settings.FLIP_LOADED_DATA:
         measurement.channel_df = measurement.channel_df.iloc[::-1]
+        print("DEBUG: Data flipped as per settings.FLIP_LOADED_DATA")
         # dataMixin.distances = np.flip(dataMixin.distances)
