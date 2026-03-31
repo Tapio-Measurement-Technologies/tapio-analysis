@@ -198,6 +198,17 @@ class MainWindow(QMainWindow):
         processed_paths = []
 
         for file_path in file_paths:
+            if os.path.isdir(file_path):
+                print(f"Expanding folder: {file_path}")
+                folder_files = []
+                for root, _, files in os.walk(file_path):
+                    for name in sorted(files):
+                        folder_files.append(os.path.join(root, name))
+                if folder_files:
+                    processed_paths.extend(
+                        self._preprocess_file_paths(folder_files))
+                continue
+
             if file_path.lower().endswith('.zip'):
                 print(f"Unpacking ZIP file: {file_path}")
                 extracted_files, temp_dir_path = unpack_zip_to_temp_with_password_prompt(

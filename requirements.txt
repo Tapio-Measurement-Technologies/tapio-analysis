@@ -4,7 +4,7 @@ cramjam==2.9.0
 cycler==0.12.1
 et-xmlfile==1.1.0
 fastparquet==2024.5.0
-fonttools==4.49.0
+fonttools==4.60.2
 fsspec==2024.10.0
 iniconfig==2.0.0
 kiwisolver==1.4.5
