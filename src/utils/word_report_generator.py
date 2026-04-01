@@ -110,8 +110,9 @@ class WordReportGenerator(ReportGenerator):
             set_paragraph_spacing(paragraph)
             self._add_analysis_to_word(doc, analysis)
 
-        if doc.paragraphs[-1].text.strip():
-            doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
+        if settings.REPORT_SECTION_NEWPAGE:
+            if doc.paragraphs[-1].text.strip():
+                doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
 
     def _add_analysis_to_word(self, doc, analysis):
         layout_mode = analysis.report_layout or "stats-right"
