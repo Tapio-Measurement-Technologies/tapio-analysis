@@ -83,13 +83,14 @@ class WordReportGenerator(ReportGenerator):
                             width=Mm(right_col_width.mm * 0.9))
 
         # Add sections
-        for section in self.sections:
-            self._add_section_to_word(doc, section)
+        for index, section in enumerate(self.sections):
+            is_last_section = index == len(self.sections) - 1
+            self._add_section_to_word(doc, section, is_last_section)
 
         # Save document
         doc.save(output_path)
 
-    def _add_section_to_word(self, doc, section):
+    def _add_section_to_word(self, doc, section, is_last_section=False):
         paragraph = doc.add_heading(section.section_name)
         run = paragraph.runs[0]
         run.font.color.rgb = None
@@ -110,9 +111,8 @@ class WordReportGenerator(ReportGenerator):
             set_paragraph_spacing(paragraph)
             self._add_analysis_to_word(doc, analysis)
 
-        if settings.REPORT_SECTION_NEWPAGE:
-            if doc.paragraphs[-1].text.strip():
-                doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
+        if settings.REPORT_SECTION_NEWPAGE and not is_last_section:
+            doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
 
     def _add_analysis_to_word(self, doc, analysis):
         layout_mode = analysis.report_layout or "stats-right"
