@@ -525,10 +525,22 @@ class BandPassFilterMixin:
     def initBandPassRangeSlider(self, block_signals=False):
         # Prevent recursive refresh calls when updating values elsewhere
         self.bandPassFilterSlider.blockSignals(block_signals)
-        self.bandPassFilterSlider.setRange(0, (self.controller.fs / 2) *
-                                           ((settings.FILTER_NUMTAPS - 1) / settings.FILTER_NUMTAPS))
-        self.bandPassFilterSlider.setValue(
-            (self.controller.band_pass_low, self.controller.band_pass_high))
+        slider_min = 0
+        slider_max = (self.controller.fs / 2) * \
+            ((settings.FILTER_NUMTAPS - 1) / settings.FILTER_NUMTAPS)
+        self.bandPassFilterSlider.setRange(slider_min, slider_max)
+
+        band_pass_low = min(
+            max(self.controller.band_pass_low, slider_min), slider_max)
+        band_pass_high = min(
+            max(self.controller.band_pass_high, slider_min), slider_max)
+
+        if band_pass_low > band_pass_high:
+            band_pass_low = band_pass_high
+
+        self.controller.band_pass_low = band_pass_low
+        self.controller.band_pass_high = band_pass_high
+        self.bandPassFilterSlider.setValue((band_pass_low, band_pass_high))
         self.bandPassFilterSlider.blockSignals(False)
         self._update_wavelength_label()
 
