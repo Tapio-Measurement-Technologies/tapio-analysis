@@ -68,8 +68,18 @@ set "shortcutPath=%projectPath%\Tapio Analysis.lnk"
 :: Create a batch file to activate the virtual environment and run the script
 echo Creating batch file to run Tapio Analysis...
 echo @echo off > "%batchFilePath%"
-echo call "%venvActivatePath%" >> "%batchFilePath%"
-echo python "%scriptPath%" >> "%batchFilePath%"
+echo setlocal >> "%batchFilePath%"
+echo. >> "%batchFilePath%"
+echo set "PROJECT_DIR=%%~dp0" >> "%batchFilePath%"
+echo set "SETTINGS_ARG=%%~1" >> "%batchFilePath%"
+echo. >> "%batchFilePath%"
+echo call "%%PROJECT_DIR%%.venv\Scripts\activate" >> "%batchFilePath%"
+echo. >> "%batchFilePath%"
+echo if defined SETTINGS_ARG ( >> "%batchFilePath%"
+echo^    python "%%PROJECT_DIR%%src\main.py" "%%SETTINGS_ARG%%" >> "%batchFilePath%"
+echo ) else ( >> "%batchFilePath%"
+echo^    python "%%PROJECT_DIR%%src\main.py" >> "%batchFilePath%"
+echo ) >> "%batchFilePath%"
 if %ERRORLEVEL% neq 0 (
     echo Failed to create batch file.
     exit /b 1
