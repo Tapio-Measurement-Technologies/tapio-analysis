@@ -3,6 +3,7 @@ import os
 import importlib.util
 import sys
 from utils.types import MainWindowSection, MainWindowSectionModule
+from utils.cli_args import parse_startup_args
 
 DEBUG = False
 
@@ -317,7 +318,7 @@ VCA_REMOVE_MD_VARIATIONS_DEFAULT = False
 
 # Find Samples settings
 FIND_SAMPLES_BAND_PASS_LOW_DEFAULT_1M = 0
-FIND_SAMPLES_BAND_PASS_HIGH_DEFAULT_1M = 1000
+FIND_SAMPLES_BAND_PASS_HIGH_DEFAULT_1M = 30
 FIND_SAMPLES_WINDOW_SIZE = (1000, 800)
 
 CEPSTRUM_WINDOW_SIZE = (1000, 600)
@@ -472,17 +473,16 @@ def apply_custom_settings_from_dict(settings_dict):
     return settings_dict
 
 # Check if a local_settings.py path is provided as a parameter
+startup_args = parse_startup_args()
 
-
-if len(sys.argv) > 1:
-    supplied_local_settings = sys.argv[1]
+if startup_args.settings_path:
+    supplied_local_settings = startup_args.settings_path
     if not supplied_local_settings.lower().endswith('.py'):
         print(
             f"WARNING: Provided local_settings file is not a .py file: {supplied_local_settings}")
     elif os.path.exists(supplied_local_settings):
         print(
             f"Loading local settings from provided argument {supplied_local_settings}")
-        # Dynamically load settings from the provided path
         apply_custom_settings_from_file(supplied_local_settings)
     else:
         print(

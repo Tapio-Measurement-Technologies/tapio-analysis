@@ -107,6 +107,8 @@ class AnalysisWindowBase(QWidget, Generic[ControllerT]):
         pass
 
     def closeEvent(self, event):
+        if hasattr(self, 'close_child_windows'):
+            self.close_child_windows()
         self.closed.emit()
         super().closeEvent(event)
 

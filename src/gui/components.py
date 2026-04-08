@@ -1078,7 +1078,7 @@ class CopyPlotMixin:
 
 
 class ChildWindowCloseMixin:
-    def closeEvent(self, event):
+    def close_child_windows(self):
         # Close the paper machine data window if it exists
         if hasattr(self, 'paperMachineDataWindow') and self.paperMachineDataWindow:
             self.paperMachineDataWindow.close()
@@ -1093,6 +1093,10 @@ class ChildWindowCloseMixin:
         if hasattr(self, 'sampleSelectorWindow') and self.sampleSelectorWindow:
             self.sampleSelectorWindow.close()
             self.sampleSelectorWindow = None
+
+    def closeEvent(self, event):
+        self.close_child_windows()
+        super().closeEvent(event)
 
 
 class StatWidget(QWidget):

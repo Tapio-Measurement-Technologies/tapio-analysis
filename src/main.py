@@ -23,12 +23,14 @@ store.log_manager = LogManager(stdout_stream, stderr_stream, settings.LOG_WINDOW
 
 from PyQt6.QtWidgets import QApplication, QStyleFactory
 from PyQt6.QtGui import QIcon
+from PyQt6.QtCore import QTimer
 import logging
 import os
 import sys
 import traceback
 
 from gui.main_window import MainWindow
+from utils.cli_args import parse_startup_args
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -47,13 +49,22 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 sys.excepthook = handle_exception
 
 def main():
-    app = QApplication(sys.argv)
+    startup_args = parse_startup_args()
+    qt_argv = [sys.argv[0], *startup_args.passthrough_args]
+    app = QApplication(qt_argv)
     app.setWindowIcon(
         QIcon(os.path.join(settings.ASSETS_DIR, "tapio_icon.ico")))
 
     app.setStyle(QStyleFactory.create('Fusion'))
     window = MainWindow()
     window.show()
+
+    if startup_args.open_paths:
+        QTimer.singleShot(
+            0,
+            lambda: window.handleDroppedFiles(startup_args.open_paths),
+        )
+
     sys.exit(app.exec())
 
 # Show splash screen on standalone pyinstaller executable

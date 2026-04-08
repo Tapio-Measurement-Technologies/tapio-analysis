@@ -3,11 +3,20 @@ import sys
 import importlib
 import settings
 
+_last_setting_key = ""
+
+
 def open_setting_input_dialog(parent_widget):
     """Opens a dialog to get a setting key and value from the user, then updates the setting."""
+    global _last_setting_key
+
     # Step 1: Ask user for the setting key
     setting_key, ok = QInputDialog.getText(
-        parent_widget, "Enter Setting Name", "Setting Key:")
+        parent_widget,
+        "Enter Setting Name",
+        "Setting Key:",
+        text=_last_setting_key
+    )
 
     if not ok or not setting_key:
         return  # User canceled the input
@@ -35,6 +44,7 @@ def open_setting_input_dialog(parent_widget):
     try:
         converted_value = convert_value(new_value, value_type)
         set_setting(setting_key, converted_value)
+        _last_setting_key = setting_key
         QMessageBox.information(
             parent_widget,
             "Success",

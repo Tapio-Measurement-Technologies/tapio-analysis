@@ -16,6 +16,11 @@ analysis_name = "Find samples"
 analysis_types = ["MD"]
 allow_multiple_instances = False
 PEAK_WHEEL_STEP_M = 0.001
+MOUSE_BUTTON_MAP = {
+    1: MouseButton.LEFT,
+    2: MouseButton.MIDDLE,
+    3: MouseButton.RIGHT,
+}
 
 
 class AnalysisController(AnalysisControllerBase):
@@ -45,6 +50,19 @@ class AnalysisController(AnalysisControllerBase):
         self.set_default('min_length', settings.CD_SAMPLE_MIN_LENGTH_M)
         self.set_default('max_length', settings.CD_SAMPLE_MAX_LENGTH_M)
 
+    def get_filtered_signal(self, channel):
+        filtered_data = bandpass_filter(
+            self.measurement.channel_df[channel],
+            self.band_pass_low,
+            self.band_pass_high,
+            self.fs,
+        )
+
+        if self.invert_data:
+            filtered_data = -1 * filtered_data
+
+        return filtered_data
+
     def plot(self):
         self.figure.clear()
 
@@ -56,12 +74,7 @@ class AnalysisController(AnalysisControllerBase):
 
         self.distances = self.measurement.distances
         self.data = self.measurement.channel_df[self.channel]
-
-        self.filtered_data = bandpass_filter(
-            self.data, self.band_pass_low, self.band_pass_high, self.fs)
-
-        if self.invert_data:
-            self.filtered_data = -1 * self.filtered_data
+        self.filtered_data = self.get_filtered_signal(self.channel)
 
         alpha = 0.4 if len(self.measurement.selected_samples) else 1
         # Draw the entire data line with lower alpha
@@ -140,38 +153,35 @@ class AnalysisController(AnalysisControllerBase):
             return self.peaks
 
         x = self.measurement.distances
-        y = self.measurement.channel_df[channel]
-
-        # TODO: already use the filtered data in the plot method
-        y = bandpass_filter(y, self.band_pass_low,
-                            self.band_pass_high, self.fs)
-
-        if self.invert_data:
-            y = -1 * y
+        y = self.get_filtered_signal(channel)
 
         peaks = []
         start = None
 
-        tape_width_meters = settings.TAPE_WIDTH_MM / 1000.0
         min_length_meters = self.min_length
-        max_length_meters = self.max_length
-        print("min: ", min_length_meters, " max: ", max_length_meters)
-
-        last_peak_end = None
+        last_peak_right_edge = None
 
         for i in range(len(y)):
             if y[i] > self.threshold and start is None:
                 start = i
-            elif (y[i] <= self.threshold or i == len(y) - 1) and start is not None:
-                end = i
-                if start is not None and (x[end] - x[start]) >= tape_width_meters:
-                    center = x[start] + (x[end] - x[start]) / 2
+            elif y[i] <= self.threshold and start is not None:
+                end = i - 1
+                left_edge, right_edge, center = self.estimate_tape_geometry(
+                    x, y, start, end)
 
-                    # Check if this is the first peak or if the distance from last peak is within bounds
-                    if last_peak_end is None or (min_length_meters <= (x[start] - x[last_peak_end])):
-                        peaks.append(center)
-                    last_peak_end = end
-                    start = None
+                if last_peak_right_edge is None or min_length_meters <= (left_edge - last_peak_right_edge):
+                    peaks.append(center)
+                last_peak_right_edge = right_edge
+                start = None
+
+        if start is not None:
+            end = len(y) - 1
+            left_edge, right_edge, center = self.estimate_tape_geometry(
+                x, y, start, end)
+
+            if last_peak_right_edge is None or min_length_meters <= (left_edge - last_peak_right_edge):
+                peaks.append(center)
+            last_peak_right_edge = right_edge
 
         self.peaks = peaks
         self.measurement.peak_locations = self.peaks.copy()
@@ -179,6 +189,32 @@ class AnalysisController(AnalysisControllerBase):
         self.measurement.peak_channel = channel
 
         return peaks
+
+    def interpolate_threshold_crossing(self, x0, y0, x1, y1):
+        if y1 == y0:
+            return (x0 + x1) / 2
+
+        t = (self.threshold - y0) / (y1 - y0)
+        t = max(0.0, min(1.0, t))
+        return x0 + t * (x1 - x0)
+
+    def estimate_tape_geometry(self, x, y, start, end):
+        left_edge = x[start]
+        right_edge = x[end]
+
+        if start > 0:
+            left_edge = self.interpolate_threshold_crossing(
+                x[start - 1], y[start - 1], x[start], y[start])
+
+        if end < len(y) - 1:
+            right_edge = self.interpolate_threshold_crossing(
+                x[end], y[end], x[end + 1], y[end + 1])
+
+        # Keep threshold as the source of truth: tape center is the midpoint
+        # between the interpolated threshold crossings.
+        center = (left_edge + right_edge) / 2
+
+        return left_edge, right_edge, center
 
     def get_peak_bounds(self, index):
         epsilon = 1e-6
@@ -454,6 +490,13 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], ChannelMixin, BandP
             self.controller.canvas.toolbar and self.controller.canvas.toolbar.mode
         )
 
+    def is_selector_button(self, button):
+        expected_button = MOUSE_BUTTON_MAP.get(
+            settings.FREQUENCY_SELECTOR_MOUSE_BUTTON,
+            settings.FREQUENCY_SELECTOR_MOUSE_BUTTON,
+        )
+        return button == expected_button or button == settings.FREQUENCY_SELECTOR_MOUSE_BUTTON
+
     def on_click(self, event):
         if event.inaxes not in self.controller.figure.axes:
             return
@@ -461,7 +504,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], ChannelMixin, BandP
         if self.is_navigation_mode_active():
             return
 
-        if event.button == settings.FREQUENCY_SELECTOR_MOUSE_BUTTON:  # Middle mouse button
+        if self.is_selector_button(event.button):
             if event.ydata is not None:
                 self.controller.highlighted_intervals = []
                 self.controller.threshold = event.ydata
