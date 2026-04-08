@@ -94,24 +94,24 @@ class Measurement:
         with open(self.pm_file_path, 'r') as f:
             self.pm_data = json.load(f)
 
-    # def get_cd_segments(self, peak_locations: list[float], tape_width_m: float) -> list[CDSegment]:
+    # def get_cd_segments(self, peak_locations: list[float], tape_half_width_m: float) -> list[CDSegment]:
     #     segments = []
     #     for i in range(len(peak_locations)-1):
-    #         start_dist = peak_locations[i] + tape_width_m
-    #         end_dist = peak_locations[i+1] - tape_width_m
+    #         start_dist = peak_locations[i] + tape_half_width_m
+    #         end_dist = peak_locations[i+1] - tape_half_width_m
     #         segments.append(CDSegment(start_dist, end_dist, self.sample_step))
     #     return segments
 
     def split_data_to_segments(self):
         """Split data into segments based on peak locations."""
         segments = {}
-        tape_width_m = settings.TAPE_WIDTH_MM / 1000.0
+        tape_half_width_m = settings.TAPE_WIDTH_MM / 2000.0
 
         for channel in self.channels:
             channel_segments = []
             for i in range(len(self.peak_locations)-1):
-                start_dist = self.peak_locations[i] + tape_width_m
-                end_dist = self.peak_locations[i+1] - tape_width_m
+                start_dist = self.peak_locations[i] + tape_half_width_m
+                end_dist = self.peak_locations[i+1] - tape_half_width_m
 
                 start_index = np.searchsorted(
                     self.distances, start_dist, side='left')
@@ -129,7 +129,7 @@ class Measurement:
                 segments[channel] = np.array(trimmed_segments)
 
         self.segments = segments
-        # self.cd_segments = self.get_cd_segments(self.peak_locations, tape_width_m)
+        # self.cd_segments = self.get_cd_segments(self.peak_locations, tape_half_width_m)
 
         if segments:
             # Only calculate cd_distances if we have segments

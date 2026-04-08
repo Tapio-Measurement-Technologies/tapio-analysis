@@ -189,6 +189,8 @@ class AnalysisController(AnalysisControllerBase):
             freqs <= self.frequency_range_high)
         freqs_cut = freqs[freq_indices]
         amplitudes_cut = amplitudes[freq_indices, :]
+        self.frequencies = freqs_cut
+        self.amplitudes = amplitudes_cut
         im = ax.imshow(amplitudes_cut, aspect='auto', origin='lower',
                        extent=[bins[0], bins[-1], freqs_cut[0], freqs_cut[-1]],
                        norm=matplotlib.colors.Normalize(vmin=0, vmax=3*np.mean(amplitudes_cut)), cmap=settings.SPECTROGRAM_COLORMAP)
@@ -228,18 +230,62 @@ class AnalysisController(AnalysisControllerBase):
 
         # Draw new lines and update frequency label
         if self.selected_freqs:
-
             ylim = ax.get_ylim()
 
-            for i in range(1, settings.MAX_HARMONICS_DISPLAY):
-                if (self.selected_freqs[-1] * i > ylim[1]) or (self.selected_freqs[-1] * i < ylim[0]):
-                    # Skip drawing the line if it is out of bounds
-                    continue
+            if settings.MULTIPLE_SELECT_MODE:
+                cmap = plt.get_cmap('tab10')
+                color_cycle = [cmap(i) for i in range(max(len(self.selected_freqs), 1))]
 
-                label = "Selected frequency" if (i == 1) else None
-                hl = ax.axhline(y=self.selected_freqs[-1] * i,
-                                color='r', linestyle='--', alpha=1 - (1/settings.MAX_HARMONICS_DISPLAY) * i, label=label)
-                self.current_hlines.append(hl)
+                for i, selected_freq in enumerate(self.selected_freqs):
+                    selected_freq = self.snap_frequency_to_bin(selected_freq)
+                    if selected_freq is None:
+                        continue
+                    if (selected_freq > ylim[1]) or (selected_freq < ylim[0]):
+                        continue
+
+                    amplitude = self.get_frequency_amplitude(selected_freq)
+                    if amplitude is None:
+                        continue
+
+                    if self.window_type == "MD":
+                        label = f"{selected_freq:.2f} 1/m ({self.get_freq_in_hz(selected_freq):.2f} Hz) λ = {100 * 1/selected_freq:.2f} cm A = {amplitude:.2f} {self.measurement.units[self.channel]}"
+                    else:
+                        label = f"{selected_freq:.2f} 1/m λ = {100 * 1/selected_freq:.2f} cm A = {amplitude:.2f} {self.measurement.units[self.channel]}"
+
+                    hl = ax.axhline(
+                        y=selected_freq,
+                        linestyle='--',
+                        alpha=0.6,
+                        color=color_cycle[i % len(color_cycle)],
+                        label=label,
+                    )
+                    self.current_hlines.append(hl)
+            else:
+                selected_freq = self.snap_frequency_to_bin(self.selected_freqs[-1])
+                if selected_freq is not None:
+                    self.selected_freqs[-1] = selected_freq
+
+                for i in range(1, settings.MAX_HARMONICS_DISPLAY):
+                    harmonic_freq = self.selected_freqs[-1] * i
+                    if (harmonic_freq > ylim[1]) or (harmonic_freq < ylim[0]):
+                        # Skip drawing the line if it is out of bounds
+                        continue
+
+                    amplitude = self.get_frequency_amplitude(self.selected_freqs[-1])
+                    if amplitude is None:
+                        continue
+
+                    if i == 1:
+                        if self.window_type == "MD":
+                            label = f"{self.selected_freqs[-1]:.2f} 1/m ({self.get_freq_in_hz(self.selected_freqs[-1]):.2f} Hz) λ = {100 * 1/self.selected_freqs[-1]:.2f} cm A = {amplitude:.2f} {self.measurement.units[self.channel]}"
+                        else:
+                            label = f"{self.selected_freqs[-1]:.2f} 1/m λ = {100 * 1/self.selected_freqs[-1]:.2f} cm A = {amplitude:.2f} {self.measurement.units[self.channel]}"
+                    else:
+                        label = None
+
+                    hl = ax.axhline(y=harmonic_freq,
+                                    color='r', linestyle='--', alpha=1 - (1/settings.MAX_HARMONICS_DISPLAY) * i, label=label)
+                    self.current_hlines.append(hl)
 
         colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
@@ -263,7 +309,8 @@ class AnalysisController(AnalysisControllerBase):
                 self.current_hlines.append(hl)
         handles, labels = ax.get_legend_handles_labels()
         if labels:  # This list will be non-empty if there are items to include in the legend
-            ax.legend(handles, labels, loc="upper right")
+            ax.legend(handles, labels, loc="upper right",
+                      facecolor='white', framealpha=1)
 
         self.canvas.draw()
         self.updated.emit()
@@ -272,7 +319,7 @@ class AnalysisController(AnalysisControllerBase):
 
     def getStatsTableData(self):
         stats = []
-        if self.selected_freqs[-1]:
+        if self.selected_freqs and self.selected_freqs[-1]:
             wavelength = 1 / self.selected_freqs[-1]
             stats.append(["Selected frequency:", ""])
             if self.window_type == "MD":
@@ -287,6 +334,41 @@ class AnalysisController(AnalysisControllerBase):
                     f"{self.selected_freqs[-1]:.2f} 1/m\n{100*wavelength:.3f} m"
                 ])
         return stats
+
+    def get_nearest_frequency_bin_index(self, freq):
+        if freq is None or not hasattr(self, "frequencies") or len(self.frequencies) == 0:
+            return None
+
+        return int(np.abs(self.frequencies - freq).argmin())
+
+    def snap_frequency_to_bin(self, freq):
+        bin_index = self.get_nearest_frequency_bin_index(freq)
+        if bin_index is None:
+            return None
+
+        return float(self.frequencies[bin_index])
+
+    def get_freq_in_hz(self, freq_1m):
+        return freq_1m * self.machine_speed / 60
+
+    def get_frequency_amplitude(self, freq):
+        bin_index = self.get_nearest_frequency_bin_index(freq)
+        if bin_index is None or not hasattr(self, "amplitudes") or len(self.amplitudes) == 0:
+            return None
+
+        return float(np.mean(self.amplitudes[bin_index, :]))
+
+    def move_selected_frequency_by_bins(self, bin_step):
+        if not self.selected_freqs:
+            return False
+
+        current_index = self.get_nearest_frequency_bin_index(self.selected_freqs[-1])
+        if current_index is None:
+            return False
+
+        new_index = int(np.clip(current_index + bin_step, 0, len(self.frequencies) - 1))
+        self.selected_freqs[-1] = float(self.frequencies[new_index])
+        return True
 
 
 class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin, ChannelMixin, FrequencyRangeMixin, MachineSpeedMixin, SampleSelectMixin, SpectrumLengthMixin, ShowWavelengthMixin, CopyPlotMixin, ChildWindowCloseMixin):
@@ -444,6 +526,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         # Matplotlib figure and canvas
         self.controller.addPlot(plotStatsLayout)
         self.controller.canvas.mpl_connect('button_press_event', self.onclick)
+        self.controller.canvas.mpl_connect('scroll_event', self.on_scroll)
 
         self.refresh()
 
@@ -485,6 +568,9 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
 
     def onclick(self, event):
         # Frequency selector functionality with axis limit check and label update
+        if self.is_navigation_mode_active():
+            return
+
         if event.inaxes is not None and event.button == settings.FREQUENCY_SELECTOR_MOUSE_BUTTON:
 
             ax = event.inaxes
@@ -496,10 +582,51 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
 
             if not self.controller.selected_freqs:
                 self.controller.selected_freqs = []
-            self.controller.selected_freqs.append(event.ydata)
+
+            snapped_frequency = self.controller.snap_frequency_to_bin(event.ydata)
+            if snapped_frequency is None:
+                return
+
+            self.controller.selected_freqs.append(snapped_frequency)
             self.refresh(restore_lim=True)
             if self.sosAnalysisWindow:
                 self.sosAnalysisWindow.refresh()
+
+    def on_scroll(self, event):
+        if self.is_navigation_mode_active():
+            return
+
+        if event.inaxes is None or event.button not in ("up", "down"):
+            return
+
+        if not self.controller.move_selected_frequency_by_bins(event.step):
+            return
+
+        self.refresh(restore_lim=True)
+        if self.sosAnalysisWindow:
+            self.sosAnalysisWindow.refresh()
+
+    def is_navigation_mode_active(self):
+        return bool(
+            self.controller.canvas.toolbar and self.controller.canvas.toolbar.mode
+        )
+
+    def get_current_view_limits(self):
+        if not self.controller.figure.axes:
+            return None
+
+        ax = self.controller.figure.axes[0]
+        return ax.get_xlim(), ax.get_ylim()
+
+    def restore_view_limits(self, view_limits):
+        if view_limits is None or not self.controller.figure.axes:
+            return
+
+        ax = self.controller.figure.axes[0]
+        x_limits, y_limits = view_limits
+        ax.set_xlim(x_limits)
+        ax.set_ylim(y_limits)
+        self.controller.canvas.draw_idle()
 
     def refresh_widgets(self):
         self.initAnalysisRangeSlider(block_signals=True)
@@ -511,7 +638,9 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
             self.initMachineSpeedSpinner(block_signals=True)
 
     def refresh(self, restore_lim=False):
+        view_limits = self.get_current_view_limits() if restore_lim else None
         self.controller.updatePlot()
+        self.restore_view_limits(view_limits)
         self.refresh_widgets()
         machine_speed = self.controller.machine_speed
         selected_freqs = self.controller.selected_freqs
