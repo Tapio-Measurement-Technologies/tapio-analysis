@@ -78,6 +78,8 @@ class AnnotableCanvas(FigureCanvasQTAgg):
         self.editing_annotation: DraggableAnnotation | None = None
         self.editor = None
         self.toolbar = None # Will be set by parent if toolbar is available
+        self.annotations_enabled = True
+        self.custom_context_menu_handler = None
 
         self.mpl_connect('pick_event', self.on_pick)
         self.mpl_connect('button_press_event', self.on_press)
@@ -115,6 +117,9 @@ class AnnotableCanvas(FigureCanvasQTAgg):
 
     @check_axes
     def on_pick(self, event):
+        if not self.annotations_enabled:
+            return
+
         is_text = isinstance(event.artist, mtext.Text)
         is_line = isinstance(event.artist, Line2D)
 
@@ -134,6 +139,13 @@ class AnnotableCanvas(FigureCanvasQTAgg):
 
     @check_axes
     def on_press(self, event):
+        if event.button == 3 and self.custom_context_menu_handler:
+            if self.custom_context_menu_handler(event):
+                return
+
+        if not self.annotations_enabled:
+            return
+
         # Check for an ongoing edit
         if self.editor and not self.editor.geometry().contains(event.guiEvent.pos()):
             self.finish_editing()
@@ -275,12 +287,18 @@ class AnnotableCanvas(FigureCanvasQTAgg):
         self.draw_idle()
 
     def on_release(self, event):
+        if not self.annotations_enabled:
+            return
+
         if self.selected_annotation:
             self.selected_annotation.draggable = False
             self.selected_annotation = None
 
     @check_axes
     def on_motion(self, event):
+        if not self.annotations_enabled:
+            return
+
         if self.selected_annotation and self.selected_annotation.draggable:
             if event.xdata is not None and event.ydata is not None:
                 dx, dy = self.selected_annotation.offset

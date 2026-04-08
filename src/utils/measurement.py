@@ -70,6 +70,9 @@ class Measurement:
     threshold: Optional[float] = None
     sample_step: Optional[float] = None
     pm_speed: Optional[float] = None
+    tape_width_mm: float = field(
+        default_factory=lambda: getattr(settings, "TAPE_WIDTH_MM", 50.0)
+    )
     peak_locations: list[float] = field(default_factory=list)
     selected_samples: list[int] = field(default_factory=list)
     segments: dict[str, list[float]] = field(default_factory=dict)
@@ -105,7 +108,7 @@ class Measurement:
     def split_data_to_segments(self):
         """Split data into segments based on peak locations."""
         segments = {}
-        tape_half_width_m = settings.TAPE_WIDTH_MM / 2000.0
+        tape_half_width_m = self.tape_width_mm / 2000.0
 
         for channel in self.channels:
             channel_segments = []

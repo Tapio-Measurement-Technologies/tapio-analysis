@@ -1,8 +1,9 @@
+from bisect import bisect_left
 from PyQt6.QtGui import QAction
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QTableWidget,
                              QTableWidgetItem, QSizePolicy, QFileDialog, QHeaderView,
-                             QLabel, QCheckBox, QPushButton)
+                             QLabel, QCheckBox, QMenu, QDoubleSpinBox)
 from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
 from utils.types import AnalysisType, PlotAnnotation
@@ -126,7 +127,7 @@ class AnalysisController(AnalysisControllerBase):
         if not self.peaks:
             return
 
-        tape_half_width_m = settings.TAPE_WIDTH_MM / 2000.0
+        tape_half_width_m = self.measurement.tape_width_mm / 2000.0
         for peak in self.peaks:
             tape_span = ax.axvspan(
                 peak - tape_half_width_m,
@@ -249,6 +250,28 @@ class AnalysisController(AnalysisControllerBase):
             return False
         return self.set_peak_position(index, self.peaks[index] + delta)
 
+    def add_peak(self, position):
+        if len(self.measurement.distances) == 0:
+            return None
+
+        epsilon = 1e-6
+        insert_index = bisect_left(self.peaks, position)
+        lower_bound = self.measurement.distances[0]
+        upper_bound = self.measurement.distances[-1]
+
+        if insert_index > 0:
+            lower_bound = self.peaks[insert_index - 1] + epsilon
+        if insert_index < len(self.peaks):
+            upper_bound = self.peaks[insert_index] - epsilon
+
+        if lower_bound > upper_bound:
+            return None
+
+        position = min(max(position, lower_bound), upper_bound)
+        self.peaks.insert(insert_index, position)
+        self.measurement.peak_locations = self.peaks.copy()
+        return insert_index
+
     def remove_peak(self, index):
         if index < 0 or index >= len(self.peaks):
             return False
@@ -271,7 +294,7 @@ class AnalysisController(AnalysisControllerBase):
         self.plot()  # Redraw the main plot
 
     def zoom_to_interval(self, start, end):
-        tape_width_meters = settings.TAPE_WIDTH_MM / 1000.0
+        tape_width_meters = self.measurement.tape_width_mm / 1000.0
         self.zoomed_in = True
         self.plot()
         ax = self.figure.gca()
@@ -309,6 +332,20 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], ChannelMixin, BandP
         self.invertCheckbox.stateChanged.connect(self.onInvertDataChanged)
         self.main_layout.addWidget(self.invertCheckbox)
 
+        tapeWidthLayout = QHBoxLayout()
+        tapeWidthLabel = QLabel("Tape width [mm]")
+        tapeWidthLayout.addWidget(tapeWidthLabel)
+
+        self.tapeWidthSpinBox = QDoubleSpinBox()
+        self.tapeWidthSpinBox.setDecimals(2)
+        self.tapeWidthSpinBox.setRange(0.0, 1000.0)
+        self.tapeWidthSpinBox.setSingleStep(1.0)
+        self.tapeWidthSpinBox.setValue(self.measurement.tape_width_mm)
+        self.tapeWidthSpinBox.valueChanged.connect(self.onTapeWidthChanged)
+        tapeWidthLayout.addWidget(self.tapeWidthSpinBox)
+        tapeWidthLayout.addStretch()
+        self.main_layout.addLayout(tapeWidthLayout)
+
         # Add sample length range slider
         sampleLengthLabel = QLabel("Sample length range [m]")
         self.main_layout.addWidget(sampleLengthLabel)
@@ -335,17 +372,19 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], ChannelMixin, BandP
         layout.addLayout(plotLayout)
 
         self.controller.addPlot(plotLayout)
+        self.controller.canvas.annotations_enabled = False
+        self.controller.canvas.custom_context_menu_handler = self.show_tape_context_menu
         self.controller.canvas.mpl_connect('button_press_event', self.on_click)
         self.controller.canvas.mpl_connect('scroll_event', self.on_scroll)
         self.configure_home_button()
 
         # Table for displaying peaks
         self.table = QTableWidget()
-        self.table.setColumnCount(3)
+        self.table.setColumnCount(2)
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.setHorizontalHeaderLabels(
-            ["Sample length [m]", "Tape center [m]", "Remove"])
+            ["Sample length [m]", "Tape center [m]"])
         # Connect the selection change signal
         self.table.currentCellChanged.connect(self.onTableRowSelected)
         self.table.cellDoubleClicked.connect(self.onTableCellDoubleClicked)
@@ -356,7 +395,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], ChannelMixin, BandP
         sizePolicy = QSizePolicy(
             QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Preferred)
         self.table.setSizePolicy(sizePolicy)
-        self.table.setMinimumWidth(420)
+        self.table.setMinimumWidth(320)
 
         # To center the table in its layout, you might need to add stretch factors to the layout
         # Add stretch before the table to push it to the center
@@ -485,6 +524,87 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], ChannelMixin, BandP
         self.controller.remove_peak(peak_index)
         self.sync_after_peak_change()
 
+    def remap_selected_samples_after_peak_insertion(self, inserted_peak_index, peak_count_before_insertion):
+        remapped_samples = []
+
+        for sample_index in self.measurement.selected_samples:
+            if inserted_peak_index == 0:
+                remapped_samples.append(sample_index + 1)
+            elif inserted_peak_index == peak_count_before_insertion:
+                remapped_samples.append(sample_index)
+            elif sample_index < inserted_peak_index - 1:
+                remapped_samples.append(sample_index)
+            elif sample_index == inserted_peak_index - 1:
+                remapped_samples.extend([sample_index, sample_index + 1])
+            else:
+                remapped_samples.append(sample_index + 1)
+
+        return self.normalize_selected_samples(remapped_samples)
+
+    def on_add_peak(self, x_position):
+        if x_position is None:
+            return
+
+        peak_count_before_insertion = len(self.controller.peaks)
+        inserted_peak_index = self.controller.add_peak(x_position)
+        if inserted_peak_index is None:
+            return
+
+        self.measurement.selected_samples = self.remap_selected_samples_after_peak_insertion(
+            inserted_peak_index,
+            peak_count_before_insertion,
+        )
+        self.sync_after_peak_change(preserve_view=True)
+
+    def on_remove_nearest_peak(self, x_position):
+        nearest_peak_index = self.controller.get_nearest_peak_index(x_position)
+        if nearest_peak_index is None:
+            return
+
+        self.measurement.selected_samples = self.remap_selected_samples_after_peak_removal(
+            nearest_peak_index)
+        self.controller.remove_peak(nearest_peak_index)
+        self.sync_after_peak_change(preserve_view=True)
+
+    def set_threshold_and_detect(self, threshold):
+        if threshold is None:
+            return
+
+        self.controller.highlighted_intervals = []
+        self.controller.threshold = threshold
+        self.measurement.peak_channel = self.controller.channel
+        self.controller.detect_peaks(self.controller.channel)
+        self.measurement.selected_samples = self.get_selected_samples()
+        self.controller.selected_samples = self.measurement.selected_samples.copy()
+        self.update_table(select_all=True)
+        self.measurement.selected_samples = self.get_selected_samples()
+        self.controller.selected_samples = self.measurement.selected_samples.copy()
+        self.measurement.split_data_to_segments()
+        self.refresh()
+
+    def show_tape_context_menu(self, event):
+        if event.inaxes not in self.controller.figure.axes:
+            return False
+
+        menu = QMenu(self)
+        set_threshold_action = menu.addAction("Set threshold level")
+        add_tape_action = menu.addAction("Add tape")
+        remove_tape_action = menu.addAction("Remove nearest tape")
+        add_tape_action.setEnabled(event.xdata is not None)
+        remove_tape_action.setEnabled(bool(self.controller.peaks) and event.xdata is not None)
+        set_threshold_action.setEnabled(event.ydata is not None)
+
+        action = menu.exec(self.controller.canvas.mapToGlobal(event.guiEvent.pos()))
+
+        if action == set_threshold_action:
+            self.set_threshold_and_detect(event.ydata)
+        elif action == add_tape_action:
+            self.on_add_peak(event.xdata)
+        elif action == remove_tape_action:
+            self.on_remove_nearest_peak(event.xdata)
+
+        return True
+
     def is_navigation_mode_active(self):
         return bool(
             self.controller.canvas.toolbar and self.controller.canvas.toolbar.mode
@@ -506,17 +626,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], ChannelMixin, BandP
 
         if self.is_selector_button(event.button):
             if event.ydata is not None:
-                self.controller.highlighted_intervals = []
-                self.controller.threshold = event.ydata
-                self.measurement.peak_channel = self.controller.channel
-                self.controller.detect_peaks(self.controller.channel)
-                self.measurement.selected_samples = self.get_selected_samples()
-                self.controller.selected_samples = self.measurement.selected_samples.copy()
-                self.update_table(select_all=True)
-                self.measurement.selected_samples = self.get_selected_samples()
-                self.controller.selected_samples = self.measurement.selected_samples.copy()
-                self.measurement.split_data_to_segments()
-                self.refresh()
+                self.set_threshold_and_detect(event.ydata)
             return
 
         if event.button == MouseButton.LEFT and event.xdata is not None:
@@ -547,6 +657,10 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], ChannelMixin, BandP
         # Invert is a local view toggle only; sample detection is only triggered on click.
         self.refresh()
 
+    def onTapeWidthChanged(self, value):
+        self.measurement.tape_width_mm = value
+        self.sync_after_peak_change(preserve_view=True)
+
     def update_table(self, select_all=False):
         self.table.blockSignals(True)
         self.table.clearContents()
@@ -563,7 +677,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], ChannelMixin, BandP
                     Qt.ItemFlag.ItemIsSelectable
                 )
                 sample_length = (
-                    self.controller.peaks[i + 1] - self.controller.peaks[i]) - (settings.TAPE_WIDTH_MM / 1000)
+                    self.controller.peaks[i + 1] - self.controller.peaks[i]) - (self.measurement.tape_width_mm / 1000)
                 if sample_length > self.controller.max_length:
                     chk_box_item.setCheckState(Qt.CheckState.Unchecked)
                 elif (i in self.measurement.selected_samples) or select_all:
@@ -586,11 +700,6 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], ChannelMixin, BandP
             )
             self.table.setItem(i, 1, peak_item)
 
-            remove_button = QPushButton("Remove")
-            remove_button.clicked.connect(
-                lambda _, peak_index=i: self.on_remove_peak(peak_index))
-            self.table.setCellWidget(i, 2, remove_button)
-
         self.measurement.selected_samples = self.get_selected_samples()
         self.controller.selected_samples = self.measurement.selected_samples.copy()
         self.table.blockSignals(False)
@@ -606,7 +715,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], ChannelMixin, BandP
             samples_data = {"peak_locations": self.measurement.peak_locations,
                             "peak_channel": self.measurement.peak_channel,
                             "threshold": self.measurement.threshold,
-                            "selected_samples": self.measurement.selected_samples
+                            "selected_samples": self.measurement.selected_samples,
+                            "tape_width_mm": self.measurement.tape_width_mm,
                             }
             with open(fileName, 'w') as file:
                 json.dump(samples_data, file, indent=4)

@@ -30,8 +30,9 @@ def load_cd_samples_data(samples_file_path: str):
         threshold = cd_data['threshold']
         peak_locations = cd_data['peak_locations']
         selected_samples = cd_data['selected_samples']
+        tape_width_mm = cd_data.get('tape_width_mm', settings.TAPE_WIDTH_MM)
 
-    return peak_channel, threshold, peak_locations, selected_samples
+    return peak_channel, threshold, peak_locations, selected_samples, tape_width_mm
 
 
 def get_sample_step():
@@ -254,12 +255,13 @@ def load_data(fileNames: list[str]) -> Measurement | None:
 
                 # If CD segments exist already, the split can now be done
                 if measurement.samples_file_path:
-                    peak_channel, threshold, peak_locations, selected_samples = load_cd_samples_data(
+                    peak_channel, threshold, peak_locations, selected_samples, tape_width_mm = load_cd_samples_data(
                         measurement.samples_file_path)
                     measurement.peak_channel = peak_channel
                     measurement.threshold = threshold
                     measurement.peak_locations = peak_locations
                     measurement.selected_samples = selected_samples
+                    measurement.tape_width_mm = tape_width_mm
                     measurement.split_data_to_segments()
 
         except Exception as e:
