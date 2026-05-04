@@ -138,6 +138,8 @@ TIME_DOMAIN_ANALYSIS_RANGE_HIGH_DEFAULT = 0.10
 
 TIME_DOMAIN_SHOW_UNFILTERED_DATA_DEFAULT = False
 TIME_DOMAIN_SHOW_TIME_LABELS_DEFAULT = False
+TIME_DOMAIN_PLAYBACK_MAX_OCTAVES = 6
+TIME_DOMAIN_PLAYBACK_OUTPUT_SAMPLE_RATE = 44100
 
 
 TIME_DOMAIN_ANALYSIS_DISPLAY_UNIT_MULTIPLIER = 1
@@ -385,17 +387,57 @@ CALCULATED_CHANNELS = []
 # def calc_bulk(dataframe):
 #     return (dataframe['Caliper']) / dataframe['Basis Weight']
 
+def calc_density(dataframe):
+    if 'caliper' not in dataframe.columns:
+        raise ValueError("Caliper channel not found")
+    bw_candidates = ['BW', 'Basis Weight', 'Basis Weight 1', 'Basis Weight 2']
+    bw_name = None
+    for cand in bw_candidates:
+        if cand in dataframe.columns:
+            bw_name = cand
+            break
+    if bw_name is None:
+        raise ValueError(f"Basis Weight channel not found. Tried: {', '.join(bw_candidates)}")
+    return dataframe[bw_name] / (dataframe['caliper'] / 1000)
+
+def calc_bulk(dataframe):
+    if 'caliper' not in dataframe.columns:
+        raise ValueError("Caliper channel not found")
+    bw_candidates = ['BW', 'Basis Weight', 'Basis Weight 1', 'Basis Weight 2']
+    bw_name = None
+    for cand in bw_candidates:
+        if cand in dataframe.columns:
+            bw_name = cand
+            break
+    if bw_name is None:
+        raise ValueError(f"Basis Weight channel not found. Tried: {', '.join(bw_candidates)}")
+    return (dataframe['caliper'] / 1000) / dataframe[bw_name]
+
+def calc_relative_ash(dataframe):
+    if 'Ash' not in dataframe.columns:
+        raise ValueError("Ash channel not found")
+    bw_candidates = ['BW', 'Basis Weight', 'Basis Weight 1', 'Basis Weight 2']
+    bw_name = None
+    for cand in bw_candidates:
+        if cand in dataframe.columns:
+            bw_name = cand
+            break
+    if bw_name is None:
+        raise ValueError(f"Basis Weight channel not found. Tried: {', '.join(bw_candidates)}")
+    return dataframe['Ash'] / dataframe[bw_name]
+
+# Original examples:
 # def calc_density(dataframe):
 #     return (dataframe['Basis Weight']) / dataframe['Caliper']
 
 # def calc_relative_ash(dataframe):
 #     return (dataframe['Ash']) / dataframe['Basis Weight']
 
-# CALCULATED_CHANNELS = [
-#     {"name": "Density", "unit": "g/m^3", "function": calc_density},
-#     {"name": "Bulk", "unit": "m^3/g", "function": calc_bulk},
-#     {"name": "Ash (relative)", "unit": "", "function": calc_relative_ash}
-# ]
+CALCULATED_CHANNELS = [
+    {"name": "Density", "unit": "g/m^3", "function": calc_density},
+    {"name": "Bulk", "unit": "m^3/g", "function": calc_bulk},
+    {"name": "Ash (relative)", "unit": "", "function": calc_relative_ash}
+]
 
 
 MULTIPLE_SELECT_MODE = False
