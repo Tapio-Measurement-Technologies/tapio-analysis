@@ -10,6 +10,7 @@ from qtpy.QtCore import Qt, Signal
 from superqt import QLabeledDoubleRangeSlider, QLabeledSlider, QLabeledDoubleSlider
 from matplotlib.figure import Figure
 from gui.annotable_canvas import AnnotableCanvas
+from utils.statistics import normalized_least_squares_slope
 import logging
 import settings
 import numpy as np
@@ -1135,8 +1136,9 @@ class StatWidget(QWidget):
 
 
 class StatsWidget(QWidget):
-    def __init__(self):
+    def __init__(self, show_slope=False):
         super().__init__()
+        self.show_slope = show_slope
         main_layout = QVBoxLayout()
         main_layout.setSpacing(2)
 
@@ -1173,6 +1175,8 @@ class StatsWidget(QWidget):
             'max': StatWidget("Max"),
             'range': StatWidget("Range"),
         }
+        if self.show_slope:
+            self.widgets['slope'] = StatWidget("Slope")
 
         for index, widget in enumerate(self.widgets.values()):
             grid_layout.addWidget(widget, 0, index)
@@ -1189,7 +1193,7 @@ class StatsWidget(QWidget):
                 widget.label.setText(
                     f"{widget.name} [{widget.units}]" if widget.units else widget.name)
 
-    def update_statistics(self, profile_data, unit=None):
+    def update_statistics(self, profile_data, unit=None, positions=None):
         """Update statistics with optional unit update"""
         if unit is not None:
             self.update_units(unit)
@@ -1203,6 +1207,9 @@ class StatsWidget(QWidget):
             self.widgets['max'].update_value(profile_data.max())
             self.widgets['range'].update_value(
                 profile_data.max() - profile_data.min())
+            if self.show_slope:
+                self.widgets['slope'].update_value(
+                    normalized_least_squares_slope(profile_data, positions))
         else:
             for widget in self.widgets.values():
                 widget.update_value(None)

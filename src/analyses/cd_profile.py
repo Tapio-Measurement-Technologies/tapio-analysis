@@ -3,6 +3,7 @@ from PyQt6.QtGui import QAction
 from utils.filters import bandpass_filter
 from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
+from utils.statistics import normalized_least_squares_slope
 from utils.types import AnalysisType, PlotAnnotation
 from scipy.stats import norm
 from matplotlib.ticker import AutoMinorLocator
@@ -46,6 +47,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         super().__init__(measurement, window_type, annotations, attributes)
 
         self.mean_profile = None
+        self.profile_distances = None
 
         self.set_default('band_pass_low', settings.CD_PROFILE_BAND_PASS_LOW_DEFAULT_1M)
         self.set_default('band_pass_high', settings.CD_PROFILE_BAND_PASS_HIGH_DEFAULT_1M)
@@ -90,6 +92,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
         if len(self.selected_samples) == 0:
             self.mean_profile = None
+            self.profile_distances = None
             self.canvas.draw()
             return
 
@@ -101,6 +104,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             self.measurement.cd_distances, self.analysis_range_high, side='right')
 
         x = self.measurement.cd_distances[low_index:high_index]
+        self.profile_distances = x
 
         unfiltered_data = [
             self.measurement.segments[self.channel][sample_idx][low_index:high_index]
@@ -227,6 +231,8 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             min_val = np.min(self.mean_profile)
             max_val = np.max(self.mean_profile)
             range_val = max_val - min_val
+            slope = normalized_least_squares_slope(
+                self.mean_profile, self.profile_distances)
             std_percent = (std / mean) * 100 if mean != 0 else 0
             range_percent = (range_val / mean) * 100 if mean != 0 else 0
             units = self.measurement.units[self.channel]
@@ -239,7 +245,8 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 ("Min", f"{min_val:.2f}", units),
                 ("Max", f"{max_val:.2f}", units),
                 ("Range", f"{range_val:.2f}", units),
-                ("Range %", f"{range_percent:.2f}", "%")
+                ("Range %", f"{range_percent:.2f}", "%"),
+                ("Slope", f"{slope:.2f}", units)
             ]
 
             if settings.REPORT_FORMAT == "latex":
@@ -339,7 +346,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         mainHorizontalLayout.addLayout(plotStatsLayout, 1) # Plot/stats take more space
 
         # Add statistics widget
-        self.stats_widget = StatsWidget()
+        self.stats_widget = StatsWidget(show_slope=True)
         plotStatsLayout.addWidget(self.stats_widget)
 
         # Matplotlib figure and canvas
@@ -365,4 +372,5 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
 
     def updateStatistics(self, profile_data):
         unit = self.measurement.units[self.controller.channel]
-        self.stats_widget.update_statistics(profile_data, unit)
+        self.stats_widget.update_statistics(
+            profile_data, unit, self.controller.profile_distances)

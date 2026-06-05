@@ -2,6 +2,7 @@ from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QGroupBox
 from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
 from utils.filters import bandpass_filter
+from utils.statistics import normalized_least_squares_slope
 from utils.types import PlotAnnotation
 from matplotlib.ticker import AutoMinorLocator
 from gui.components import (
@@ -136,6 +137,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             min_val = np.min(self.data)
             max_val = np.max(self.data)
             range_val = max_val - min_val
+            slope = normalized_least_squares_slope(self.data, self.distances)
             std_percent = (std / mean) * 100 if mean != 0 else 0
             range_percent = (range_val / mean) * 100 if mean != 0 else 0
             units = self.measurement.units[self.channel]
@@ -148,7 +150,8 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 ("Min", f"{min_val:.2f}", units),
                 ("Max", f"{max_val:.2f}", units),
                 ("Range", f"{range_val:.2f}", units),
-                ("Range %", f"{range_percent:.2f}", "%")
+                ("Range %", f"{range_percent:.2f}", "%"),
+                ("Slope", f"{slope:.2f}", units)
             ]
 
             if settings.REPORT_FORMAT == "latex":
@@ -227,7 +230,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         mainHorizontalLayout.addLayout(plotStatsLayout, 1) # Give more stretch to the plot/stats side
 
         # Add statistics widget
-        self.stats_widget = StatsWidget()
+        self.stats_widget = StatsWidget(show_slope=True)
         plotStatsLayout.addWidget(self.stats_widget)
 
         # Matplotlib figure and canvas
@@ -248,7 +251,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
 
     def updateStatistics(self, profile_data):
         unit = self.measurement.units[self.controller.channel]
-        self.stats_widget.update_statistics(profile_data, unit)
+        self.stats_widget.update_statistics(
+            profile_data, unit, self.controller.distances)
 
 
 
