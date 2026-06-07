@@ -85,22 +85,39 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         high_index = np.searchsorted(
             self.measurement.distances, self.analysis_range_high, side='right')
 
-        self.distances = self.measurement.distances[low_index:high_index]
-        if len(self.distances) <= 1:
-            raise ValueError("Not enough data to plot")
+        self.distances = np.asarray(
+            self.measurement.distances[low_index:high_index], dtype=float)
+        unfiltered_data = np.asarray(
+            self.measurement.channel_df[self.channel].iloc[low_index:high_index],
+            dtype=float,
+        ).reshape(-1)
 
-        unfiltered_data = self.measurement.channel_df[self.channel][low_index:high_index]
-        self.data = bandpass_filter(
-            unfiltered_data, self.band_pass_low, self.band_pass_high, self.fs)
+        common_length = min(len(self.distances), len(unfiltered_data))
+        self.distances = self.distances[:common_length]
+        unfiltered_data = unfiltered_data[:common_length]
+
+        if len(unfiltered_data) < 4:
+            self.data = unfiltered_data
+        else:
+            self.data = np.asarray(
+                bandpass_filter(
+                    unfiltered_data, self.band_pass_low, self.band_pass_high, self.fs),
+                dtype=float,
+            ).reshape(-1)
+            common_length = min(len(self.distances), len(self.data))
+            self.distances = self.distances[:common_length]
+            self.data = self.data[:common_length]
+            unfiltered_data = unfiltered_data[:common_length]
         self.constrain_values()
 
-        if self.show_unfiltered_data:
+        if self.show_unfiltered_data and len(self.distances):
             ax.plot(self.distances * settings.TIME_DOMAIN_ANALYSIS_DISPLAY_UNIT_MULTIPLIER,
                     unfiltered_data,
                     alpha=0.5,
                     color="gray")
-        ax.plot(self.distances *
-                settings.TIME_DOMAIN_ANALYSIS_DISPLAY_UNIT_MULTIPLIER, self.data)
+        if len(self.distances):
+            ax.plot(self.distances *
+                    settings.TIME_DOMAIN_ANALYSIS_DISPLAY_UNIT_MULTIPLIER, self.data)
 
         if settings.TIME_DOMAIN_FIXED_YLIM_ALL_DATA:
             # fixed y limits based on full unfiltered dataset
@@ -111,7 +128,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             y_max += margin
             ax.set_ylim(y_min, y_max)
 
-        if self.show_time_labels:
+        if self.show_time_labels and len(self.distances):
             # Convert machine speed to meters per second
             machine_speed_m_per_s = self.machine_speed / 60.0
             # Calculate time in seconds from distances

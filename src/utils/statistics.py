@@ -12,8 +12,19 @@ def normalized_least_squares_slope(data, positions=None):
         x = np.linspace(0.0, 1.0, len(values))
     else:
         x = np.asarray(positions, dtype=float).reshape(-1)
-        if len(x) != len(values):
-            raise ValueError("positions must have the same length as data")
+        common_length = min(len(x), len(values))
+        if common_length < 2:
+            return 0.0
+        x = x[:common_length]
+        values = values[:common_length]
+
+    finite_mask = np.isfinite(x) & np.isfinite(values)
+    if np.count_nonzero(finite_mask) < 2:
+        return 0.0
+    x = x[finite_mask]
+    values = values[finite_mask]
+
+    if positions is not None:
         x_range = x[-1] - x[0]
         if x_range == 0:
             return 0.0

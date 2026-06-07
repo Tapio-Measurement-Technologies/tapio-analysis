@@ -1199,17 +1199,28 @@ class StatsWidget(QWidget):
             self.update_units(unit)
 
         if profile_data is not None:
-            self.widgets['mean'].update_value(profile_data.mean())
-            self.widgets['std'].update_value(profile_data.std())
-            self.widgets['cv'].update_value(profile_data.std(
-            ) / profile_data.mean() * 100 if profile_data.mean() != 0 else None)
-            self.widgets['min'].update_value(profile_data.min())
-            self.widgets['max'].update_value(profile_data.max())
-            self.widgets['range'].update_value(
-                profile_data.max() - profile_data.min())
+            values = np.asarray(profile_data, dtype=float).reshape(-1)
+            finite_values = values[np.isfinite(values)]
+            if len(finite_values) == 0:
+                for widget in self.widgets.values():
+                    widget.update_value(None)
+                return
+
+            mean = finite_values.mean()
+            std = finite_values.std()
+            min_value = finite_values.min()
+            max_value = finite_values.max()
+
+            self.widgets['mean'].update_value(mean)
+            self.widgets['std'].update_value(std)
+            self.widgets['cv'].update_value(
+                std / mean * 100 if mean != 0 else None)
+            self.widgets['min'].update_value(min_value)
+            self.widgets['max'].update_value(max_value)
+            self.widgets['range'].update_value(max_value - min_value)
             if self.show_slope:
                 self.widgets['slope'].update_value(
-                    normalized_least_squares_slope(profile_data, positions))
+                    normalized_least_squares_slope(values, positions))
         else:
             for widget in self.widgets.values():
                 widget.update_value(None)

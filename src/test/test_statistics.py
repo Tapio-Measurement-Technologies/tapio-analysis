@@ -30,6 +30,24 @@ class TestStatistics(unittest.TestCase):
     def test_normalized_least_squares_slope_handles_short_data(self):
         self.assertEqual(normalized_least_squares_slope([42.0]), 0.0)
 
+    def test_normalized_least_squares_slope_handles_mismatched_positions(self):
+        data = np.array([])
+        positions = np.array([1.0, 2.0])
+
+        self.assertEqual(normalized_least_squares_slope(data, positions), 0.0)
+
+        data = np.array([1.0, 2.0, 3.0])
+        positions = np.array([10.0, 20.0])
+        self.assertAlmostEqual(
+            normalized_least_squares_slope(data, positions), 1.0)
+
+    def test_normalized_least_squares_slope_ignores_non_finite_values(self):
+        data = np.array([1.0, np.nan, 3.0])
+        positions = np.array([0.0, 0.5, 1.0])
+
+        self.assertAlmostEqual(
+            normalized_least_squares_slope(data, positions), 2.0)
+
 
 if __name__ == "__main__":
     unittest.main()
