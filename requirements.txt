@@ -1,43 +1,122 @@
-altgraph==0.17.4
-contourpy==1.2.0
-cramjam==2.9.0
-cycler==0.12.1
-et-xmlfile==1.1.0
-fastparquet==2024.5.0
-fonttools==4.60.2
-fsspec==2024.10.0
-iniconfig==2.0.0
-kiwisolver==1.4.5
-lxml==5.2.2
-matplotlib==3.8.3
-numpy==1.26.4
-openpyxl==3.1.2
-ordered-set==4.1.0
-packaging==23.2
-pandas==2.3.0
-pillow==12.1.1
-pluggy==1.5.0
-pyarrow==20.0.0
-Pygments==2.20.0
-pyinstaller==6.11.1
-pyinstaller-hooks-contrib==2025.0
-PyLaTeX==1.4.2
-pyparsing==3.1.1
-PyQt6==6.7.0
-PyQt6-Qt6==6.7.0
-PyQt6-sip==13.6.0
-pytest==8.2.2
-pytest-qt==4.4.0
-python-dateutil==2.8.2
-python-docx==1.1.2
-pytz==2024.1
-QtPy==2.4.1
-scipy==1.15.1
-setuptools==78.1.1
-six==1.16.0
-superqt==0.6.1
-typing_extensions==4.14.0
-tzdata==2024.1
-requests==2.33.0
-pyzipper==0.3.6
-pycryptodomex==3.23.0
+--index-url https://pypi.org/simple
+--only-binary :all:
+--no-binary PyLaTeX
+--require-hashes
+
+altgraph==0.17.4 \
+    --hash=sha256:642743b4750de17e655e6711601b077bc6598dbfa3ba5fa2b2a35ce12b508dff
+contourpy==1.2.0 \
+    --hash=sha256:491b1917afdd8638a05b611a56d46587d5a632cabead889a5440f7c638bc6ed9 \
+    --hash=sha256:6e739530c662a8d6d42c37c2ed52a6f0932c2d4a3e8c1f90692ad0ce1274abe0
+cramjam==2.9.0 \
+    --hash=sha256:bd26d71939de5dcf169d479fbc7fcfed21e6675bab33e7f7e9f8405f19711c71 \
+    --hash=sha256:ddb9c4db36188a8f08c2303100a83100f26a8572803ae35eadff359bebd3d204
+cycler==0.12.1 \
+    --hash=sha256:85cef7cff222d8644161529808465972e51340599459b8ac3ccbac5a854e0d30
+et-xmlfile==1.1.0 \
+    --hash=sha256:a2ba85d1d6a74ef63837eed693bcb89c3f752169b0e3e7ae5b16ca5e1b3deada
+fastparquet==2024.5.0 \
+    --hash=sha256:2b3cf7b4eb1b06e87b97a3a5c9124e4b1c08a8903ba017052c5fe2c482414a3d \
+    --hash=sha256:cd3473d3e299bfb04c0ac7726cca5d13ee450cc2387ee7fd70587ca150647315
+fonttools==4.60.2 \
+    --hash=sha256:310035802392f1fe5a7cf43d76f6ff4a24c919e4c72c0352e7b8176e2584b8a0 \
+    --hash=sha256:98d0719f1b11c2817307d2da2e94296a3b2a3503f8d6252a101dca3ee663b917
+fsspec==2024.10.0 \
+    --hash=sha256:03b9a6785766a4de40368b88906366755e2819e758b83705c88cd7cb5fe81871
+iniconfig==2.0.0 \
+    --hash=sha256:b6a85871a79d2e3b22d2d1b94ac2824226a63c6b741c88f7ae975f18b6778374
+kiwisolver==1.4.5 \
+    --hash=sha256:2270953c0d8cdab5d422bee7d2007f043473f9d2999631c86a223c9db56cbd16 \
+    --hash=sha256:2c5674c4e74d939b9d91dda0fae10597ac7521768fec9e399c70a1f27e2ea2d9
+lxml==5.2.2 \
+    --hash=sha256:bbc4b80af581e18568ff07f6395c02114d05f4865c2812a1f02f2eaecf0bfd48 \
+    --hash=sha256:d26a618ae1766279f2660aca0081b2220aca6bd1aa06b2cf73f07383faf48927
+matplotlib==3.8.3 \
+    --hash=sha256:242489efdb75b690c9c2e70bb5c6550727058c8a614e4c7716f363c27e10bba1 \
+    --hash=sha256:ef6c1025a570354297d6c15f7d0f296d95f88bd3850066b7f1e7b4f2f4c13a39
+numpy==1.26.4 \
+    --hash=sha256:08beddf13648eb95f8d867350f6a018a4be2e5ad54c8d8caed89ebca558b2818 \
+    --hash=sha256:675d61ffbfa78604709862923189bad94014bef562cc35cf61d3a07bba02a7ed
+openpyxl==3.1.2 \
+    --hash=sha256:f91456ead12ab3c6c2e9491cf33ba6d08357d802192379bb482f1033ade496f5
+ordered-set==4.1.0 \
+    --hash=sha256:046e1132c71fcf3330438a539928932caf51ddbc582496833e23de611de14562
+packaging==23.2 \
+    --hash=sha256:8c491190033a9af7e1d931d0b5dacc2ef47509b34dd0de67ed209b5203fc88c7
+pandas==2.3.0 \
+    --hash=sha256:094e271a15b579650ebf4c5155c05dcd2a14fd4fdd72cf4854b2f7ad31ea30be \
+    --hash=sha256:ba24af48643b12ffe49b27065d3babd52702d95ab70f50e1b34f71ca703e2c0d
+pillow==12.1.1 \
+    --hash=sha256:21329ec8c96c6e979cd0dfd29406c40c1d52521a90544463057d2aaa937d66a6 \
+    --hash=sha256:7aac39bcf8d4770d089588a2e1dd111cbaa42df5a94be3114222057d68336bd0
+pluggy==1.5.0 \
+    --hash=sha256:44e1ad92c8ca002de6377e165f3e0f1be63266ab4d554740532335b9d75ea669
+pyarrow==20.0.0 \
+    --hash=sha256:4250e28a22302ce8692d3a0e8ec9d9dde54ec00d237cff4dfa9c1fbf79e472a8 \
+    --hash=sha256:96d6a0a37d9c98be08f5ed6a10831d88d52cac7b13f5287f1e0f625a0de8062b
+Pygments==2.20.0 \
+    --hash=sha256:81a9e26dd42fd28a23a2d169d86d7ac03b46e2f8b59ed4698fb4785f946d0176
+pyinstaller==6.11.1 \
+    --hash=sha256:32c742a24fe65d0702958fadf4040f76de85859c26bec0008766e5dbabc5b68f \
+    --hash=sha256:7ac83c0dc0e04357dab98c487e74ad2adb30e7eb186b58157a8faf46f1fa796f
+pyinstaller-hooks-contrib==2025.0 \
+    --hash=sha256:3c0623799c3f81a37293127f485d65894c20fd718f722cb588785a3e52581ad1
+PyLaTeX==1.4.2 \
+    --hash=sha256:bb7b21bec57ecdba3f6f44c856ebebdf6549fd6e80661bd44fd5094236729242
+pyparsing==3.1.1 \
+    --hash=sha256:32c7c0b711493c72ff18a981d24f28aaf9c1fb7ed5e9667c9e84e3db623bdbfb
+PyQt6==6.7.0 \
+    --hash=sha256:6a1f6dfe03752f888b5e628c208f9fd1a03bda7ebda59ffed8c13580289a1892 \
+    --hash=sha256:fa2d27fc2f5340f3f1e145c815101ef4550771a9e4bfafd4c7c2479fe83d9488
+PyQt6-Qt6==6.7.0 \
+    --hash=sha256:091810ed703fe747ef83d07506fcfdfd8f172215590175cc23cdfe0fc09b20ad \
+    --hash=sha256:383842a058b3fd0546df59fbd7f593dd609761d28a0185eb1a8983dee2a5f5d0
+PyQt6-sip==13.6.0 \
+    --hash=sha256:24441032a29791e82beb7dfd76878339058def0e97fdb7c1cea517f3a0e6e96b \
+    --hash=sha256:43fb8551796030aae3d66d6e35e277494071ec6172cd182c9569ab7db268a2f5
+pytest==8.2.2 \
+    --hash=sha256:c434598117762e2bd304e526244f67bf66bbd7b5d6cf22138be51ff661980343
+pytest-qt==4.4.0 \
+    --hash=sha256:001ed2f8641764b394cf286dc8a4203e40eaf9fff75bf0bfe5103f7f8d0c591d
+python-dateutil==2.8.2 \
+    --hash=sha256:961d03dc3453ebbc59dbdea9e4e11c5651520a876d0f4db161e8674aae935da9
+python-docx==1.1.2 \
+    --hash=sha256:08c20d6058916fb19853fcf080f7f42b6270d89eac9fa5f8c15f691c0017fabe
+pytz==2024.1 \
+    --hash=sha256:328171f4e3623139da4983451950b28e95ac706e13f3f2630a879749e7a8b319
+QtPy==2.4.1 \
+    --hash=sha256:1c1d8c4fa2c884ae742b069151b0abe15b3f70491f3972698c683b8e38de839b
+scipy==1.15.1 \
+    --hash=sha256:0fb57b30f0017d4afa5fe5f5b150b8f807618819287c21cbe51130de7ccdaed2 \
+    --hash=sha256:900f3fa3db87257510f011c292a5779eb627043dd89731b9c461cd16ef76ab3d
+setuptools==78.1.1 \
+    --hash=sha256:c3a9c4211ff4c309edb8b8c4f1cbfa7ae324c4ba9f91ff254e3d305b9fd54561
+six==1.16.0 \
+    --hash=sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254
+superqt==0.6.1 \
+    --hash=sha256:93c063b77581f9b0883b6198a6365d5cdacb5e4953fb2f7b0466d741c3bbfd30
+typing_extensions==4.14.0 \
+    --hash=sha256:a1514509136dd0b477638fc68d6a91497af5076466ad0fa6c338e44e359944af
+tzdata==2024.1 \
+    --hash=sha256:9068bc196136463f5245e51efda838afa15aaeca9903f49050dfa2679db4d252
+requests==2.33.0 \
+    --hash=sha256:3324635456fa185245e24865e810cecec7b4caf933d7eb133dcde67d48cee69b
+pyzipper==0.3.6 \
+    --hash=sha256:6d097f465bfa47796b1494e12ea65d1478107d38e13bc56f6e58eedc4f6c1a87
+pycryptodomex==3.23.0 \
+    --hash=sha256:52e5ca58c3a0b0bd5e100a9fbc8015059b05cffc6c66ce9d98b4b45e023443b9 \
+    --hash=sha256:f489c4765093fb60e2edafdf223397bc716491b2b69fe74367b70d6999257a5c
+
+certifi==2026.5.20 \
+    --hash=sha256:3c52e209ba0a4ad7aebe60436a4ab349c39e1e602e8c134221e546902ad25897
+charset-normalizer==3.4.7 \
+    --hash=sha256:5649fd1c7bade02f320a462fdefd0b4bd3ce036065836d4f42e0de958038e116 \
+    --hash=sha256:5ed6ab538499c8644b8a3e18debabcd7ce684f3fa91cf867521a7a0279cab2d6
+idna==3.18 \
+    --hash=sha256:7f952cbe720b688055e3f87de14f5c3e5fdaa8bc3928985c4077ca689de849a2
+urllib3==2.7.0 \
+    --hash=sha256:9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897
+pefile==2023.2.7; sys_platform == "win32" \
+    --hash=sha256:da185cd2af68c08a6cd4481f7325ed600a88f6a813bad9dea07ab3ef73d8d8d6
+pywin32-ctypes==0.2.3; sys_platform == "win32" \
+    --hash=sha256:8a1513379d709975552d202d942d9837758905c8d01eb82b8bcc30918929e7b8
