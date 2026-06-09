@@ -29,7 +29,7 @@ def unpack_zip_to_temp_with_password_prompt(zip_file_path, parent_widget):
         # This helps avoid unnecessarily prompting for a password on unencrypted files.
         needs_password_check = False
         try:
-            with pyzipper.ZipFile(zip_file_path, 'r') as zf_check:
+            with pyzipper.AESZipFile(zip_file_path, 'r') as zf_check:
                 # Check a robust way if any file needs password, pyzipper might have specific flags
                 # A common check: if any file uses AES or traditional encryption that needs password
                 # AES vendor IDs: 99 (implies AES). Traditional is flag_bits & 0x1.
@@ -65,7 +65,7 @@ def unpack_zip_to_temp_with_password_prompt(zip_file_path, parent_widget):
 
                 try:
                     # Try to open the main zipfile with the password. Pyzipper handles AES/Standard based on pwd.
-                    with pyzipper.ZipFile(zip_file_path, 'r') as zf:
+                    with pyzipper.AESZipFile(zip_file_path, 'r') as zf:
                         zf.pwd = current_password_bytes
                         file_infos_for_extraction = zf.infolist() # If this works, password is good
 
@@ -99,7 +99,7 @@ def unpack_zip_to_temp_with_password_prompt(zip_file_path, parent_widget):
                     return None, None
         else: # No password seems to be needed based on initial checks
             try:
-                with pyzipper.ZipFile(zip_file_path, 'r') as zf_no_pwd:
+                with pyzipper.AESZipFile(zip_file_path, 'r') as zf_no_pwd:
                     file_infos_for_extraction = zf_no_pwd.infolist()
             except Exception as e_no_pwd_open:
                  QMessageBox.critical(parent_widget, "Error", f"Could not open ZIP file (even without password): {e_no_pwd_open}")
@@ -122,7 +122,7 @@ def unpack_zip_to_temp_with_password_prompt(zip_file_path, parent_widget):
 
         try:
             # Use a single ZipFile context for extraction, configured with password if needed
-            with pyzipper.ZipFile(zip_file_path, 'r') as zf_extract:
+            with pyzipper.AESZipFile(zip_file_path, 'r') as zf_extract:
                 if password_bytes:
                     zf_extract.pwd = password_bytes
 
