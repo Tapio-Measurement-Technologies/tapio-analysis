@@ -2,6 +2,7 @@ from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QGroupBox
 from PyQt6.QtGui import QAction
 from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
+from utils.plot_formatting import apply_compact_tick_formatting
 from utils.types import AnalysisType, PlotAnnotation
 from utils.filters import bandpass_filter
 import matplotlib.patheffects as path_effects
@@ -123,8 +124,13 @@ class AnalysisController(AnalysisControllerBase):
                                           diagonal="hist", hist_kwds={"bins": settings.CORRELATION_MATRIX_HISTOGRAM_BINS})
 
         # Adjust font size for axis labels
+        max_chars = settings.CORRELATION_MATRIX_TICK_LABEL_TARGET_CHARS
+        tick_formatters = []
         for i in range(np.shape(axes)[0]):
             for j in range(np.shape(axes)[1]):
+                tick_formatters.extend(
+                    apply_compact_tick_formatting(axes[i, j], max_chars=max_chars)
+                )
                 axes[i, j].tick_params(axis='both', labelsize=6)  # Make tick labels smaller
                 if i == len(axes)-1:  # Bottom row
                     axes[i, j].xaxis.label.set_fontsize(settings.CORRELATION_MATRIX_LABEL_FONT_SIZE)  # Make x-axis labels smaller
@@ -144,6 +150,11 @@ class AnalysisController(AnalysisControllerBase):
                     ])
                 if i < j:
                     axes[i, j].set_visible(True)
+
+        if tick_formatters:
+            label_width = max(formatter.label_width for formatter in tick_formatters)
+            for formatter in tick_formatters:
+                formatter.set_minimum_label_width(label_width)
 
         self.figure.set_constrained_layout(True)
         self.canvas.draw()

@@ -230,6 +230,11 @@ def load_data(fileNames: list[str]) -> Measurement | None:
                 apply_calibration_with_uniform_trimming(
                     measurement, calibration_data)
 
+                # Remove ignored source channels before calculated channels are added.
+                # This lets calculated channels intentionally replace stale raw channels
+                # with the same name, such as Density.
+                remove_ignored_channels(measurement)
+
                 # Add calculated channels
                 for channel_config in settings.CALCULATED_CHANNELS:
                     name = channel_config['name']
@@ -249,8 +254,6 @@ def load_data(fileNames: list[str]) -> Measurement | None:
                         logger.exception(
                             "Failed to calculate channel %s: %s", name, e_calc)
 
-                measurement.channel_df = measurement.channel_df.drop(
-                    columns=settings.IGNORE_CHANNELS, errors='ignore')
                 measurement.channels = measurement.channel_df.columns
 
                 # If CD segments exist already, the split can now be done
@@ -285,7 +288,17 @@ def load_data(fileNames: list[str]) -> Measurement | None:
             logger.debug("Parquet file processing failed or was skipped.")
         elif measurement.channel_df is None or measurement.channel_df.empty:
             logger.debug("Data processing resulted in an empty dataset.")
-        return None
+    return None
+
+
+def remove_ignored_channels(measurement: Measurement):
+    """Remove ignored source channels from the dataframe and units mapping."""
+    measurement.channel_df = measurement.channel_df.drop(
+        columns=settings.IGNORE_CHANNELS, errors='ignore')
+
+    if isinstance(measurement.units, dict):
+        for channel in settings.IGNORE_CHANNELS:
+            measurement.units.pop(channel, None)
 
 
 def logarithmic_fit(V, k, a, b):

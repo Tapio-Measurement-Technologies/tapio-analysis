@@ -89,6 +89,7 @@ CORRELATION_MATRIX_SAMPLE_LIMIT = 2000
 CORRELATION_MATRIX_HISTOGRAM_BINS = 20
 CORRELATION_MATRIX_LABEL_FONT_SIZE = 8
 CORRELATION_MATRIX_WINDOW_SIZE = (1000, 600)
+CORRELATION_MATRIX_TICK_LABEL_TARGET_CHARS = 5
 
 
 # Formation analysis settings
@@ -108,7 +109,7 @@ CD_SAMPLE_LENGTH_SLIDER_MAX = 15  # Maximum allowed sample length in meters
 CD_SAMPLE_LENGTH_SLIDER_STEP = 0.01
 
 # Tape width which will be cut off from all CD samples
-TAPE_WIDTH_MM = 50.00
+TAPE_WIDTH_MM = 65.00
 # Minimum length of CD Sample the software will detect
 CD_SAMPLE_MIN_LENGTH_M = 4.00
 CD_SAMPLE_MAX_LENGTH_M = 12.00
@@ -387,43 +388,52 @@ CALCULATED_CHANNELS = []
 # def calc_bulk(dataframe):
 #     return (dataframe['Caliper']) / dataframe['Basis Weight']
 
+BASIS_WEIGHT_CHANNEL_CANDIDATES = ["BW", "Basis Weight", "Basis Weight 1", "Basis Weight 2"]
+CALIPER_CHANNEL_CANDIDATES = ["Caliper", "Dicke", "Paksuus"]
+
+
+def find_channel(dataframe, candidates, channel_label):
+    for candidate in candidates:
+        candidate_key = candidate.strip().casefold()
+        for column in dataframe.columns:
+            if str(column).strip().casefold() == candidate_key:
+                return column
+
+    raise ValueError(
+        f"{channel_label} channel not found. Tried: {', '.join(candidates)}"
+    )
+
+
+def find_basis_weight_channel(dataframe):
+    return find_channel(
+        dataframe,
+        BASIS_WEIGHT_CHANNEL_CANDIDATES,
+        "Basis Weight"
+    )
+
+
+def find_caliper_channel(dataframe):
+    return find_channel(
+        dataframe,
+        CALIPER_CHANNEL_CANDIDATES,
+        "Caliper"
+    )
+
+
 def calc_density(dataframe):
-    if 'caliper' not in dataframe.columns:
-        raise ValueError("Caliper channel not found")
-    bw_candidates = ['BW', 'Basis Weight', 'Basis Weight 1', 'Basis Weight 2']
-    bw_name = None
-    for cand in bw_candidates:
-        if cand in dataframe.columns:
-            bw_name = cand
-            break
-    if bw_name is None:
-        raise ValueError(f"Basis Weight channel not found. Tried: {', '.join(bw_candidates)}")
-    return dataframe[bw_name] / (dataframe['caliper'] / 1000)
+    bw_name = find_basis_weight_channel(dataframe)
+    caliper_name = find_caliper_channel(dataframe)
+    return dataframe[bw_name] / (dataframe[caliper_name] / 1000)
 
 def calc_bulk(dataframe):
-    if 'caliper' not in dataframe.columns:
-        raise ValueError("Caliper channel not found")
-    bw_candidates = ['BW', 'Basis Weight', 'Basis Weight 1', 'Basis Weight 2']
-    bw_name = None
-    for cand in bw_candidates:
-        if cand in dataframe.columns:
-            bw_name = cand
-            break
-    if bw_name is None:
-        raise ValueError(f"Basis Weight channel not found. Tried: {', '.join(bw_candidates)}")
-    return (dataframe['caliper'] / 1000) / dataframe[bw_name]
+    bw_name = find_basis_weight_channel(dataframe)
+    caliper_name = find_caliper_channel(dataframe)
+    return (dataframe[caliper_name] / 1000) / dataframe[bw_name]
 
 def calc_relative_ash(dataframe):
     if 'Ash' not in dataframe.columns:
         raise ValueError("Ash channel not found")
-    bw_candidates = ['BW', 'Basis Weight', 'Basis Weight 1', 'Basis Weight 2']
-    bw_name = None
-    for cand in bw_candidates:
-        if cand in dataframe.columns:
-            bw_name = cand
-            break
-    if bw_name is None:
-        raise ValueError(f"Basis Weight channel not found. Tried: {', '.join(bw_candidates)}")
+    bw_name = find_basis_weight_channel(dataframe)
     return dataframe['Ash'] / dataframe[bw_name]
 
 # Original examples:

@@ -44,12 +44,13 @@ def load_data(fileNames: list[str]) -> Measurement | None:
             measurement.data_file_path
         )
 
+        # Remove ignored source channels before calculated channels are added.
+        # This lets calculated channels intentionally replace stale raw channels
+        # with the same name, such as Density.
+        sensor_df, units = remove_ignored_channels(sensor_df, units)
+
         # Add calculated channels
         sensor_df, units = add_calculated_channels(sensor_df, units)
-
-        # Remove ignored channels
-        sensor_df = sensor_df.drop(
-            columns=settings.IGNORE_CHANNELS, errors='ignore')
 
         # Update measurement object with loaded data
         measurement.measurement_label = info
@@ -79,6 +80,18 @@ def load_data(fileNames: list[str]) -> Measurement | None:
         return measurement
 
     return None
+
+
+def remove_ignored_channels(sensor_df, units):
+    """Remove ignored source channels from the dataframe and units mapping."""
+    sensor_df = sensor_df.drop(
+        columns=settings.IGNORE_CHANNELS, errors='ignore')
+
+    if isinstance(units, dict):
+        for channel in settings.IGNORE_CHANNELS:
+            units.pop(channel, None)
+
+    return sensor_df, units
 
 
 def add_calculated_channels(sensor_df, units):
