@@ -2,7 +2,6 @@ from dataclasses import dataclass, field
 from typing import Optional
 import numpy as np
 import pandas as pd
-import settings
 import json
 from enum import Enum
 
@@ -41,11 +40,15 @@ class MeasurementChannel:
     unit: str
     data: pd.DataFrame
 
-    def get_segment(self, start_index: int, end_index: int) -> pd.DataFrame:
-        return self.data.iloc[start_index:end_index]
+    def get_segment(self, start_index_or_segment, end_index: Optional[int] = None) -> pd.DataFrame:
+        if end_index is None:
+            segment = start_index_or_segment
+            start_index = segment.start_index
+            end_index = segment.end_index
+        else:
+            start_index = start_index_or_segment
 
-    def get_segment(self, segment: CDSegment) -> pd.DataFrame:
-        return self.get_segment(segment.start_index, segment.end_index)
+        return self.data.iloc[start_index:end_index]
 
     def patch(self, segments: list[PatchSegment]) -> pd.DataFrame:
         patched_data = self.data.copy()
@@ -71,7 +74,7 @@ class Measurement:
     sample_step: Optional[float] = None
     pm_speed: Optional[float] = None
     tape_width_mm: float = field(
-        default_factory=lambda: getattr(settings, "TAPE_WIDTH_MM", 50.0)
+        default_factory=lambda: get_default_tape_width_mm()
     )
     peak_locations: list[float] = field(default_factory=list)
     selected_samples: list[int] = field(default_factory=list)
@@ -149,3 +152,11 @@ class Measurement:
         #     print(len(self.cd_distances))
 
         return self
+
+
+def get_default_tape_width_mm():
+    try:
+        import settings
+        return getattr(settings, "TAPE_WIDTH_MM", 50.0)
+    except ImportError:
+        return 50.0

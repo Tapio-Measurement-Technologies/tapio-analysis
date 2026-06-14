@@ -42,6 +42,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         super().__init__(measurement, window_type, annotations, attributes)
 
         self.mean_profile = None
+        self.profile_distances = None
 
         # Set defaults for parameters needed to compute mean_profile
         self.set_default(
@@ -79,8 +80,9 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
         if len(self.selected_samples) == 0:
             self.mean_profile = None
+            self.profile_distances = None
             self.canvas.draw()
-            return
+            return self.canvas
 
         # Todo: These are in meters, like distances array. Convert these to indices and have them have an effect on the displayed slice of the measurement
 
@@ -90,6 +92,12 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             self.measurement.cd_distances, self.analysis_range_high, side='right')
 
         x = self.measurement.cd_distances[low_index:high_index]
+        self.profile_distances = x
+        if len(x) == 0:
+            self.mean_profile = None
+            self.canvas.draw()
+            self.updated.emit()
+            return self.canvas
 
         unfiltered_data = [
             self.measurement.segments[self.channel][sample_idx][low_index:high_index]
@@ -104,6 +112,8 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         # Calculate waterfall offset as relative to mean profile value (convert percent to fraction)
         mean_profile_value = np.mean(self.mean_profile)
         y_offset = mean_profile_value * (self.waterfall_offset / 100.0)
+        if y_offset == 0:
+            y_offset = 1.0
 
         tableau_color_cycle = plt.get_cmap('tab10')
 
@@ -178,7 +188,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
     def getStatsTableData(self):
         stats = []
-        if len(self.mean_profile) > 0:
+        if self.mean_profile is not None and len(self.mean_profile) > 0:
             mean = np.mean(self.mean_profile)
             std = np.std(self.mean_profile)
             min_val = np.min(self.mean_profile)
@@ -213,9 +223,11 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         return stats
 
     def getExportData(self):
+        distances = self.profile_distances if self.profile_distances is not None else []
+        profile = self.mean_profile if self.mean_profile is not None else []
         data = {
-            "Distance [m]": self.measurement.cd_distances,
-            f"{self.channel} [{self.measurement.units[self.channel]}]": self.mean_profile
+            "Distance [m]": distances,
+            f"{self.channel} [{self.measurement.units[self.channel]}]": profile
         }
 
         return pd.DataFrame(data)

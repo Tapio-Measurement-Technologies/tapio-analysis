@@ -55,7 +55,7 @@ class AnalysisController(AnalysisControllerBase):
 
         self.set_default('selected_samples', self.measurement.selected_samples.copy())
         self.set_default('channel', self.channels[0])
-        self.set_default('channel2', self.channels[1])
+        self.set_default('channel2', self.channels[1] if len(self.channels) > 1 else self.channels[0])
         self.set_default('show_unfiltered_data', False)
         self.set_default('band_pass_low', config["band_pass_low"])
         self.set_default('band_pass_high', config["band_pass_high"])
@@ -88,6 +88,19 @@ class AnalysisController(AnalysisControllerBase):
         # Adding a second Y axis for the second channel
         ax2 = ax1.twinx()
         data2 = self.plotChannelData(ax2, self.channel2, 'tab:green')
+
+        common_length = min(len(data1), len(data2))
+        data1 = np.asarray(data1, dtype=float)[:common_length]
+        data2 = np.asarray(data2, dtype=float)[:common_length]
+        finite_mask = np.isfinite(data1) & np.isfinite(data2)
+        data1 = data1[finite_mask]
+        data2 = data2[finite_mask]
+
+        if len(data1) < 2 or np.std(data1) == 0 or np.std(data2) == 0:
+            ax_correlation.set_title("Correlation coefficient: n/a")
+            self.canvas.draw()
+            self.updated.emit()
+            return self.canvas
 
         corr_coeff, _ = pearsonr(data1, data2)
         ax_correlation.scatter(data1, data2, s=1)
@@ -136,22 +149,38 @@ class AnalysisController(AnalysisControllerBase):
 
             x = self.measurement.cd_distances[low_index:high_index]
 
-            unfiltered_data = np.mean([
-                self.measurement.segments[channel][sample_idx][low_index:high_index]
+            profiles = [
+                np.asarray(
+                    self.measurement.segments[channel][sample_idx][low_index:high_index],
+                    dtype=float,
+                )
                 for sample_idx in self.selected_samples
-            ],
-                axis=0)
+                if 0 <= sample_idx < len(self.measurement.segments[channel])
+            ]
+            if not profiles:
+                return np.array([])
+
+            unfiltered_data = np.mean(profiles, axis=0)
 
             filtered_data = bandpass_filter(
                 unfiltered_data, self.band_pass_low, self.band_pass_high, self.fs)
 
-        if self.show_unfiltered_data:
+        x = np.asarray(x, dtype=float)
+        unfiltered_data = np.asarray(unfiltered_data, dtype=float)
+        filtered_data = np.asarray(filtered_data, dtype=float)
+        common_length = min(len(x), len(unfiltered_data), len(filtered_data))
+        x = x[:common_length]
+        unfiltered_data = unfiltered_data[:common_length]
+        filtered_data = filtered_data[:common_length]
+
+        if self.show_unfiltered_data and common_length:
             ax.plot(x * settings.CORRELATION_ANALYSIS_DISPLAY_UNIT_MULTIPLIER,
                     unfiltered_data,
                     alpha=0.5,
                     color="gray")
-        ax.plot(x * settings.CORRELATION_ANALYSIS_DISPLAY_UNIT_MULTIPLIER,
-                filtered_data, color=color, alpha=0.9)
+        if common_length:
+            ax.plot(x * settings.CORRELATION_ANALYSIS_DISPLAY_UNIT_MULTIPLIER,
+                    filtered_data, color=color, alpha=0.9)
         ax.set_xlabel(
             f"Distance [{settings.CORRELATION_ANALYSIS_DISPLAY_UNIT}]")
         ax.set_ylabel(

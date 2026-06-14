@@ -79,29 +79,37 @@ class AnalysisController(AnalysisControllerBase):
                 data_slice, self.band_pass_low, self.band_pass_high, self.fs)
 
         elif self.window_type == "CD":
+            if not self.selected_samples:
+                logging.info("No samples selected for correlation matrix plot.")
+                self.canvas.draw()
+                self.updated.emit()
+                return self.canvas
+
             low_index = np.searchsorted(
                 self.measurement.cd_distances, self.analysis_range_low)
             high_index = np.searchsorted(
                 self.measurement.cd_distances, self.analysis_range_high, side='right')
 
-            data = {
-                channel: [
+            cd_data_frame = pd.DataFrame(index=range(low_index, high_index))
+
+            for channel in self.measurement.channels:
+                segments = [
                     self.measurement.segments[channel][sample_idx][low_index:high_index]
                     for sample_idx in self.selected_samples
                 ]
-                for channel in self.measurement.channels
-            }
-
-            cd_data_frame = pd.DataFrame(index=range(low_index, high_index))
-
-            for channel, segments in data.items():
-                channel_data = np.mean(segments, axis=0)[low_index:high_index]
-                print(channel)
+                channel_data = np.mean(segments, axis=0)
                 cd_data_frame[channel] = channel_data
 
             data_slice = apply_bandpass_to_dataframe(
                 cd_data_frame, self.band_pass_low, self.band_pass_high, self.fs)
 
+        if len(data_slice) < 2:
+            logging.info("Not enough data available for correlation matrix plot.")
+            self.canvas.draw()
+            self.updated.emit()
+            return self.canvas
+
+        self.data_slice = data_slice
         correlation_matrix = data_slice.corr()
 
         channels = data_slice.columns

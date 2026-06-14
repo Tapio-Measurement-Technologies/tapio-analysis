@@ -1,5 +1,6 @@
 import math
 
+import numpy as np
 from matplotlib.ticker import Formatter
 
 
@@ -160,3 +161,13 @@ def apply_compact_tick_formatting(ax, max_chars=5, x_axis=True, y_axis=True):
             label.set_fontfamily("monospace")
 
     return formatters
+
+
+def wavelength_labels_cm_from_frequencies(frequencies_1m, decimals=2):
+    labels = []
+    for frequency in np.asarray(frequencies_1m, dtype=float):
+        if not math.isfinite(frequency) or frequency <= 0:
+            labels.append("")
+        else:
+            labels.append(f"{100 / frequency:.{decimals}f}")
+    return labels

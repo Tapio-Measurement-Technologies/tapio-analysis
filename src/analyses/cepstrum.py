@@ -18,6 +18,7 @@ from gui.paper_machine_data import PaperMachineDataWindow
 from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
 from utils.types import AnalysisType, PlotAnnotation
+from utils.signal_processing import safe_spectral_params
 import matplotlib.patches as mpatches
 from scipy.signal import welch
 import numpy as np
@@ -149,15 +150,16 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
         self.ax = self.figure.add_subplot(111)
         ax = self.ax
+        self.frequencies = np.array([])
+        self.amplitudes = np.array([])
+        self.quefrencies = np.array([])
+        self.cepstrum_amplitudes = np.array([])
         ax.set_xlabel("Quefrency [m]")
         ax.set_ylabel("Cepstrum amplitude")
         ax.grid(True)
 
         if settings.SPECTRUM_TITLE_SHOW:
             ax.set_title(f"{self.measurement.measurement_label} ({self.channel}) - Cepstrum")
-
-        overlap_per = self.overlap
-        noverlap = round(self.nperseg) * overlap_per
 
         # Extract the segment of data for analysis
         if self.window_type == "MD":
@@ -168,28 +170,34 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 self.measurement.distances, self.analysis_range_high, side='right')
             self.data = self.measurement.channel_df[self.channel][self.low_index:self.high_index]
 
-            if self.nperseg >= (self.high_index - self.low_index):
+            spectral_params = safe_spectral_params(
+                self.nperseg,
+                self.overlap,
+                len(self.data),
+            )
+            if spectral_params is None:
                 self.canvas.draw()
                 self.updated.emit()
                 return self.canvas
+            nperseg, noverlap = spectral_params
 
             f, Pxx = welch(self.data,
                            fs=self.fs,
                            window=self.spectral_window,
-                           nperseg=self.nperseg,
+                           nperseg=nperseg,
                            noverlap=noverlap,
                            scaling='spectrum')
 
         elif self.window_type == "CD":
 
-            ylim = settings.MD_SPECTRUM_FIXED_YLIM.get(self.channel)
+            ylim = settings.CD_SPECTRUM_FIXED_YLIM.get(self.channel)
 
             self.low_index = np.searchsorted(
                 self.measurement.cd_distances, self.analysis_range_low)
             self.high_index = np.searchsorted(
                 self.measurement.cd_distances, self.analysis_range_high, side='right')
 
-            if self.nperseg >= (self.high_index - self.low_index):
+            if len(self.selected_samples) == 0:
                 self.canvas.draw()
                 self.updated.emit()
                 return self.canvas
@@ -197,18 +205,42 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             x = self.measurement.cd_distances[self.low_index:self.high_index]
 
             unfiltered_data = [
-                self.measurement.segments[self.channel][sample_idx][self.low_index:self.high_index]
+                np.asarray(
+                    self.measurement.segments[self.channel][sample_idx][self.low_index:self.high_index],
+                    dtype=float,
+                )
                 for sample_idx in self.selected_samples
+                if 0 <= sample_idx < len(self.measurement.segments[self.channel])
             ]
+            if not unfiltered_data:
+                self.canvas.draw()
+                self.updated.emit()
+                return self.canvas
+
+            spectral_params = safe_spectral_params(
+                self.nperseg,
+                self.overlap,
+                len(unfiltered_data[0]),
+            )
+            if spectral_params is None:
+                self.canvas.draw()
+                self.updated.emit()
+                return self.canvas
+            nperseg, noverlap = spectral_params
 
             # Calculate individual power spectra, then use the mean. This to prevent opposite phases canceling each other.
-            welches = np.array([
-                welch(y, fs=self.fs, window='hann', nperseg=self.nperseg,
-                      noverlap=noverlap, scaling='spectrum')
-                for y in unfiltered_data
-            ])
-            f = welches[0][0]
-            Pxx = np.mean(welches[:, 1], axis=0)
+            spectra = []
+            for y in unfiltered_data:
+                f, profile_pxx = welch(
+                    y,
+                    fs=self.fs,
+                    window='hann',
+                    nperseg=nperseg,
+                    noverlap=noverlap,
+                    scaling='spectrum',
+                )
+                spectra.append(profile_pxx)
+            Pxx = np.mean(spectra, axis=0)
 
         # --- CEPSTRUM CALCULATION AND PLOTTING ---
         # Use the extracted data segment for cepstrum calculation
@@ -216,6 +248,11 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             data_for_cepstrum = self.data
         else:  # CD
             data_for_cepstrum = np.mean(unfiltered_data, axis=0)
+        data_for_cepstrum = np.asarray(data_for_cepstrum, dtype=float).reshape(-1)
+        if len(data_for_cepstrum) < 2:
+            self.canvas.draw()
+            self.updated.emit()
+            return self.canvas
 
         # Calculate real cepstrum
         spectrum = np.fft.fft(data_for_cepstrum)
@@ -227,7 +264,11 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
         # Plot only the first half (up to Nyquist quefrency)
         N = len(cepstrum) // 2
-        ax.plot(quefrency[:N], cepstrum[:N])
+        self.quefrencies = quefrency[:N]
+        self.cepstrum_amplitudes = cepstrum[:N]
+        self.frequencies = self.quefrencies
+        self.amplitudes = self.cepstrum_amplitudes
+        ax.plot(self.quefrencies, self.cepstrum_amplitudes)
 
         self.canvas.draw()
         self.updated.emit()
@@ -274,8 +315,8 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
     def getExportData(self):
         data = {
-            "Frequency [1/m]": self.frequencies,
-            f"{self.channel} amplitude [{self.measurement.units[self.channel]}]": self.amplitudes
+            "Quefrency [m]": self.quefrencies,
+            f"{self.channel} cepstrum amplitude": self.cepstrum_amplitudes
         }
 
         return pd.DataFrame(data)

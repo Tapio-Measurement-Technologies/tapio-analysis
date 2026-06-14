@@ -502,16 +502,9 @@ class MainWindow(QMainWindow):
         self.logWindow.show()
 
     def open_analysis_window(self, analysis_name, window_type, annotations=None, attributes=None):
-        try:
-            analysis = Analysis(
-                store.loaded_measurement, analysis_name, window_type, annotations, attributes)
-        except Exception as e:
-            traceback.print_exc()
-            print(f"Error opening analysis window: {e}")
-            return
-
-        # Check if this analysis allows multiple instances
-        allow_multiple = getattr(analysis, 'allow_multiple_instances', True)
+        analysis_module = store.analyses.get(analysis_name)
+        allow_multiple = getattr(
+            analysis_module, 'allow_multiple_instances', True)
 
         if not allow_multiple:
             # Look for existing window of this type
@@ -523,6 +516,14 @@ class MainWindow(QMainWindow):
                     # Found existing window, bring it to front
                     window.bring_to_front()
                     return
+
+        try:
+            analysis = Analysis(
+                store.loaded_measurement, analysis_name, window_type, annotations, attributes)
+        except Exception as e:
+            traceback.print_exc()
+            print(f"Error opening analysis window: {e}")
+            return
 
         # Create new window
         newWindow = analysis.window

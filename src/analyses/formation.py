@@ -20,6 +20,21 @@ import numpy as np
 analysis_name = "Formation"
 analysis_types = ["MD", "CD"]
 
+
+def safe_correlation(x, y):
+    x = np.asarray(x, dtype=float).reshape(-1)
+    y = np.asarray(y, dtype=float).reshape(-1)
+    common_length = min(len(x), len(y))
+    x = x[:common_length]
+    y = y[:common_length]
+    finite_mask = np.isfinite(x) & np.isfinite(y)
+    x = x[finite_mask]
+    y = y[finite_mask]
+    if len(x) < 2 or np.std(x) == 0 or np.std(y) == 0:
+        return np.nan
+    return float(np.corrcoef(x, y)[0, 1])
+
+
 class AnalysisController(AnalysisControllerBase):
     analysis_range_low: float
     analysis_range_high: float
@@ -45,15 +60,17 @@ class AnalysisController(AnalysisControllerBase):
 
     def check_required_channels(self):
         """Check if all required channels exist and show alert if not."""
-        required_channels = {
-            'BW': settings.FORMATION_BW_CHANNEL,
-            'Transmission': settings.FORMATION_TRANSMISSION_CHANNEL
-        }
-
         missing_channels = []
-        for channel_type, channel_name in required_channels.items():
-            if channel_name not in self.measurement.channels:
-                missing_channels.append(f"{channel_type} ({channel_name})")
+        try:
+            bw_channel = settings.find_basis_weight_channel(
+                self.measurement.channel_df)
+        except ValueError as error:
+            missing_channels.append(str(error))
+            bw_channel = None
+
+        transmission_channel = settings.FORMATION_TRANSMISSION_CHANNEL
+        if transmission_channel not in self.measurement.channels:
+            missing_channels.append(f"Transmission ({transmission_channel})")
 
         if missing_channels:
             self.warning_message = f"Required channels not found: {', '.join(missing_channels)}"
@@ -65,13 +82,15 @@ class AnalysisController(AnalysisControllerBase):
             msg.exec()
             return False
 
-        self.channel = settings.FORMATION_BW_CHANNEL
-        self.transmission_channel = settings.FORMATION_TRANSMISSION_CHANNEL
-        self.bw_channel = settings.FORMATION_BW_CHANNEL
+        self.channel = bw_channel
+        self.transmission_channel = transmission_channel
+        self.bw_channel = bw_channel
         return True
 
     def plot(self):
         self.figure.clear()
+        self.stats = np.array([])
+        self.correlation_coefficient = np.nan
 
         ax = self.figure.add_subplot(111)
         ax.set_title(
@@ -99,16 +118,28 @@ class AnalysisController(AnalysisControllerBase):
                 self.measurement.distances, self.analysis_range_high, side='right')
 
             x = self.measurement.distances[low_index:high_index]
-            unfiltered_data = self.measurement.channel_df[self.channel][low_index:high_index]
-
-            transmission_data = self.measurement.channel_df[self.transmission_channel][low_index:high_index]
-
-            bw_data = self.measurement.channel_df[self.bw_channel][low_index:high_index]
+            transmission_data = np.asarray(
+                self.measurement.channel_df[self.transmission_channel][low_index:high_index],
+                dtype=float,
+            )
+            bw_data = np.asarray(
+                self.measurement.channel_df[self.bw_channel][low_index:high_index],
+                dtype=float,
+            )
+            if min(len(transmission_data), len(bw_data)) < max(2, settings.FORMATION_WINDOW_LENGTH):
+                self.canvas.draw()
+                self.updated.emit()
+                return self.canvas
 
             def linear(x, a, b):
                 return a * x + b
-            params, covariance = curve_fit(
-                linear, transmission_data, bw_data)
+            try:
+                params, covariance = curve_fit(
+                    linear, transmission_data, bw_data)
+            except (RuntimeError, ValueError):
+                self.canvas.draw()
+                self.updated.emit()
+                return self.canvas
 
             def f(x):
                 return linear(x, *params)
@@ -116,9 +147,7 @@ class AnalysisController(AnalysisControllerBase):
             vectorized_function = np.vectorize(f)
             estimated_bw = vectorized_function(transmission_data)
 
-            correlation_matrix = np.corrcoef(bw_data, estimated_bw)
-            self.correlation_coefficient = correlation_matrix[0, 1]
-            print("Correlation Coefficient:", self.correlation_coefficient)
+            self.correlation_coefficient = safe_correlation(bw_data, estimated_bw)
 
             y = self.calculate_formation_index(estimated_bw)
 
@@ -130,17 +159,43 @@ class AnalysisController(AnalysisControllerBase):
 
             x = self.measurement.cd_distances[low_index:high_index]
 
-            transmission_data = [self.measurement.segments[self.transmission_channel]
-                                 [sample_idx][low_index:high_index] for sample_idx in self.selected_samples]
+            transmission_data = [
+                np.asarray(
+                    self.measurement.segments[self.transmission_channel][sample_idx][low_index:high_index],
+                    dtype=float,
+                )
+                for sample_idx in self.selected_samples
+                if 0 <= sample_idx < len(self.measurement.segments[self.transmission_channel])
+            ]
+            bw_profiles = [
+                np.asarray(
+                    self.measurement.segments[self.bw_channel][sample_idx][low_index:high_index],
+                    dtype=float,
+                )
+                for sample_idx in self.selected_samples
+                if 0 <= sample_idx < len(self.measurement.segments[self.bw_channel])
+            ]
+            if (
+                not transmission_data
+                or not bw_profiles
+                or min(len(transmission_data[0]), len(bw_profiles[0])) < max(2, settings.FORMATION_WINDOW_LENGTH)
+            ):
+                self.canvas.draw()
+                self.updated.emit()
+                return self.canvas
 
             transmission_mean_profile = np.mean(transmission_data, axis=0)
-            bw_mean_profile = np.mean([self.measurement.segments[self.bw_channel][sample_idx]
-                                       [low_index:high_index] for sample_idx in self.selected_samples], axis=0)
+            bw_mean_profile = np.mean(bw_profiles, axis=0)
 
             def linear(x, a, b):
                 return a * x + b
-            params, covariance = curve_fit(
-                linear, transmission_mean_profile, bw_mean_profile)
+            try:
+                params, covariance = curve_fit(
+                    linear, transmission_mean_profile, bw_mean_profile)
+            except (RuntimeError, ValueError):
+                self.canvas.draw()
+                self.updated.emit()
+                return self.canvas
 
             def f(x):
                 return linear(x, *params)
@@ -149,12 +204,17 @@ class AnalysisController(AnalysisControllerBase):
             estimated_bw_profiles = [
                 vectorized_function(i) for i in transmission_data]
 
-            correlation_matrix = np.corrcoef(
-                bw_mean_profile, np.mean(estimated_bw_profiles, axis=0))
-            self.correlation_coefficient = correlation_matrix[0, 1]
-            print("Correlation Coefficient:", self.correlation_coefficient)
+            self.correlation_coefficient = safe_correlation(
+                bw_mean_profile,
+                np.mean(estimated_bw_profiles, axis=0),
+            )
             formation_profiles = [self.calculate_formation_index(estimated_bw)
                                   for estimated_bw in estimated_bw_profiles]
+            formation_profiles = [profile for profile in formation_profiles if len(profile) > 0]
+            if not formation_profiles:
+                self.canvas.draw()
+                self.updated.emit()
+                return self.canvas
 
             y = np.mean(formation_profiles, axis=0)
 
@@ -164,6 +224,10 @@ class AnalysisController(AnalysisControllerBase):
                             i, color="gray", alpha=0.5, lw=0.5)
 
         x = x[settings.FORMATION_WINDOW_LENGTH-1:]
+        if len(x) == 0 or len(y) == 0:
+            self.canvas.draw()
+            self.updated.emit()
+            return self.canvas
 
         show_unfiltered_data = True
         ax.plot(x, y)
@@ -177,6 +241,9 @@ class AnalysisController(AnalysisControllerBase):
 
     def getStatsTableData(self):
         stats = []
+        if self.stats is None or len(self.stats) == 0:
+            return stats
+
         mean = np.mean(self.stats)
         std = np.std(self.stats)
         min_val = np.min(self.stats)
@@ -196,12 +263,15 @@ class AnalysisController(AnalysisControllerBase):
     def calculate_formation_index(self, arr, window_size=settings.FORMATION_WINDOW_LENGTH):
         arr = np.array(arr)
         num_values = len(arr) - window_size + 1
+        if num_values <= 0:
+            return np.array([])
         result = np.empty(num_values)
 
         for i in range(num_values):
             window = arr[i:i + window_size]
             variance = np.var(window)
-            sqrt_mean = np.sqrt(np.mean(window))
+            mean_value = np.mean(window)
+            sqrt_mean = np.sqrt(mean_value) if mean_value > 0 else 0
             result[i] = variance / sqrt_mean if sqrt_mean != 0 else 0
 
         return result

@@ -3,7 +3,7 @@ from PyQt6.QtGui import QAction
 from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase, Analysis
 from utils.types import AnalysisType, PlotAnnotation
-from utils.signal_processing import hs_units
+from utils.signal_processing import hs_units, safe_spectral_params
 import matplotlib.pyplot as plt
 import matplotlib
 from gui.components import (
@@ -20,6 +20,7 @@ from gui.components import (
 )
 from gui.paper_machine_data import PaperMachineDataWindow
 from utils import store
+from utils.plot_formatting import wavelength_labels_cm_from_frequencies
 import settings
 import numpy as np
 from scipy.signal import spectrogram
@@ -101,15 +102,14 @@ class AnalysisController(AnalysisControllerBase):
 
         self.ax = self.figure.add_subplot(111)
         ax = self.ax
+        self.frequencies = np.array([])
+        self.amplitudes = np.empty((0, 0))
         ax.set_title(f"{self.measurement.measurement_label} ({self.channel})")
         ax.set_xlabel("Distance [m]")
         ax.set_ylabel("Frequency [1/m]")
         # ax.figure.set_constrained_layout(True)
         # ax.grid()
         # ax.tight_layout()
-
-        overlap_per = self.overlap
-        noverlap = round(self.nperseg * overlap_per)
 
         # Extract the segment of data for analysis
 
@@ -120,17 +120,24 @@ class AnalysisController(AnalysisControllerBase):
                 self.measurement.distances, self.analysis_range_high, side='right')
             self.data = self.measurement.channel_df[self.channel][self.low_index:self.high_index]
 
-            if self.nperseg >= (self.high_index-self.low_index):
+            spectral_params = safe_spectral_params(
+                self.nperseg,
+                self.overlap,
+                len(self.data),
+                require_segment_shorter_than_data=True,
+            )
+            if spectral_params is None:
                 self.canvas.draw()
                 self.updated.emit()
-                return
+                return self.canvas
+            nperseg, noverlap = spectral_params
             data_mean_removed = self.data - np.mean(self.data)
 
             Pxx, freqs, bins, im = ax.specgram(data_mean_removed,
-                                               NFFT=self.nperseg,
+                                               NFFT=nperseg,
                                                Fs=self.fs,
                                                noverlap=noverlap,
-                                               window=np.hanning(self.nperseg))
+                                               window=np.hanning(nperseg))
 
         elif self.window_type == "CD":
             self.low_index = np.searchsorted(
@@ -138,14 +145,36 @@ class AnalysisController(AnalysisControllerBase):
             self.high_index = np.searchsorted(
                 self.measurement.cd_distances, self.analysis_range_high, side='right')
 
-            if self.nperseg >= (self.high_index-self.low_index):
+            if len(self.selected_samples) == 0:
                 self.canvas.draw()
                 self.updated.emit()
-                return
+                return self.canvas
 
             x = self.measurement.cd_distances[self.low_index:self.high_index]
-            unfiltered_data = [self.measurement.segments[self.channel][sample_idx]
-                               [self.low_index:self.high_index] for sample_idx in self.selected_samples]
+            unfiltered_data = [
+                np.asarray(
+                    self.measurement.segments[self.channel][sample_idx][self.low_index:self.high_index],
+                    dtype=float,
+                )
+                for sample_idx in self.selected_samples
+                if 0 <= sample_idx < len(self.measurement.segments[self.channel])
+            ]
+            if not unfiltered_data:
+                self.canvas.draw()
+                self.updated.emit()
+                return self.canvas
+
+            spectral_params = safe_spectral_params(
+                self.nperseg,
+                self.overlap,
+                len(unfiltered_data[0]),
+                require_segment_shorter_than_data=True,
+            )
+            if spectral_params is None:
+                self.canvas.draw()
+                self.updated.emit()
+                return self.canvas
+            nperseg, noverlap = spectral_params
 
             spectrum_mode = getattr(
                 settings, 'SPECTRUM_MODE', 'mean_spectrum_of_profiles')
@@ -156,8 +185,8 @@ class AnalysisController(AnalysisControllerBase):
                 freqs, bins, Pxx = spectrogram(
                     mean_profile,
                     fs=self.fs,
-                    window=np.hanning(self.nperseg),
-                    nperseg=self.nperseg,
+                    window=np.hanning(nperseg),
+                    nperseg=nperseg,
                     noverlap=noverlap,
                     mode='psd',
                     scaling="density"
@@ -172,8 +201,8 @@ class AnalysisController(AnalysisControllerBase):
                     freqs, bins, Pxx_i = spectrogram(
                         profile,
                         fs=self.fs,
-                        window=np.hanning(self.nperseg),
-                        nperseg=self.nperseg,
+                        window=np.hanning(nperseg),
+                        nperseg=nperseg,
                         noverlap=noverlap,
                         mode='psd',
                         scaling="density"
@@ -189,11 +218,19 @@ class AnalysisController(AnalysisControllerBase):
             freqs <= self.frequency_range_high)
         freqs_cut = freqs[freq_indices]
         amplitudes_cut = amplitudes[freq_indices, :]
+        if len(freqs_cut) == 0 or amplitudes_cut.size == 0 or len(bins) == 0:
+            self.canvas.draw()
+            self.updated.emit()
+            return self.canvas
+
         self.frequencies = freqs_cut
         self.amplitudes = amplitudes_cut
+        vmax = 3 * np.mean(amplitudes_cut)
+        if not np.isfinite(vmax) or vmax <= 0:
+            vmax = 1.0
         im = ax.imshow(amplitudes_cut, aspect='auto', origin='lower',
                        extent=[bins[0], bins[-1], freqs_cut[0], freqs_cut[-1]],
-                       norm=matplotlib.colors.Normalize(vmin=0, vmax=3*np.mean(amplitudes_cut)), cmap=settings.SPECTROGRAM_COLORMAP)
+                       norm=matplotlib.colors.Normalize(vmin=0, vmax=vmax), cmap=settings.SPECTROGRAM_COLORMAP)
 
         cbar = self.figure.colorbar(im, ax=ax, pad=0.2)
         cbar.set_label(f"Amplitude [{self.measurement.units[self.channel]}]")
@@ -205,9 +242,8 @@ class AnalysisController(AnalysisControllerBase):
                 primary_ticks = ax.get_yticks()
                 secax.set_yticks(primary_ticks)
                 secax.set_ylim(*ax.get_ylim())
-                secondary_ticks = [100*(1 / i) for i in secax.get_yticks()]
                 secax.set_yticklabels(
-                    [f"{tick:.2f}" for tick in secondary_ticks])
+                    wavelength_labels_cm_from_frequencies(secax.get_yticks()))
             secax.set_ylabel(f"Wavelength [cm]")
 
         elif self.window_type == "MD":

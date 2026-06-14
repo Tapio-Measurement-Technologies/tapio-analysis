@@ -4,10 +4,11 @@ from PyQt6.QtGui import QAction
 from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase, Analysis
 from utils.types import AnalysisType, PlotAnnotation
-from utils.signal_processing import hs_units
+from utils.signal_processing import hs_units, safe_spectral_params
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.ticker import AutoMinorLocator, LogLocator
+from utils.plot_formatting import wavelength_labels_cm_from_frequencies
 from scipy.signal import welch, find_peaks
 from gui.components import (
     AnalysisRangeMixin,
@@ -169,6 +170,9 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
         self.ax = self.figure.add_subplot(111)
         ax = self.ax
+        self.frequencies = np.array([])
+        self.amplitudes = np.array([])
+        self.data = np.array([])
         ax.figure.set_constrained_layout(True)
         ax.set_xlabel("Frequency [1/m]")
         ax.set_ylabel(f"Amplitude [{self.measurement.units[self.channel]}]")
@@ -196,12 +200,18 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 self.measurement.distances, self.analysis_range_high, side='right')
             self.data = self.measurement.channel_df[self.channel][self.low_index:self.high_index]
 
-            if self.nperseg > (self.high_index - self.low_index):
-                self.nperseg = self.high_index - self.low_index
+            spectral_params = safe_spectral_params(
+                self.nperseg,
+                self.overlap,
+                len(self.data),
+            )
+            if spectral_params is None:
+                self.canvas.draw()
+                self.updated.emit()
+                return self.canvas
+            nperseg, noverlap = spectral_params
+            if nperseg != int(round(self.nperseg)):
                 logging.warning("Using lower nperseg because data is shorter than nperseg")
-
-            overlap_per = self.overlap
-            noverlap = round(self.nperseg) * overlap_per
             # self.canvas.draw()
             # self.updated.emit()
             # # return self.canvas
@@ -212,34 +222,51 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             f, Pxx = welch(self.data,
                            fs=self.fs,
                            window=self.spectral_window,
-                           nperseg=self.nperseg,
+                           nperseg=nperseg,
                            noverlap=noverlap,
                            scaling='spectrum')
 
         elif self.window_type == "CD":
 
-            ylim = settings.MD_SPECTRUM_FIXED_YLIM.get(self.channel)
+            ylim = settings.CD_SPECTRUM_FIXED_YLIM.get(self.channel)
 
             self.low_index = np.searchsorted(
                 self.measurement.cd_distances, self.analysis_range_low)
             self.high_index = np.searchsorted(
                 self.measurement.cd_distances, self.analysis_range_high, side='right')
 
-
-            if self.nperseg > (self.high_index - self.low_index):
-                self.nperseg = self.high_index - self.low_index
-                logging.warning("Using lower nperseg because data is shorter than nperseg")
-
-            overlap_per = self.overlap
-            noverlap = round(self.nperseg) * overlap_per
-
+            if len(self.selected_samples) == 0:
+                self.canvas.draw()
+                self.updated.emit()
+                return self.canvas
 
             x = self.measurement.cd_distances[self.low_index:self.high_index]
 
             unfiltered_data = [
-                self.measurement.segments[self.channel][sample_idx][self.low_index:self.high_index]
+                np.asarray(
+                    self.measurement.segments[self.channel][sample_idx][self.low_index:self.high_index],
+                    dtype=float,
+                )
                 for sample_idx in self.selected_samples
+                if 0 <= sample_idx < len(self.measurement.segments[self.channel])
             ]
+            if not unfiltered_data:
+                self.canvas.draw()
+                self.updated.emit()
+                return self.canvas
+
+            spectral_params = safe_spectral_params(
+                self.nperseg,
+                self.overlap,
+                len(unfiltered_data[0]),
+            )
+            if spectral_params is None:
+                self.canvas.draw()
+                self.updated.emit()
+                return self.canvas
+            nperseg, noverlap = spectral_params
+            if nperseg != int(round(self.nperseg)):
+                logging.warning("Using lower nperseg because data is shorter than nperseg")
 
             # Test with synthetic CD Data with p-p amplitude 1
             # unfiltered_data = [np.sin(2 * np.pi * 5 * np.arange(len(self.measurement.segments[self.channel][sample_idx][self.low_index:self.high_index])) / self.fs) for sample_idx in self.selected_samples]
@@ -251,17 +278,22 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             if spectrum_mode == 'spectrum_of_mean_profile':
                 # Take mean profile, then spectrum
                 mean_profile = np.mean(unfiltered_data, axis=0)
-                f, Pxx = welch(mean_profile, fs=self.fs, window='hann', nperseg=self.nperseg,
+                f, Pxx = welch(mean_profile, fs=self.fs, window='hann', nperseg=nperseg,
                                noverlap=noverlap, scaling='spectrum')
             else:
                 # Take spectrum of each, then mean spectrum
-                welches = np.array([
-                    welch(y, fs=self.fs, window='hann', nperseg=self.nperseg,
-                          noverlap=noverlap, scaling='spectrum')
-                    for y in unfiltered_data
-                ])
-                f = welches[0][0]
-                Pxx = np.mean(welches[:, 1], axis=0)
+                spectra = []
+                for y in unfiltered_data:
+                    f, profile_pxx = welch(
+                        y,
+                        fs=self.fs,
+                        window='hann',
+                        nperseg=nperseg,
+                        noverlap=noverlap,
+                        scaling='spectrum',
+                    )
+                    spectra.append(profile_pxx)
+                Pxx = np.mean(spectra, axis=0)
 
         f_low_index = np.searchsorted(f, self.frequency_range_low)
         f_high_index = np.searchsorted(
@@ -305,9 +337,8 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 primary_ticks = ax.get_xticks()
                 secax.set_xticks(primary_ticks)
                 secax.set_xlim(*ax.get_xlim())
-                secondary_ticks = [100 * (1 / i) for i in secax.get_xticks()]
                 secax.set_xticklabels(
-                    [f"{tick:.2f}" for tick in secondary_ticks])
+                    wavelength_labels_cm_from_frequencies(secax.get_xticks()))
 
             secax.set_xlabel(f"Wavelength [cm]")
 

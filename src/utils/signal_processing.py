@@ -6,6 +6,25 @@ import settings
 # NLS estimators for
 
 
+def safe_spectral_params(requested_nperseg, overlap_fraction, data_length, require_segment_shorter_than_data=False):
+    """Return integer Welch/spectrogram parameters that SciPy will accept."""
+    data_length = int(data_length)
+    if data_length < 2:
+        return None
+
+    nperseg = int(round(requested_nperseg))
+    if nperseg < 2:
+        return None
+
+    if require_segment_shorter_than_data and nperseg >= data_length:
+        return None
+
+    nperseg = min(nperseg, data_length)
+    noverlap = int(round(nperseg * overlap_fraction))
+    noverlap = max(0, min(noverlap, nperseg - 1))
+    return nperseg, noverlap
+
+
 def vandermonde(w, N):
     L = len(w)
     Z = np.exp(np.full((L, N), np.arange(N)).T * np.array(w) * 1j)
@@ -32,9 +51,6 @@ def hs_units(x, Fs, w_initial, wrange, user_f_min, user_f_max, L=10):
     # Adjust f_min and f_max based on user-defined limits
     f_min = max(calculated_f_min, user_f_min)
     f_max = min(calculated_f_max, user_f_max)
-    print(f_min)
-    print(f_max)
-
     valid_indices = np.where((freqs >= f_min) & (freqs <= f_max))[0]
 
     max_sum = 0
@@ -151,7 +167,7 @@ def get_n_peaks(data, n, threshold = 0):
     filtered_data = data[data[:, 0] >= threshold]
 
     # Sort the array based on the amplitudes (second column)
-    sorted_data = data[data[:, 1].argsort()]
+    sorted_data = filtered_data[filtered_data[:, 1].argsort()]
 
     # Select the top n rows with the highest amplitudes
     top_n_data = sorted_data[-n:]

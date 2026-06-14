@@ -190,6 +190,9 @@ def load_data(fileNames: list[str]) -> Measurement | None:
         measurement.channel_df = pd.DataFrame(
             resampled_data, columns=data_columns)
         measurement.distances = resampled_distances
+        measurement.units = {
+            channel_name: "V" for channel_name in measurement.channel_df.columns
+        }
         measurement.channels = measurement.channel_df.columns
         valid_files_processed = True
 
@@ -222,6 +225,11 @@ def load_data(fileNames: list[str]) -> Measurement | None:
                             "unit", "Unknown")
                     else:
                         # Default to Volts if no calibration
+                        calibration_data[channel_name] = {
+                            "type": "none",
+                            "unit": "V",
+                            "offset": 0,
+                        }
                         units_dict[channel_name] = "V"
 
                 measurement.units = units_dict
@@ -229,43 +237,6 @@ def load_data(fileNames: list[str]) -> Measurement | None:
                 # Apply calibrations
                 apply_calibration_with_uniform_trimming(
                     measurement, calibration_data)
-
-                # Remove ignored source channels before calculated channels are added.
-                # This lets calculated channels intentionally replace stale raw channels
-                # with the same name, such as Density.
-                remove_ignored_channels(measurement)
-
-                # Add calculated channels
-                for channel_config in settings.CALCULATED_CHANNELS:
-                    name = channel_config['name']
-                    unit = channel_config['unit']
-                    function = channel_config['function']
-                    try:
-                        result = function(measurement.channel_df)
-                        if result is not None:
-                            measurement.channel_df[name] = result
-                            measurement.units[name] = unit
-                            logger.debug(
-                                "Successfully added calculated channel %s", name)
-                        else:
-                            logger.debug(
-                                "Calculation returned None for channel %s", name)
-                    except Exception as e_calc:
-                        logger.exception(
-                            "Failed to calculate channel %s: %s", name, e_calc)
-
-                measurement.channels = measurement.channel_df.columns
-
-                # If CD segments exist already, the split can now be done
-                if measurement.samples_file_path:
-                    peak_channel, threshold, peak_locations, selected_samples, tape_width_mm = load_cd_samples_data(
-                        measurement.samples_file_path)
-                    measurement.peak_channel = peak_channel
-                    measurement.threshold = threshold
-                    measurement.peak_locations = peak_locations
-                    measurement.selected_samples = selected_samples
-                    measurement.tape_width_mm = tape_width_mm
-                    measurement.split_data_to_segments()
 
         except Exception as e:
             logger.exception(
@@ -282,6 +253,7 @@ def load_data(fileNames: list[str]) -> Measurement | None:
                 "Error loading PM data file %s: %s", pmdata_file_path, e)
 
     if valid_files_processed and measurement.channel_df is not None and not measurement.channel_df.empty:
+        finalize_measurement(measurement)
         return measurement
     else:
         if not valid_files_processed:
@@ -299,6 +271,49 @@ def remove_ignored_channels(measurement: Measurement):
     if isinstance(measurement.units, dict):
         for channel in settings.IGNORE_CHANNELS:
             measurement.units.pop(channel, None)
+
+
+def add_calculated_channels(measurement: Measurement):
+    """Add calculated channels to the measurement dataframe and units mapping."""
+    for channel_config in settings.CALCULATED_CHANNELS:
+        name = channel_config['name']
+        unit = channel_config['unit']
+        function = channel_config['function']
+        try:
+            result = function(measurement.channel_df)
+            if result is not None:
+                measurement.channel_df[name] = result
+                measurement.units[name] = unit
+                logger.debug("Successfully added calculated channel %s", name)
+            else:
+                logger.debug("Calculation returned None for channel %s", name)
+        except Exception as e_calc:
+            logger.exception(
+                "Failed to calculate channel %s: %s", name, e_calc)
+
+
+def load_samples_if_available(measurement: Measurement):
+    if not measurement.samples_file_path:
+        return
+
+    peak_channel, threshold, peak_locations, selected_samples, tape_width_mm = load_cd_samples_data(
+        measurement.samples_file_path)
+    measurement.peak_channel = peak_channel
+    measurement.threshold = threshold
+    measurement.peak_locations = peak_locations
+    measurement.selected_samples = selected_samples
+    measurement.tape_width_mm = tape_width_mm
+    measurement.split_data_to_segments()
+
+
+def finalize_measurement(measurement: Measurement):
+    # Remove ignored source channels before calculated channels are added.
+    # This lets calculated channels intentionally replace stale raw channels
+    # with the same name, such as Density.
+    remove_ignored_channels(measurement)
+    add_calculated_channels(measurement)
+    measurement.channels = measurement.channel_df.columns
+    load_samples_if_available(measurement)
 
 
 def logarithmic_fit(V, k, a, b):

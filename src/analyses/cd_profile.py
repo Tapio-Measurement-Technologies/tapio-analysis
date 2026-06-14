@@ -94,7 +94,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             self.mean_profile = None
             self.profile_distances = None
             self.canvas.draw()
-            return
+            return self.canvas
 
         # Todo: These are in meters, like distances array. Convert these to indices and have them have an effect on the displayed slice of the measurement
 
@@ -225,7 +225,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
     def getStatsTableData(self):
         stats = []
-        if len(self.mean_profile) > 0:
+        if self.mean_profile is not None and len(self.mean_profile) > 0:
             mean = np.mean(self.mean_profile)
             std = np.std(self.mean_profile)
             min_val = np.min(self.mean_profile)
@@ -262,9 +262,11 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         return stats
 
     def getExportData(self):
+        distances = self.profile_distances if self.profile_distances is not None else []
+        profile = self.mean_profile if self.mean_profile is not None else []
         data = {
-            "Distance [m]": self.measurement.cd_distances,
-            f"{self.channel} [{self.measurement.units[self.channel]}]": self.mean_profile
+            "Distance [m]": distances,
+            f"{self.channel} [{self.measurement.units[self.channel]}]": profile
         }
 
         return pd.DataFrame(data)

@@ -33,6 +33,9 @@ class AnalysisController(AnalysisControllerBase):
     def __init__(self, measurement: Measurement, window_type: AnalysisType = "CD", annotations: list[PlotAnnotation] = [], attributes: dict = {}):
         super().__init__(measurement, window_type, annotations, attributes)
 
+        self.filtered_data = np.array([])
+        self.plot_data = np.array([])
+
         self.set_default('band_pass_low', settings.VCA_BAND_PASS_LOW_DEFAULT_1M)
         self.set_default('band_pass_high', settings.VCA_BAND_PASS_HIGH_DEFAULT_1M)
         self.set_default('analysis_range_low', settings.VCA_RANGE_LOW_DEFAULT * self.max_dist)
@@ -45,8 +48,10 @@ class AnalysisController(AnalysisControllerBase):
         self.figure.clear()
 
         if len(self.selected_samples) == 0:
+            self.filtered_data = np.array([])
+            self.plot_data = np.array([])
             self.canvas.draw()
-            return
+            return self.canvas
 
         # Calculate indices for slicing based on the analysis range
         low_index = np.searchsorted(
@@ -55,9 +60,22 @@ class AnalysisController(AnalysisControllerBase):
             self.measurement.cd_distances, self.analysis_range_high, side='right')
 
         # Preparation of data for plotting
-        self.filtered_data = [bandpass_filter(
-            self.measurement.segments[self.channel][sample_idx][low_index:high_index],
-            self.band_pass_low, self.band_pass_high, self.fs) for sample_idx in self.selected_samples]
+        selected_profiles = [
+            bandpass_filter(
+                self.measurement.segments[self.channel][sample_idx][low_index:high_index],
+                self.band_pass_low,
+                self.band_pass_high,
+                self.fs,
+            )
+            for sample_idx in self.selected_samples
+            if 0 <= sample_idx < len(self.measurement.segments[self.channel])
+        ]
+        self.filtered_data = np.array(selected_profiles)
+
+        if self.filtered_data.size == 0:
+            self.plot_data = np.array([])
+            self.canvas.draw()
+            return self.canvas
 
         # Calculate the mean profile and residuals
         cd_mean_profile = np.mean(self.filtered_data, axis=0)
@@ -76,6 +94,11 @@ class AnalysisController(AnalysisControllerBase):
         data_colorbar_ax = self.figure.add_subplot(gs[1, 2])
 
         x_data = self.measurement.cd_distances[low_index:high_index]
+        if len(x_data) == 0:
+            self.filtered_data = np.array([])
+            self.plot_data = np.array([])
+            self.canvas.draw()
+            return self.canvas
 
         # Plotting the MD mean profile
         md_mean = np.mean(self.filtered_data, axis=1)
@@ -97,7 +120,7 @@ class AnalysisController(AnalysisControllerBase):
             xlabel="Distance [m]", ylabel=f"CD mean [{self.measurement.units[self.channel]}]")
         cd_profile_ax.grid()
 
-        self.plot_data = self.filtered_data
+        self.plot_data = np.array(self.filtered_data, copy=True)
 
         md_mean = np.mean(self.filtered_data, axis=1, keepdims=True)
         md_mean -= np.mean(md_mean)
@@ -168,7 +191,7 @@ class AnalysisController(AnalysisControllerBase):
         # Note: These are estimates of variances, not mean squares directly.
         var_cd = (ms_cd - ms_residual) / k if k > 0 else 0
         var_md = (ms_md - ms_residual) / p if p > 0 else 0
-        var_residual = ms_residual
+        var_residual = max(0, ms_residual)
         var_total = var_md + var_cd + var_residual
 
         # Ensure variances are not negative (can happen due to sampling variability)
@@ -188,7 +211,10 @@ class AnalysisController(AnalysisControllerBase):
 
     def getStatsTableData(self):
         stats = []
-        data = np.array(self.filtered_data)
+        data = np.asarray(getattr(self, "filtered_data", []), dtype=float)
+        if data.size == 0:
+            return stats
+
         units = self.measurement.units[self.channel]
 
         # Compute variances and take the square root to get standard deviations

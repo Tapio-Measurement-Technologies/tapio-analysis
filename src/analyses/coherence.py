@@ -3,7 +3,8 @@ from PyQt6.QtGui import QAction
 from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
 from utils.types import AnalysisType, PlotAnnotation
-from utils.signal_processing import hs_units
+from utils.signal_processing import hs_units, safe_spectral_params
+from utils.plot_formatting import wavelength_labels_cm_from_frequencies
 from utils import store
 from gui.components import (
     AnalysisRangeMixin,
@@ -31,6 +32,19 @@ import pandas as pd
 
 analysis_name = "Coherence"
 analysis_types = ["MD", "CD"]
+
+
+def normalize_for_coherence(data):
+    data = np.asarray(data, dtype=float).reshape(-1)
+    if len(data) < 2:
+        return None
+
+    std = np.std(data)
+    if not np.isfinite(std) or std == 0:
+        return None
+
+    return (data - np.mean(data)) / std
+
 
 def tabular_legend(ax, col_labels, data, *args, **kwargs):
     """
@@ -163,6 +177,8 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
         self.ax = self.figure.add_subplot(111)
         ax = self.ax
+        self.frequencies = np.array([])
+        self.amplitudes = np.array([])
         ax.figure.set_constrained_layout(True)
         ax.set_xlabel("Frequency [1/m]")
         ax.set_ylabel("Coherence")
@@ -180,9 +196,6 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         else:
             ax.grid()
 
-        overlap_per = self.overlap
-        noverlap = round(self.nperseg) * overlap_per
-
         if self.window_type == "MD":
             self.low_index = np.searchsorted(
                 self.measurement.distances, self.analysis_range_low)
@@ -191,14 +204,18 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             data1 = self.measurement.channel_df[self.channel][self.low_index:self.high_index]
             data2 = self.measurement.channel_df[self.channel2][self.low_index:self.high_index]
 
-            # Normalize both time series
-            data1_norm = (data1 - np.mean(data1)) / np.std(data1)
-            data2_norm = (data2 - np.mean(data2)) / np.std(data2)
-            print(self.channel)
-            print(self.channel2)
-            print(data1)
-            print(data2)
-
+            spectral_params = safe_spectral_params(
+                self.nperseg,
+                self.overlap,
+                min(len(data1), len(data2)),
+            )
+            data1_norm = normalize_for_coherence(data1)
+            data2_norm = normalize_for_coherence(data2)
+            if spectral_params is None or data1_norm is None or data2_norm is None:
+                self.canvas.draw()
+                self.updated.emit()
+                return self.canvas
+            nperseg, noverlap = spectral_params
 
             # Calculate coherence
             f, Cxy = coherence(
@@ -206,15 +223,10 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 data2_norm,
                 fs=self.fs,
                 window=self.spectral_window,
-                nperseg=self.nperseg,
+                nperseg=nperseg,
                 noverlap=noverlap
             )
             # ax.plot(f, Cxy)
-
-            if self.nperseg >= (self.high_index - self.low_index):
-                self.canvas.draw()
-                self.updated.emit()
-                return self.canvas
 
         elif self.window_type == "CD":
 
@@ -223,44 +235,68 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             self.high_index = np.searchsorted(
                 self.measurement.cd_distances, self.analysis_range_high, side='right')
 
-            if self.nperseg >= (self.high_index - self.low_index):
+            if len(self.selected_samples) == 0:
                 self.canvas.draw()
                 self.updated.emit()
                 return self.canvas
 
             x = self.measurement.cd_distances[self.low_index:self.high_index]
-            sample_idx = self.selected_samples[0]  # or loop/average as needed
-            data1 = self.measurement.segments[self.channel][sample_idx][self.low_index:self.high_index]
-            data2 = self.measurement.segments[self.channel2][sample_idx][self.low_index:self.high_index]
+            sample_pairs = [
+                (
+                    self.measurement.segments[self.channel][sample_idx][self.low_index:self.high_index],
+                    self.measurement.segments[self.channel2][sample_idx][self.low_index:self.high_index],
+                )
+                for sample_idx in self.selected_samples
+                if (
+                    0 <= sample_idx < len(self.measurement.segments[self.channel])
+                    and 0 <= sample_idx < len(self.measurement.segments[self.channel2])
+                )
+            ]
+            if not sample_pairs:
+                self.canvas.draw()
+                self.updated.emit()
+                return self.canvas
 
-            # Normalize both time series
-            data1_norm = (data1 - np.mean(data1)) / np.std(data1)
-            data2_norm = (data2 - np.mean(data2)) / np.std(data2)
-            print("Channels and data")
-            print(self.channel)
-            print(self.channel2)
-            print(data1_norm)
-            print(data2_norm)
-
-            # Calculate coherence
-            f, Cxy = coherence(
-                data1_norm,
-                data2_norm,
-                fs=self.fs,
-                window=self.spectral_window,
-                nperseg=self.nperseg,
-                noverlap=noverlap
+            spectral_params = safe_spectral_params(
+                self.nperseg,
+                self.overlap,
+                min(len(sample_pairs[0][0]), len(sample_pairs[0][1])),
             )
+            if spectral_params is None:
+                self.canvas.draw()
+                self.updated.emit()
+                return self.canvas
+            nperseg, noverlap = spectral_params
+
+            spectra = []
+            for data1, data2 in sample_pairs:
+                data1_norm = normalize_for_coherence(data1)
+                data2_norm = normalize_for_coherence(data2)
+                if data1_norm is None or data2_norm is None:
+                    continue
+                f, sample_cxy = coherence(
+                    data1_norm,
+                    data2_norm,
+                    fs=self.fs,
+                    window=self.spectral_window,
+                    nperseg=nperseg,
+                    noverlap=noverlap
+                )
+                spectra.append(sample_cxy)
+
+            if not spectra:
+                self.canvas.draw()
+                self.updated.emit()
+                return self.canvas
+
+            Cxy = np.mean(spectra, axis=0)
             # ax.plot(f, Cxy)
-            print(Cxy)
 
         f_low_index = np.searchsorted(f, self.frequency_range_low)
         f_high_index = np.searchsorted(
             f, self.frequency_range_high, side='right')
 
         amplitude_spectrum = Cxy
-        print("Amp")
-        print(amplitude_spectrum)
 
         if self.ax:
             xlim = self.ax.get_xlim()
@@ -273,8 +309,6 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         self.amplitudes = amplitude_spectrum[f_low_index:f_high_index]
 
         ax.plot(self.frequencies, self.amplitudes)
-        print(self.frequencies)
-        print(self.amplitudes)
 
         ax.set_ylim(0, 1.1)
 
@@ -286,9 +320,8 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 primary_ticks = ax.get_xticks()
                 secax.set_xticks(primary_ticks)
                 secax.set_xlim(*ax.get_xlim())
-                secondary_ticks = [100 * (1 / i) for i in secax.get_xticks()]
                 secax.set_xticklabels(
-                    [f"{tick:.2f}" for tick in secondary_ticks])
+                    wavelength_labels_cm_from_frequencies(secax.get_xticks()))
 
             secax.set_xlabel(f"Wavelength [cm]")
 
@@ -347,6 +380,11 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 self.selected_freqs = []
 
         # Draw new lines and update frequency label
+        legend_data = []
+        legend_columns = ["C", "F [1/m]", "Wavelength [cm]"] + (
+            ["F [Hz]"] if self.window_type == "MD" else []
+        )
+
         if len(self.selected_freqs) > 0:
 
             # legend_columns = [f"Amplitude [{self.measurement.units[self.channel]}]",

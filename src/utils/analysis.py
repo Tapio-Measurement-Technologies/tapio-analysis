@@ -8,7 +8,6 @@ from utils.measurement import Measurement
 from utils.types import PlotAnnotation, AnalysisType, PreconfiguredAnalysis
 import settings
 import json
-from utils import store
 import numpy as np
 
 class AnalysisControllerBase(QObject, PlotMixin):
@@ -127,6 +126,8 @@ class Analysis:
                  attributes: dict = {},
                  open_window: bool = True
     ):
+        from utils import store
+
         self.analysis_name = analysis_name
         self.window_type = window_type
         self.measurement = measurement
