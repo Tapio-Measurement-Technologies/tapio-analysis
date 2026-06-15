@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (QApplication, QWidget, QPushButton, QVBoxLayout, QL
                              QMainWindow, QFileDialog, QProgressDialog)
 from PyQt6.QtGui import QPixmap, QAction
 from PyQt6.QtCore import Qt, pyqtSlot
+import inspect
 import os
 
 from gui.report import ReportWindow
@@ -50,6 +51,25 @@ class MainWindow(QMainWindow):
         app = QApplication.instance()
         if app:  # Ensure QApplication instance exists
             app.aboutToQuit.connect(self._cleanup_temp_dirs)
+
+    @staticmethod
+    def _load_data_accepts_parent(load_data):
+        try:
+            parameters = inspect.signature(load_data).parameters.values()
+        except (TypeError, ValueError):
+            return False
+
+        return any(
+            parameter.name == "parent"
+            or parameter.kind == inspect.Parameter.VAR_KEYWORD
+            for parameter in parameters
+        )
+
+    def _load_measurement_data(self, loader_module: LoaderModule, file_paths, parent):
+        load_data = loader_module.load_data
+        if self._load_data_accepts_parent(load_data):
+            return load_data(file_paths, parent=parent)
+        return load_data(file_paths)
 
     def initUI(self):
         self.setWindowTitle(f'Tapio Analysis {__version__}')
@@ -323,7 +343,8 @@ class MainWindow(QMainWindow):
         QApplication.processEvents()
 
         try:
-            measurement = loader_module.load_data(processed_file_paths)
+            measurement = self._load_measurement_data(
+                loader_module, processed_file_paths, progress_dialog)
             progress_dialog.close()
 
             # Check if the loader returned None or an invalid measurement

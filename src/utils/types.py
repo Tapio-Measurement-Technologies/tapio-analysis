@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Optional, Callable, Literal, Protocol, ClassVar
+from typing import Any, Optional, Callable, Literal, Protocol, ClassVar
 from abc import abstractmethod
 from PyQt6.QtWidgets import QPushButton
 from utils.measurement import Measurement
@@ -80,12 +80,13 @@ class LoaderModule(Protocol):
 
     @staticmethod
     @abstractmethod
-    def load_data(fileNames: list[str]) -> Measurement | None:
+    def load_data(fileNames: list[str], parent: Optional[Any] = None) -> Measurement | None:
         """
         Load data from the specified files.
 
         Args:
             fileNames: List of file paths to load data from
+            parent: Optional parent widget for loader-owned dialogs
         """
         pass
 

@@ -15,6 +15,31 @@ def load_parquet_loader_module():
     return module
 
 
+def test_sample_step_prompt_uses_parent(monkeypatch):
+    loader = load_parquet_loader_module()
+    parent = object()
+    captured = {}
+
+    def fake_get_double(received_parent, title, label, value, decimals):
+        captured["parent"] = received_parent
+        captured["title"] = title
+        captured["label"] = label
+        captured["value"] = value
+        captured["decimals"] = decimals
+        return 0.01234, True
+
+    monkeypatch.setattr(loader.QInputDialog, "getDouble", fake_get_double)
+
+    assert loader.get_sample_step(parent) == 0.01234
+    assert captured == {
+        "parent": parent,
+        "title": "Sample Step",
+        "label": "Enter sample step value [m]:",
+        "value": loader.settings.PQ_LOADER_GENERATE_DISTANCES_SAMPLE_STEP_DEFAULT,
+        "decimals": 5,
+    }
+
+
 def test_parquet_loader_reads_distance_data_and_applies_calibration(
     tmp_path, monkeypatch
 ):

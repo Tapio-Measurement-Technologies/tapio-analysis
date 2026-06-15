@@ -13,13 +13,34 @@ Auto Loader module that tries all available loaders until one successfully loads
 
 from utils.measurement import Measurement
 import logging
+import inspect
 
 # Define class variables required by the LoaderModule protocol
 menu_text = "Auto load"
 file_types = "All Supported Files (*.*)"
 menu_priority = 1
 
-def load_data(fileNames: list[str]) -> Measurement | None:
+
+def _load_data_accepts_parent(load_data):
+    try:
+        parameters = inspect.signature(load_data).parameters.values()
+    except (TypeError, ValueError):
+        return False
+
+    return any(
+        parameter.name == "parent"
+        or parameter.kind == inspect.Parameter.VAR_KEYWORD
+        for parameter in parameters
+    )
+
+
+def _load_with_optional_parent(loader, fileNames: list[str], parent=None):
+    if parent is not None and _load_data_accepts_parent(loader.load_data):
+        return loader.load_data(fileNames, parent=parent)
+    return loader.load_data(fileNames)
+
+
+def load_data(fileNames: list[str], parent=None) -> Measurement | None:
     """
     Try to load data using all available loaders until one succeeds.
 
@@ -44,7 +65,7 @@ def load_data(fileNames: list[str]) -> Measurement | None:
 
         logging.info(f"Trying to load files with {loader_name}")
         try:
-            measurement = loader.load_data(fileNames)
+            measurement = _load_with_optional_parent(loader, fileNames, parent)
             if measurement is not None:
                 logging.info(f"Successfully loaded files with {loader_name}")
                 return measurement

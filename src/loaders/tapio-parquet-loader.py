@@ -1,6 +1,8 @@
 import os
 import logging
-from PyQt6.QtWidgets import QInputDialog
+from typing import Optional
+
+from PyQt6.QtWidgets import QInputDialog, QWidget
 import pandas as pd
 import numpy as np
 import json
@@ -35,9 +37,9 @@ def load_cd_samples_data(samples_file_path: str):
     return peak_channel, threshold, peak_locations, selected_samples, tape_width_mm
 
 
-def get_sample_step():
+def get_sample_step(parent: Optional[QWidget] = None):
     """Prompt the user for a sample step value."""
-    sample_step, ok = QInputDialog.getDouble(None,
+    sample_step, ok = QInputDialog.getDouble(parent,
                                              "Sample Step",
                                              "Enter sample step value [m]:",
                                              settings.PQ_LOADER_GENERATE_DISTANCES_SAMPLE_STEP_DEFAULT,
@@ -48,7 +50,7 @@ def get_sample_step():
         return None
 
 
-def load_data(fileNames: list[str]) -> Measurement | None:
+def load_data(fileNames: list[str], parent: Optional[QWidget] = None) -> Measurement | None:
     measurement = Measurement()
     parquet_file_path = None
     tcal_file_path = None
@@ -101,7 +103,7 @@ def load_data(fileNames: list[str]) -> Measurement | None:
                 break
 
         if settings.PQ_LOADER_GENERATE_DISTANCES:
-            sample_step = get_sample_step()
+            sample_step = get_sample_step(parent)
             if sample_step is None:
                 return None  # User canceled the input
             distances = np.arange(len(data_df)) * sample_step
