@@ -163,6 +163,7 @@ jobs:
           gh release create "${{ github.ref_name }}" \
             "dist/tapio-analysis-${{ github.ref_name }}.exe" \
             "dist/tapio-analysis-${{ github.ref_name }}.cdx.json" \
+            --repo "${{ github.repository }}" \
             --title "Release ${{ github.ref_name }}" \
             --notes "" \
             --verify-tag
