@@ -52,6 +52,19 @@ cd tapio-analysis
 ./install.bat
 ```
 
+## Dependency maintenance
+
+`requirements.in` contains direct application, build, and test dependencies. `requirements.txt` is generated, pinned, and hashed; source installation remains `python -m pip install -r requirements.txt`.
+
+Install `tapio-build-tooling`, then update and verify the lock:
+
+```bash
+tapio-build --project . python requirements compile --upgrade
+tapio-build --project . python requirements compile --check
+```
+
+CI validates lock freshness, audits dependencies, and creates CycloneDX source and signed-executable SBOMs. Shared tooling comes from `Tapio-Measurement-Technologies/tapio-build-tooling` at an immutable commit.
+
 # Get the most out of Tapio Analysis
 While Tapio Analysis is free and open-source, we offer a range of professional services to help you get the most out of the software. Our expert team is ready to assist you with customizations, training, and measurement services.
 
@@ -87,5 +100,4 @@ Tapio Analysis is free software: you can redistribute it and/or modify it under 
 This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
-
 

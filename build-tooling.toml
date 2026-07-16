@@ -1,0 +1,18 @@
+schema-version = 1
+
+[organization]
+name = "Tapio Measurement Technologies Oy"
+website = "https://www.tapiotechnologies.com"
+
+[products.tapio-analysis]
+name = "Tapio Analysis"
+license-id = "GPL-3.0-or-later"
+repository = "https://github.com/Tapio-Measurement-Technologies/tapio-analysis"
+
+[ecosystems.python]
+version = "3.12"
+
+[[ecosystems.python.requirements]]
+name = "combined"
+input = "requirements.in"
+lock = "requirements.txt"
