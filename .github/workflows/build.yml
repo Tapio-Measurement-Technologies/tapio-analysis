@@ -117,7 +117,7 @@ jobs:
           timestamp-digest: SHA256
 
       - name: Audit dependencies and generate signed-executable SBOM
-        uses: Tapio-Measurement-Technologies/tapio-build-tooling/actions/python-release-evidence@d8b734f32080d7251af36513c066733004a49bde
+        uses: Tapio-Measurement-Technologies/tapio-build-tooling/actions/python-release-evidence@438406e2d9fc6011bfc402af75d26f41d7ee5577
         with:
           config: build-tooling.toml
           product: tapio-analysis
