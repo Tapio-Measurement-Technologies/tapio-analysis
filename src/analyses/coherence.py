@@ -1,9 +1,15 @@
+import logging
+
 from PyQt6.QtWidgets import QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QGroupBox
 from PyQt6.QtGui import QAction
 from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
 from utils.types import AnalysisType, PlotAnnotation
-from utils.signal_processing import hs_units, safe_spectral_params
+from utils.signal_processing import (hs_units, safe_spectral_params, segment_count,
+                                     effective_segment_count, coherence_significance_level,
+                                     max_nperseg_for_effective_segments,
+                                     frequency_refinement_range,
+                                     interpolate_non_finite)
 from utils.plot_formatting import wavelength_labels_cm_from_frequencies
 from utils import store
 from gui.components import (
@@ -35,9 +41,13 @@ analysis_types = ["MD", "CD"]
 
 
 def normalize_for_coherence(data):
+    """Z-score the input. Coherence is scale invariant, so this only keeps the
+    cross- and auto-spectra in a comparable numeric range."""
     data = np.asarray(data, dtype=float).reshape(-1)
     if len(data) < 2:
         return None
+
+    data, _ = interpolate_non_finite(data, context="coherence input")
 
     std = np.std(data)
     if not np.isfinite(std) or std == 0:
@@ -123,28 +133,28 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         # Dynamic initialization based on window type
         spectrum_defaults = {
             "MD": {
-                "nperseg": settings.MD_SPECTRUM_DEFAULT_LENGTH,
+                "nperseg": settings.MD_COHERENCE_DEFAULT_LENGTH,
                 "range_min": settings.MD_SPECTRUM_FREQUENCY_RANGE_MIN_DEFAULT,
                 "range_max": settings.MD_SPECTRUM_FREQUENCY_RANGE_MAX_DEFAULT,
                 "peak_detection_range_min": settings.MD_SPECTRUM_PEAK_RANGE_MIN_DEFAULT,
                 "peak_detection_range_max": settings.MD_SPECTRUM_PEAK_RANGE_MAX_DEFAULT,
                 "analysis_range_low": settings.MD_SPECTRUM_ANALYSIS_RANGE_LOW_DEFAULT,
                 "analysis_range_high": settings.MD_SPECTRUM_ANALYSIS_RANGE_HIGH_DEFAULT,
-                "overlap": settings.MD_SPECTRUM_OVERLAP,
-                "spectrum_length_slider_min": settings.MD_SPECTRUM_LENGTH_SLIDER_MIN,
-                "spectrum_length_slider_max": settings.MD_SPECTRUM_LENGTH_SLIDER_MAX
+                "overlap": settings.MD_COHERENCE_OVERLAP,
+                "spectrum_length_slider_min": settings.MD_COHERENCE_LENGTH_SLIDER_MIN,
+                "spectrum_length_slider_max": settings.MD_COHERENCE_LENGTH_SLIDER_MAX
             },
             "CD": {
-                "nperseg": settings.CD_SPECTRUM_DEFAULT_LENGTH,
+                "nperseg": settings.CD_COHERENCE_DEFAULT_LENGTH,
                 "range_min": settings.CD_SPECTRUM_FREQUENCY_RANGE_MIN_DEFAULT,
                 "range_max": settings.CD_SPECTRUM_FREQUENCY_RANGE_MAX_DEFAULT,
                 "peak_detection_range_min": settings.CD_SPECTRUM_PEAK_RANGE_MIN_DEFAULT,
                 "peak_detection_range_max": settings.CD_SPECTRUM_PEAK_RANGE_MAX_DEFAULT,
                 "analysis_range_low": settings.CD_SPECTRUM_ANALYSIS_RANGE_LOW_DEFAULT,
                 "analysis_range_high": settings.CD_SPECTRUM_ANALYSIS_RANGE_HIGH_DEFAULT,
-                "overlap": settings.CD_SPECTRUM_OVERLAP,
-                "spectrum_length_slider_min": settings.CD_SPECTRUM_LENGTH_SLIDER_MIN,
-                "spectrum_length_slider_max": settings.CD_SPECTRUM_LENGTH_SLIDER_MAX
+                "overlap": settings.CD_COHERENCE_OVERLAP,
+                "spectrum_length_slider_min": settings.CD_COHERENCE_LENGTH_SLIDER_MIN,
+                "spectrum_length_slider_max": settings.CD_COHERENCE_LENGTH_SLIDER_MAX
             }
         }
         config = spectrum_defaults[self.window_type]
@@ -179,9 +189,12 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         ax = self.ax
         self.frequencies = np.array([])
         self.amplitudes = np.array([])
+        self.n_segments = 0
+        self.effective_segments = 0.0
+        self.significance_level = None
         ax.figure.set_constrained_layout(True)
         ax.set_xlabel("Frequency [1/m]")
-        ax.set_ylabel("Coherence")
+        ax.set_ylabel("Magnitude-squared coherence")
 
         if settings.SPECTRUM_TITLE_SHOW:
             ax.set_title(f"{self.measurement.measurement_label} Coherence ({
@@ -204,10 +217,12 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             data1 = self.measurement.channel_df[self.channel][self.low_index:self.high_index]
             data2 = self.measurement.channel_df[self.channel2][self.low_index:self.high_index]
 
+            self.limit_segment_length(min(len(data1), len(data2)))
             spectral_params = safe_spectral_params(
                 self.nperseg,
                 self.overlap,
                 min(len(data1), len(data2)),
+                require_segment_shorter_than_data=True,
             )
             data1_norm = normalize_for_coherence(data1)
             data2_norm = normalize_for_coherence(data2)
@@ -216,6 +231,13 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 self.updated.emit()
                 return self.canvas
             nperseg, noverlap = spectral_params
+
+            self.n_segments = segment_count(
+                min(len(data1), len(data2)), nperseg, noverlap)
+            if not self.has_enough_segments(ax):
+                self.canvas.draw()
+                self.updated.emit()
+                return self.canvas
 
             # Calculate coherence
             f, Cxy = coherence(
@@ -257,16 +279,26 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 self.updated.emit()
                 return self.canvas
 
+            self.limit_segment_length(
+                min(len(sample_pairs[0][0]), len(sample_pairs[0][1])))
             spectral_params = safe_spectral_params(
                 self.nperseg,
                 self.overlap,
                 min(len(sample_pairs[0][0]), len(sample_pairs[0][1])),
+                require_segment_shorter_than_data=True,
             )
             if spectral_params is None:
                 self.canvas.draw()
                 self.updated.emit()
                 return self.canvas
             nperseg, noverlap = spectral_params
+
+            self.n_segments = segment_count(
+                min(len(sample_pairs[0][0]), len(sample_pairs[0][1])), nperseg, noverlap)
+            if not self.has_enough_segments(ax):
+                self.canvas.draw()
+                self.updated.emit()
+                return self.canvas
 
             spectra = []
             for data1, data2 in sample_pairs:
@@ -307,6 +339,20 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
         self.frequencies = f[f_low_index:f_high_index]
         self.amplitudes = amplitude_spectrum[f_low_index:f_high_index]
+
+        # Magnitude-squared coherence is biased upward: for uncorrelated inputs
+        # its expectation is about 1/(effective segments), not 0. Overlapping
+        # segments are correlated, so the effective count is what sets that
+        # floor, not the nominal one. The default segment settings keep the
+        # floor low enough to read the plot directly, so the threshold is
+        # computed for export and logging but not drawn.
+        self.effective_segments = effective_segment_count(
+            self.spectral_window, nperseg, noverlap, self.n_segments)
+        self.significance_level = coherence_significance_level(self.effective_segments)
+        if settings.COHERENCE_SHOW_SIGNIFICANCE_LINE and self.significance_level is not None:
+            ax.axhline(self.significance_level, color='tab:red',
+                       linestyle=':', linewidth=1.2)
+        ax.set_ylim(0, 1)
 
         ax.plot(self.frequencies, self.amplitudes)
 
@@ -506,6 +552,57 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
         return self.canvas
 
+    def limit_segment_length(self, data_length):
+        """Cap the window-length control to what the available data can support.
+
+        Coherence needs many averaged segments; a long segment on a short record
+        leaves too few, and at one segment the estimate is identically 1. Rather
+        than letting the user select such a setting and then refusing to plot,
+        the slider maximum is reduced to the longest segment that still yields
+        COHERENCE_TARGET_EFFECTIVE_SEGMENTS independent segments.
+        """
+        allowed = max_nperseg_for_effective_segments(
+            data_length,
+            self.overlap,
+            settings.COHERENCE_TARGET_EFFECTIVE_SEGMENTS,
+            window=self.spectral_window,
+        )
+
+        self.spectrum_length_slider_max = min(
+            self.spectrum_length_slider_max, allowed)
+        self.spectrum_length_slider_min = min(
+            self.spectrum_length_slider_min, self.spectrum_length_slider_max)
+
+        if self.nperseg > self.spectrum_length_slider_max:
+            logging.info(
+                "Reducing coherence window length from %d to %d samples so that "
+                "%d independent segments fit in the selected range.",
+                int(self.nperseg), int(self.spectrum_length_slider_max),
+                settings.COHERENCE_TARGET_EFFECTIVE_SEGMENTS)
+            self.nperseg = self.spectrum_length_slider_max
+
+    def has_enough_segments(self, ax):
+        """Coherence is only meaningful when several Welch segments are averaged.
+
+        With a single segment the magnitude-squared coherence is identically 1 at
+        every frequency regardless of the data, which reads as perfect coherence.
+        """
+        minimum = getattr(settings, "COHERENCE_MIN_SEGMENTS", 8)
+        if self.n_segments >= minimum:
+            return True
+
+        message = (
+            "Not enough data for a coherence estimate\n"
+            f"{self.n_segments} segment(s) of {int(round(self.nperseg))} samples, "
+            f"{minimum} required.\n"
+            "Reduce the spectrum length or widen the analysis range.")
+        ax.text(0.5, 0.5, message, ha='center', va='center',
+                transform=ax.transAxes, color='tab:red')
+        logging.warning(
+            "Coherence needs at least %d segments, got %d; not plotting.",
+            minimum, self.n_segments)
+        return False
+
     def get_freq_in_hz(self, freq_1m):
         return freq_1m * self.machine_speed / 60
 
@@ -548,7 +645,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
     def getExportData(self):
         data = {
             "Frequency [1/m]": self.frequencies,
-            f"{self.channel} amplitude [{self.measurement.units[self.channel]}]": self.amplitudes
+            f"Magnitude-squared coherence {self.channel} vs {self.channel2} [-]": self.amplitudes
         }
 
         return pd.DataFrame(data)
@@ -693,16 +790,28 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
 
         plot_min = self.controller.ax.get_xlim()[0] if self.controller.ax.get_xlim()[0] > 0 else 0
         plot_max = self.controller.ax.get_xlim()[1]
-        wrange = (plot_max - plot_min) * 0.01
+        wrange, search_min, search_max = frequency_refinement_range(
+            selected_freqs[-1], plot_min, plot_max)
+        if wrange is None:
+            logging.warning("Cannot refine a non-positive frequency selection.")
+            return
 
         refined = hs_units(
-            d, self.controller.fs, selected_freqs[-1], wrange, plot_min, plot_max, settings.MAX_HARMONICS_FREQUENCY_ESTIMATOR)
+            d, self.controller.fs, selected_freqs[-1], wrange, search_min, search_max,
+            settings.MAX_HARMONICS_FREQUENCY_ESTIMATOR)
 
         print(self.controller.fs)
         end_time = time.time()
         elapsed_time_ms = (end_time - start_time) * 1000
         print(f"Fundamental frequency estimation took {elapsed_time_ms:.2f} ms")
         print("Refined frequency: ", refined)
+        if refined is None or not np.isfinite(refined) or refined <= 0:
+            # No usable candidate in the search range: keep the user's selection
+            # rather than replacing it with zero, whose wavelength is 1/0.
+            logging.warning(
+                "Frequency refinement found no candidate in the visible range; keeping %.4f 1/m.",
+                selected_freqs[-1])
+            return
         self.controller.selected_freqs[-1] = refined
         self.refresh()
 
@@ -710,7 +819,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         if event.inaxes is not None and event.button == settings.FREQUENCY_SELECTOR_MOUSE_BUTTON:
             ax = event.inaxes
             xlim = ax.get_xlim()
-            if not (xlim[0] <= event.xdata <= xlim[1]) or event.xdata < 0:
+            # Reject zero as well as negative: a wavelength of 1/0 is undefined.
+            if not (xlim[0] <= event.xdata <= xlim[1]) or event.xdata <= 0:
                 return
             if not self.controller.selected_freqs:
                 self.controller.selected_freqs = []
@@ -732,8 +842,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         selected_freqs = self.controller.selected_freqs
 
         machine_speed = self.controller.machine_speed
-        if self.controller.selected_freqs:
-            wavelength = 1 / self.controller.selected_freqs[-1]
+        if selected_freqs and selected_freqs[-1] and np.isfinite(selected_freqs[-1]):
+            wavelength = 1 / selected_freqs[-1]
 
             if self.window_type == "MD":
                 frequency_in_hz = selected_freqs[-1] * machine_speed / 60

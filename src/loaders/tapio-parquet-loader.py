@@ -17,6 +17,11 @@ menu_priority = 3
 file_types = "All Files (*);;Parquet files (*.parquet);;Calibration files (*.tcal);;Paper machine files (*.pmdata.json)"
 
 RESAMPLE_STEP_DEFAULT_MM = 1
+# Samples discarded at the start of a record while the acquisition settles.
+PQ_LOADER_DISCARD_LEADING_SAMPLES = getattr(
+    settings, "PQ_LOADER_DISCARD_LEADING_SAMPLES", 1000)
+# Acquisition rate used to convert distance steps into a machine speed.
+PQ_LOADER_ACQUISITION_HZ = getattr(settings, "PQ_LOADER_ACQUISITION_HZ", 1000)
 
 ASH_MAC = -100
 LOG_VALS_MAX = 1000  # Maximum allowed value for logarithmic calibration output
@@ -91,9 +96,11 @@ def load_data(fileNames: list[str], parent: Optional[QWidget] = None) -> Measure
         measurement.measurement_label = os.path.splitext(
             basename)[0]  # Label from parquet file
 
-        # This logic was previously inside zip processing, ensure it's correctly placed
-        if len(data_df) > 1000:
-            data_df = data_df.iloc[1000:]
+        # Discard the acquisition settling samples at the start of the record.
+        if len(data_df) > PQ_LOADER_DISCARD_LEADING_SAMPLES:
+            logger.debug("Discarding the first %d settling samples",
+                         PQ_LOADER_DISCARD_LEADING_SAMPLES)
+            data_df = data_df.iloc[PQ_LOADER_DISCARD_LEADING_SAMPLES:]
 
         # Find the distance column (case-insensitive)
         distance_col = None
@@ -119,8 +126,10 @@ def load_data(fileNames: list[str], parent: Optional[QWidget] = None) -> Measure
             distances = distances - distances[0]
 
             if len(distances) > 1:
-                delta_distance = np.diff(distances).mean()
-                sampling_frequency = 1000  # Hz
+                # Mean step from the endpoints: same value as diff().mean() but
+                # without allocating an N-length difference array.
+                delta_distance = (distances[-1] - distances[0]) / (len(distances) - 1)
+                sampling_frequency = PQ_LOADER_ACQUISITION_HZ
                 delta_t = 1 / sampling_frequency
                 measurement.pm_speed = 60 * (delta_distance / delta_t)
                 logger.debug(
@@ -130,7 +139,7 @@ def load_data(fileNames: list[str], parent: Optional[QWidget] = None) -> Measure
                 measurement.pm_speed = 0
 
             total_samples = len(distances)
-            sampling_frequency = 1000  # Re-state for clarity if block is separated
+            sampling_frequency = PQ_LOADER_ACQUISITION_HZ
             total_time_seconds = total_samples / sampling_frequency
             total_distance = distances[-1] - \
                 distances[0] if len(distances) > 0 else 0
@@ -147,46 +156,76 @@ def load_data(fileNames: list[str], parent: Optional[QWidget] = None) -> Measure
         raw_data = data_df[data_columns].values
 
         logger.debug("Ensuring unique distance")
-        unique_distances, first_occurrence_indices = np.unique(
-            distances, return_index=True)
-        aggregated_data = raw_data[first_occurrence_indices, :]
+        # Distances repeat when the encoder reports the same position for
+        # consecutive acquisitions. Average the samples sharing a distance rather
+        # than keeping only the first: averaging retains all acquired signal, and
+        # np.unique already provides the group boundaries needed to do it.
+        unique_distances, group_starts, group_counts = np.unique(
+            distances, return_index=True, return_counts=True)
+
+        if len(unique_distances) == len(distances):
+            # Fast path: every distance is already unique.
+            aggregated_data = raw_data[group_starts, :]
+        else:
+            # np.unique returns sorted values, so a sorted view of raw_data lines
+            # up with the groups and a single reduceat averages them all.
+            order = np.argsort(distances, kind="stable")
+            sorted_data = raw_data[order, :]
+            group_offsets = np.concatenate(([0], np.cumsum(group_counts)[:-1]))
+            aggregated_data = np.add.reduceat(sorted_data, group_offsets, axis=0)
+            aggregated_data = aggregated_data / group_counts[:, None]
+            logger.debug("Averaged %d samples into %d unique distances",
+                         len(distances), len(unique_distances))
 
         logger.debug("Resampling")
+        resample_step = RESAMPLE_STEP_DEFAULT_MM / 1000
         if len(unique_distances) < 2:  # Need at least two points to define a range for arange
             logger.debug("Not enough unique distance points to resample. Using original data.")
             resampled_distances = unique_distances
             resampled_data = aggregated_data
-            measurement.sample_step = np.diff(unique_distances).mean() if len(
-                unique_distances) > 1 else (RESAMPLE_STEP_DEFAULT_MM / 1000)
+            measurement.sample_step = resample_step
         else:
+            source_step = (unique_distances[-1] - unique_distances[0]) / \
+                (len(unique_distances) - 1)
+            logger.debug("Source spacing %.4f mm, resampling to %.4f mm",
+                         source_step * 1000, resample_step * 1000)
+            if source_step < resample_step / 2:
+                # The analyser applies an analogue anti-alias filter ahead of the
+                # ADC, so decimating onto the coarser grid here cannot fold
+                # out-of-band content back into the measurement. Logged so the
+                # decimation factor stays visible.
+                logger.debug("Decimating by a factor of %.1f (hardware anti-alias filtered)",
+                             resample_step / source_step)
+
             resampled_distances = np.arange(
-                unique_distances[0], unique_distances[-1], (RESAMPLE_STEP_DEFAULT_MM / 1000))
+                unique_distances[0], unique_distances[-1], resample_step)
             # Handle edge case where arange yields empty due to step size vs range
             if len(resampled_distances) == 0 and len(unique_distances) > 0:
                 resampled_distances = unique_distances[:1]  # Use first point
 
-            resampled_data = np.zeros(
-                (len(resampled_distances), aggregated_data.shape[1]))
-
-            # Check if there are columns to interpolate and enough points
             if aggregated_data.shape[1] > 0 and len(unique_distances) >= 2:
-                for i in range(aggregated_data.shape[1]):
-                    voltage_interp = interp1d(unique_distances,
-                                              aggregated_data[:, i],
-                                              kind='linear',
-                                              fill_value="extrapolate")
-                    resampled_data[:, i] = voltage_interp(resampled_distances)
-                measurement.sample_step = RESAMPLE_STEP_DEFAULT_MM / 1000
+                # One interpolator over all channels at once, rather than
+                # building and calling a separate interp1d per channel: the
+                # bracketing interval search is then done once, not once per
+                # channel.
+                interpolator = interp1d(unique_distances,
+                                        aggregated_data,
+                                        axis=0,
+                                        kind='linear',
+                                        copy=False,
+                                        assume_sorted=True,
+                                        fill_value="extrapolate")
+                resampled_data = interpolator(resampled_distances)
+                measurement.sample_step = resample_step
             # Single unique point
             elif aggregated_data.shape[1] > 0 and len(unique_distances) == 1:
                 resampled_data = aggregated_data  # Use original aggregated data
-                measurement.sample_step = (
-                    RESAMPLE_STEP_DEFAULT_MM / 1000)  # Default step
+                measurement.sample_step = resample_step
             else:  # No data columns or not enough points and arange was empty
                 # Empty data with correct num columns
                 resampled_data = np.array([]).reshape(
                     0, aggregated_data.shape[1])
-                measurement.sample_step = (RESAMPLE_STEP_DEFAULT_MM / 1000)
+                measurement.sample_step = resample_step
         # Finish distance generation
 
         measurement.channel_df = pd.DataFrame(

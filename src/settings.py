@@ -96,12 +96,46 @@ CORRELATION_MATRIX_TICK_LABEL_TARGET_CHARS = 5
 FORMATION_TRANSMISSION_CHANNEL = "Transmission"
 FORMATION_BW_CHANNEL = "BW"
 FORMATION_WINDOW_LENGTH = 400
+# Unit of the formation index f_N = sigma_b / sqrt(b): the square root of the
+# basis weight unit.
+FORMATION_INDEX_UNIT = "(g/m^2)^0.5"
 FORMATION_WINDOW_SIZE = (1000, 600)
 
 SPECTROGRAM_COLORMAP = "viridis"
 
+# Spectrogram amplitude scaling.
+# scipy/matplotlib spectrograms return a power spectral DENSITY, while the
+# Spectrum window uses a power SPECTRUM. Without the conversion below the
+# spectrogram amplitude is off by sqrt(ENBW), which also changes with the
+# window length. Leave True so spectrogram amplitudes match the Spectrum
+# window; set False only to reproduce the legacy (uncorrected) levels.
+SPECTROGRAM_AMPLITUDE_DENSITY_CORRECTION = True
+
+# Colour scale of the spectrogram image.
+#   "relative" - vmax = SPECTROGRAM_COLOR_SCALE_FACTOR * mean amplitude of the
+#                visible band. Autoscales per plot so weak phenomena stay
+#                visible in every measurement. This is the default.
+#   "full"     - vmax = max amplitude of the visible band.
+#   "fixed"    - vmin/vmax taken from SPECTROGRAM_FIXED_CLIM for the channel,
+#                so two measurements can be compared directly.
+SPECTROGRAM_COLOR_SCALE_MODE = "relative"
+SPECTROGRAM_COLOR_SCALE_FACTOR = 3.0
+# Per channel (vmin, vmax) in channel units, used when the mode is "fixed".
+SPECTROGRAM_FIXED_CLIM = {}
+# Print the numeric colour range on the colour bar label so a relative scale is
+# not mistaken for an absolute one.
+SPECTROGRAM_SHOW_COLOR_SCALE_RANGE = True
+
 MAX_HARMONICS_DISPLAY = 10
 MAX_HARMONICS_FREQUENCY_ESTIMATOR = 1
+
+# "Refine frequency selection" search window. The window is the smaller of a
+# fraction of the visible frequency axis and a fraction of the selected
+# frequency. The second cap matters for low-frequency peaks: without it a peak
+# at 0.03 1/m on a 0-39 1/m axis would be searched over +/-0.39 1/m and the
+# estimator could return a near-DC bin, i.e. a wavelength longer than the sample.
+FREQUENCY_REFINEMENT_VIEW_FRACTION = 0.01
+FREQUENCY_REFINEMENT_MAX_RELATIVE = 0.10
 
 # CD Find samples settings
 CD_SAMPLE_LENGTH_SLIDER_MIN = 2  # Minimum allowed sample length in meters
@@ -150,6 +184,25 @@ TIME_DOMAIN_ANALYSIS_DISPLAY_UNIT = "m"
 SPECTRUM_WINDOW_SIZE = (1200, 600)
 SPECTRUM_WELCH_WINDOW = "hann"
 SPECTRUM_AMPLITUDE_SCALING = 1  # Set to 2 for peak-to-peak, 1/sqrt(2) for RMS
+
+# Coherence needs several Welch segments to mean anything: with a single segment
+# the magnitude-squared coherence is identically 1 at every frequency regardless
+# of the data, and with a handful the estimate sits well above zero even for
+# completely unrelated channels. The defaults below are chosen so a coherence
+# plot can be read at face value; the analysis refuses to plot rather than show
+# an estimate built on fewer segments than this.
+COHERENCE_MIN_SEGMENTS = 8
+# Target number of *independent* (overlap-corrected) segments. The default
+# segment length is reduced automatically if the selected analysis range is too
+# short to supply this many, so the estimate stays trustworthy on short CD
+# strips as well as long MD records.
+COHERENCE_TARGET_EFFECTIVE_SEGMENTS = 16
+# Confidence level used for the internally computed significance threshold.
+COHERENCE_SIGNIFICANCE_LEVEL = 0.95
+# The threshold is available on the controller for export and debugging; it is
+# not drawn, because the defaults above keep the noise floor low enough that the
+# plot can be read directly.
+COHERENCE_SHOW_SIGNIFICANCE_LINE = False
 SPECTRUM_SHOW_LEGEND = True
 SPECTRUM_LEGEND_OUTSIDE_PLOT = False
 SPECTRUM_MINOR_GRID = True
@@ -220,6 +273,20 @@ CD_SPECTROGRAM_OVERLAP = 0.99
 
 CD_SPECTROGRAM_LENGTH_SLIDER_MIN = 100
 CD_SPECTROGRAM_LENGTH_SLIDER_MAX = 10000
+
+# Coherence analysis segment settings. Kept separate from the spectrum settings
+# because coherence trades frequency resolution for segment count, while the
+# spectrum wants the opposite.
+MD_COHERENCE_DEFAULT_LENGTH = 20000
+MD_COHERENCE_OVERLAP = 0.5
+MD_COHERENCE_LENGTH_SLIDER_MIN = 500
+MD_COHERENCE_LENGTH_SLIDER_MAX = 100000
+
+CD_COHERENCE_DEFAULT_LENGTH = 1000
+CD_COHERENCE_OVERLAP = 0.5
+CD_COHERENCE_LENGTH_SLIDER_MIN = 100
+CD_COHERENCE_LENGTH_SLIDER_MAX = 10000
+
 
 # MD Correlation matrix settings
 MD_CORRELATION_BAND_PASS_LOW_DEFAULT_1M = 0
@@ -342,6 +409,10 @@ REPORT_ENABLE_ANALYSIS_TITLE = False
 
 
 SOS_HARMONICS = 10
+# Number of points in the reconstructed SOS revolution. Decoupled from the
+# sampling rate so the angular resolution of the polar plot is the same at every
+# frequency.
+SOS_REVOLUTION_POINTS = 720
 
 ANALYSIS_EXPORT_ATTRIBUTES = [
     "channel",
@@ -421,14 +492,21 @@ def find_caliper_channel(dataframe):
 
 
 def calc_density(dataframe):
+    """Apparent density in g/cm^3.
+
+    Basis weight is g/m^2 and caliper is um. For a 1 cm^2 patch the mass is
+    BW * 1e-4 g and the volume is caliper * 1e-4 cm^3, so the unit conversions
+    cancel and the density in g/cm^3 is simply BW / caliper.
+    """
     bw_name = find_basis_weight_channel(dataframe)
     caliper_name = find_caliper_channel(dataframe)
-    return dataframe[bw_name] / (dataframe[caliper_name] / 1000)
+    return dataframe[bw_name] / dataframe[caliper_name]
 
 def calc_bulk(dataframe):
+    """Bulk (specific volume) in cm^3/g, the reciprocal of density."""
     bw_name = find_basis_weight_channel(dataframe)
     caliper_name = find_caliper_channel(dataframe)
-    return (dataframe[caliper_name] / 1000) / dataframe[bw_name]
+    return dataframe[caliper_name] / dataframe[bw_name]
 
 def calc_relative_ash(dataframe):
     if 'Ash' not in dataframe.columns:
@@ -444,8 +522,8 @@ def calc_relative_ash(dataframe):
 #     return (dataframe['Ash']) / dataframe['Basis Weight']
 
 CALCULATED_CHANNELS = [
-    {"name": "Density", "unit": "g/m^3", "function": calc_density},
-    {"name": "Bulk", "unit": "m^3/g", "function": calc_bulk},
+    {"name": "Density", "unit": "g/cm^3", "function": calc_density},
+    {"name": "Bulk", "unit": "cm^3/g", "function": calc_bulk},
     {"name": "Ash (relative)", "unit": "", "function": calc_relative_ash}
 ]
 
@@ -467,6 +545,12 @@ MD_SPECTRUM_SECONDARY_X_LABEL_EXPR = "f'Frequency [Hz] at machine speed {self.ma
 # SPECTRUM_MODE = "spectrum_of_mean_profile"  # or "mean_spectrum_of_profiles"
 SPECTRUM_MODE = "mean_spectrum_of_profiles"  # or "spectrum_of_mean_profile"
 
+# Cepstrum: dynamic range in dB below the spectral peak at which the power
+# spectrum is floored before the log is taken. Bins quieter than this contribute
+# no cepstral content. Too large and the near-empty bins between harmonics
+# dominate and bury the rahmonics; too small and weak harmonic families are lost.
+CEPSTRUM_DYNAMIC_RANGE_DB = 30.0
+
 
 SPECTRUM_SHOW_HARMONICS_NUMBERS = True
 
@@ -487,6 +571,11 @@ STATISTICS_DECIMALS = 2
 ANALYSIS_CONTROLS_PANEL_MIN_WIDTH = 300
 
 PQ_LOADER_GENERATE_DISTANCES = False
+# Samples discarded from the start of a parquet record while acquisition settles.
+PQ_LOADER_DISCARD_LEADING_SAMPLES = 1000
+# Acquisition rate of the parquet data, used to derive the machine speed from
+# the distance column.
+PQ_LOADER_ACQUISITION_HZ = 1000
 PQ_LOADER_GENERATE_DISTANCES_SAMPLE_STEP_DEFAULT = 0.001
 
 LOG_WINDOW_SHOW_TIMESTAMPS = True

@@ -41,24 +41,47 @@ class AnalysisController(AnalysisControllerBase):
         ax = self.figure.add_subplot(111, projection='polar')
         y = harmonic_fitting_units(data, fs, selected_freq)
 
-        # Convert distance to angles (theta) for polar plot
+        if len(y) == 0:
+            ax.axis('off')
+            ax.text(0.5, 0.5, "Not enough data for the selected frequency",
+                    fontsize=12, ha='center', va='center', transform=ax.transAxes)
+            self.canvas.draw()
+            self.updated.emit()
+            return self.canvas
+
+        # harmonic_fitting_units returns exactly one revolution on an even
+        # angular grid, so theta maps directly onto it.
         theta = np.linspace(0, 2*np.pi, len(y), endpoint=False)
 
         # Append first point to end to close the polar plot
         y = np.append(y, y[0])
         theta = np.append(theta, theta[0])
 
-        # Add configurable offset to radius so center is empty
-        radius_offset = self.radius_offset_ratio * np.max(np.abs(y)) if np.max(np.abs(y)) > 0 else 0.1
-        r = np.abs(y) + radius_offset
+        # The fitted revolution is mean free and signed. Shift it outwards by a
+        # constant so every radius is positive, rather than taking the absolute
+        # value - abs() folds troughs onto peaks and draws a single high spot on
+        # a roll as two opposed high spots.
+        peak = float(np.max(np.abs(y)))
+        if peak > 0:
+            radius_offset = peak / max(self.radius_offset_ratio, 1e-9)
+        else:
+            radius_offset = 0.1
+        r = y + radius_offset
 
         ax.plot(theta, r)
 
+        units = self.measurement.units.get(channel, "") if channel else ""
         ax.set_title(f"{channel} pattern at {selected_freq:.2f} 1/m")
-        ax.set_ylim(0, np.max(r) * self.radius_max_multiplier)
-        ax.set_rorigin(-np.max(r) * self.radius_offset_ratio)  # Move the origin down to create space
+        r_max = float(np.max(r))
+        ax.set_ylim(0, r_max * self.radius_max_multiplier)
+        ax.set_rorigin(-r_max * self.radius_offset_ratio)  # Move the origin down to create space
         ax.grid(True, alpha=0.3)
-        ax.set_rticks(np.linspace(radius_offset, np.max(r), 3))  # Radial grid lines
+        # Label the radial ticks with the signed deviation they represent, so the
+        # constant offset used to keep the radius positive is not read as signal.
+        rticks = np.linspace(radius_offset - peak, radius_offset + peak, 3)
+        ax.set_rticks(rticks)
+        ax.set_yticklabels(
+            [f"{tick - radius_offset:+.3g}{(' ' + units) if units else ''}" for tick in rticks])
         ax.set_thetagrids(np.arange(0, 360, 30))  # Angular grid lines every 30 degrees
 
         ax.figure.set_constrained_layout(True)

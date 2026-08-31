@@ -5,7 +5,6 @@ import os
 import numpy as np
 import pandas as pd
 import json
-import struct
 from utils.measurement import Measurement
 
 menu_text = "Load Tapio data"
@@ -268,15 +267,27 @@ def read_meas_param(header_file):
 
 
 def read_binary_data(file_path, num_channels):
-    """Read binary data from data file."""
+    """Read interleaved big-endian 16 bit samples from a data file.
+
+    Read straight into a numpy array instead of building a format string with
+    one 'h' per sample and unpacking into a Python tuple. This also tolerates a
+    trailing partial record, which struct.unpack rejects outright because it
+    requires the buffer length to match the format exactly.
+    """
     with open(file_path, 'rb') as file:
         file_content = file.read()
-    num_data_points = len(file_content) // (2 * num_channels)
-    format_str = '>' + 'h' * num_channels * num_data_points
-    data_points = struct.unpack(format_str, file_content)
 
-    reshaped_data = np.reshape(data_points, (num_data_points, num_channels))
-    return reshaped_data
+    num_data_points = len(file_content) // (2 * num_channels)
+    samples = np.frombuffer(
+        file_content, dtype='>i2', count=num_data_points * num_channels)
+
+    trailing_bytes = len(file_content) - num_data_points * num_channels * 2
+    if trailing_bytes:
+        logging.warning(
+            "Data file has %d trailing byte(s) that do not form a complete record; ignoring them.",
+            trailing_bytes)
+
+    return samples.reshape(num_data_points, num_channels)
 
 
 def parse_legacy_data(header_file_path, cal_file_path, data_file_path):
@@ -341,15 +352,37 @@ def align_sensor_data(data, sensor_names, sensor_distances, sample_step):
 
 
 def apply_calibrations(sensor_df, sensor_names, sensor_calibration_types, ad_factor, sensor_scales, sensor_offsets, asymptotic_values):
-    """Apply calibrations to sensor data."""
+    """Apply calibrations to sensor data.
+
+    The calibration functions are plain arithmetic, so they are applied to whole
+    channel arrays at once. Series.apply() called them once per sample, which for
+    a typical MD record meant millions of Python-level calls and dominated load
+    time.
+    """
     for sensor_name in sensor_df.columns:
         calibration_type = sensor_calibration_types[sensor_name]
+        values = sensor_df[sensor_name].to_numpy(dtype=float)
+
         if calibration_type == 0:
-            sensor_df[sensor_name] = sensor_df[sensor_name].apply(
-                linear_calibration, args=(ad_factor, sensor_scales[sensor_name], sensor_offsets[sensor_name]))
+            calibrated = linear_calibration(
+                values, ad_factor, sensor_scales[sensor_name], sensor_offsets[sensor_name])
         elif calibration_type in [1, 2]:
-            sensor_df[sensor_name] = sensor_df[sensor_name].apply(
-                logarithmic_calibration, args=(ad_factor, sensor_scales[sensor_name], sensor_offsets[sensor_name], asymptotic_values[sensor_name]))
+            calibrated = logarithmic_calibration(
+                values, ad_factor, sensor_scales[sensor_name],
+                sensor_offsets[sensor_name], asymptotic_values[sensor_name])
+            non_finite = int(np.count_nonzero(~np.isfinite(calibrated)))
+            if non_finite:
+                # log() of a non-positive argument: the raw reading sat at or
+                # below the sensor's asymptote. Report it rather than letting a
+                # silently NaN channel reach the analyses.
+                logging.warning(
+                    "Channel %s: %d of %d samples fall outside the logarithmic "
+                    "calibration range and are not finite.",
+                    sensor_name, non_finite, len(calibrated))
+        else:
+            continue
+
+        sensor_df[sensor_name] = calibrated
 
     return sensor_df
 

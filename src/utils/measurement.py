@@ -128,9 +128,14 @@ class Measurement:
                 channel_segments.append(segment)
 
             if channel_segments:
+                # Strips differ slightly in length because tape spacing varies.
+                # Align them at the leading tape and trim the trailing end, so
+                # index 0 of every profile is the same distance from the tape
+                # that starts the strip. Centre cropping instead shifted each
+                # strip by half its own length difference, which smeared short
+                # wavelength CD structure in the mean profile and spectrum.
                 min_length = min(map(len, channel_segments))
-                trimmed_segments = [
-                    seg[(len(seg) - min_length) // 2: (len(seg) + min_length) // 2] for seg in channel_segments]
+                trimmed_segments = [seg[:min_length] for seg in channel_segments]
 
                 segments[channel] = np.array(trimmed_segments)
 

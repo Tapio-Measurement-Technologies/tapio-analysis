@@ -5,7 +5,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 import numpy as np
-from .report_generator import ReportGenerator
+from .report_generator import ReportGenerator, stats_for_report
 import settings
 
 
@@ -163,7 +163,7 @@ class WordReportGenerator(ReportGenerator):
                 self._add_stats_table(stats_cell, analysis)
 
     def _add_stats_table(self, cell, analysis):
-        data = analysis.controller.getStatsTableData()
+        data = stats_for_report(analysis.controller)
         if not data:
             return
 

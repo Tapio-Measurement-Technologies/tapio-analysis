@@ -4,7 +4,8 @@ from PyQt6.QtGui import QAction
 from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase, Analysis
 from utils.types import AnalysisType, PlotAnnotation
-from utils.signal_processing import hs_units, safe_spectral_params
+from utils.signal_processing import (hs_units, safe_spectral_params,
+                                     interpolate_non_finite, frequency_refinement_range)
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.ticker import AutoMinorLocator, LogLocator
@@ -198,7 +199,9 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 self.measurement.distances, self.analysis_range_low)
             self.high_index = np.searchsorted(
                 self.measurement.distances, self.analysis_range_high, side='right')
-            self.data = self.measurement.channel_df[self.channel][self.low_index:self.high_index]
+            self.data, _ = interpolate_non_finite(
+                self.measurement.channel_df[self.channel][self.low_index:self.high_index],
+                context=f"{self.channel} spectrum")
 
             spectral_params = safe_spectral_params(
                 self.nperseg,
@@ -243,10 +246,9 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             x = self.measurement.cd_distances[self.low_index:self.high_index]
 
             unfiltered_data = [
-                np.asarray(
+                interpolate_non_finite(
                     self.measurement.segments[self.channel][sample_idx][self.low_index:self.high_index],
-                    dtype=float,
-                )
+                    context=f"{self.channel} spectrum profile")[0]
                 for sample_idx in self.selected_samples
                 if 0 <= sample_idx < len(self.measurement.segments[self.channel])
             ]
@@ -602,7 +604,13 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         if bin_index is None:
             return None
 
-        return float(self.frequencies[bin_index])
+        snapped = float(self.frequencies[bin_index])
+        if snapped <= 0 or not np.isfinite(snapped):
+            # The DC bin has no wavelength, so refuse to select it rather than
+            # letting 1/f divide by zero further down.
+            return None
+
+        return snapped
 
     def get_bin_location(self, freq):
         bin_index = self.get_nearest_frequency_bin_index(freq)
@@ -858,10 +866,15 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         plot_min = self.controller.ax.get_xlim()[0] if self.controller.ax.get_xlim()[
             0] > 0 else 0
         plot_max = self.controller.ax.get_xlim()[1]
-        wrange = (plot_max - plot_min) * 0.01
+        wrange, search_min, search_max = frequency_refinement_range(
+            selected_freqs[-1], plot_min, plot_max)
+        if wrange is None:
+            logging.warning("Cannot refine a non-positive frequency selection.")
+            return
 
         refined = hs_units(
-            d, self.controller.fs, selected_freqs[-1], wrange, plot_min, plot_max, settings.MAX_HARMONICS_FREQUENCY_ESTIMATOR)
+            d, self.controller.fs, selected_freqs[-1], wrange, search_min, search_max,
+            settings.MAX_HARMONICS_FREQUENCY_ESTIMATOR)
 
         print(self.controller.fs)
         # Todo: Only search withing the visible window
@@ -872,6 +885,13 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         print(f"Fundamental frequency estimation took {
               elapsed_time_ms:.2f} ms")
         print("Refined frequency: ", refined)
+        if refined is None or not np.isfinite(refined) or refined <= 0:
+            # No usable candidate in the search range: keep the user's selection
+            # rather than replacing it with zero, whose wavelength is 1/0.
+            logging.warning(
+                "Frequency refinement found no candidate in the visible range; keeping %.4f 1/m.",
+                selected_freqs[-1])
+            return
         self.controller.selected_freqs[-1] = refined
         self.refresh()
 
@@ -956,8 +976,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         selected_freqs = self.controller.selected_freqs
 
         machine_speed = self.controller.machine_speed
-        if self.controller.selected_freqs:
-            wavelength = 1 / self.controller.selected_freqs[-1]
+        if selected_freqs and selected_freqs[-1] and np.isfinite(selected_freqs[-1]):
+            wavelength = 1 / selected_freqs[-1]
 
             if self.window_type == "MD":
                 frequency_in_hz = selected_freqs[-1] * machine_speed / 60
