@@ -1014,9 +1014,33 @@ class PlotMixin:
             self.__init__()
         return self.canvas
 
+    # Derived results that a failed plot must not leave behind. Everything here
+    # is recomputed from scratch on every successful plot().
+    RESULT_ATTRIBUTES = (
+        "data", "mean_profile", "profile_distances", "amplitudes", "frequencies",
+        "filtered_data", "plot_data", "stats", "quefrencies", "cepstrum_amplitudes",
+    )
+
+    def invalidate_results(self):
+        """Drop derived results so nothing downstream reports stale numbers.
+
+        Without this, a plot that raises part way through leaves the previous
+        configuration's arrays in place, and the statistics panel and the
+        generated report keep showing values that no longer match the settings
+        on screen.
+        """
+        for name in self.RESULT_ATTRIBUTES:
+            if hasattr(self, name):
+                setattr(self, name, np.array([]))
+        if hasattr(self, "significance_level"):
+            self.significance_level = None
+        if hasattr(self, "correlation_coefficient"):
+            self.correlation_coefficient = np.nan
+
     def updatePlot(self):
         try:
             annotations = self.canvas.get_annotations()
+            self.plot_failed = False
             self.plot()
             # Re-apply interactive annotations
             self.canvas.set_annotations(annotations)
@@ -1025,8 +1049,15 @@ class PlotMixin:
             # Print the exception details with traceback
             print("Exception occurred:")
             traceback.print_exc()
-            self.figure.text(0.5, 0.5, "Invalid parameters",
-                             fontsize=14, ha='center', va='center')
+            self.plot_failed = True
+            self.invalidate_results()
+            self.figure.clear()
+            ax = self.figure.add_subplot(111)
+            ax.axis('off')
+            ax.text(0.5, 0.5,
+                    "Invalid parameters\nNo results for these settings",
+                    fontsize=14, ha='center', va='center',
+                    transform=ax.transAxes, color='tab:red')
             self.canvas.draw()
 
     def getPlotImage(self, format="png", dpi=300):

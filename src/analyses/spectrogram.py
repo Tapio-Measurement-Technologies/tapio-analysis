@@ -1,9 +1,12 @@
+import logging
+
 from PyQt6.QtWidgets import QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QGroupBox
 from PyQt6.QtGui import QAction
 from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase, Analysis
 from utils.types import AnalysisType, PlotAnnotation
-from utils.signal_processing import hs_units, safe_spectral_params
+from utils.signal_processing import (hs_units, safe_spectral_params,
+                                     interpolate_non_finite, frequency_refinement_range)
 import matplotlib.pyplot as plt
 import matplotlib
 from gui.components import (
@@ -131,7 +134,9 @@ class AnalysisController(AnalysisControllerBase):
                 self.updated.emit()
                 return self.canvas
             nperseg, noverlap = spectral_params
-            data_mean_removed = self.data - np.mean(self.data)
+            values, _ = interpolate_non_finite(
+                self.data, context=f"{self.channel} spectrogram")
+            data_mean_removed = values - np.mean(values)
 
             Pxx, freqs, bins, im = ax.specgram(data_mean_removed,
                                                NFFT=nperseg,
@@ -181,6 +186,8 @@ class AnalysisController(AnalysisControllerBase):
             if spectrum_mode == 'spectrum_of_mean_profile':
                 # Take mean profile, then spectrogram
                 mean_profile = np.mean(unfiltered_data, axis=0)
+                mean_profile, _ = interpolate_non_finite(
+                    mean_profile, context=f"{self.channel} mean profile")
                 mean_profile = mean_profile - np.mean(mean_profile)
                 freqs, bins, Pxx = spectrogram(
                     mean_profile,
@@ -197,6 +204,8 @@ class AnalysisController(AnalysisControllerBase):
                 freqs = None
                 bins = None
                 for profile in unfiltered_data:
+                    profile, _ = interpolate_non_finite(
+                        profile, context=f"{self.channel} profile")
                     profile = profile - np.mean(profile)
                     freqs, bins, Pxx_i = spectrogram(
                         profile,
@@ -213,7 +222,18 @@ class AnalysisController(AnalysisControllerBase):
                         Pxx_sum += Pxx_i
                 Pxx = Pxx_sum / len(unfiltered_data)
 
-        amplitudes = np.sqrt(Pxx*2) * settings.SPECTRUM_AMPLITUDE_SCALING
+        # scipy/matplotlib return a power spectral DENSITY here, whereas the
+        # Spectrum window uses a power SPECTRUM. sqrt(2*P) is only an amplitude
+        # for the latter, so convert first. For a window w the two scalings
+        # differ by the equivalent noise bandwidth fs*sum(w^2)/sum(w)^2, which
+        # depends on nperseg - without this the displayed amplitude changes when
+        # the spectrum length slider is moved.
+        density_to_spectrum = 1.0
+        if settings.SPECTROGRAM_AMPLITUDE_DENSITY_CORRECTION:
+            window = np.hanning(nperseg)
+            density_to_spectrum = self.fs *                 np.sum(window ** 2) / np.sum(window) ** 2
+
+        amplitudes = np.sqrt(Pxx * 2 * density_to_spectrum) *             settings.SPECTRUM_AMPLITUDE_SCALING
         freq_indices = (freqs >= self.frequency_range_low) & (
             freqs <= self.frequency_range_high)
         freqs_cut = freqs[freq_indices]
@@ -225,15 +245,22 @@ class AnalysisController(AnalysisControllerBase):
 
         self.frequencies = freqs_cut
         self.amplitudes = amplitudes_cut
-        vmax = 3 * np.mean(amplitudes_cut)
-        if not np.isfinite(vmax) or vmax <= 0:
-            vmax = 1.0
+
+        vmin, vmax, scale_mode = self.get_color_limits(amplitudes_cut)
+        self.color_limits = (vmin, vmax)
+
         im = ax.imshow(amplitudes_cut, aspect='auto', origin='lower',
                        extent=[bins[0], bins[-1], freqs_cut[0], freqs_cut[-1]],
-                       norm=matplotlib.colors.Normalize(vmin=0, vmax=vmax), cmap=settings.SPECTROGRAM_COLORMAP)
+                       norm=matplotlib.colors.Normalize(vmin=vmin, vmax=vmax), cmap=settings.SPECTROGRAM_COLORMAP)
 
         cbar = self.figure.colorbar(im, ax=ax, pad=0.2)
-        cbar.set_label(f"Amplitude [{self.measurement.units[self.channel]}]")
+        unit = self.measurement.units[self.channel]
+        colorbar_label = f"Amplitude [{unit}]"
+        if settings.SPECTROGRAM_SHOW_COLOR_SCALE_RANGE and scale_mode != "fixed":
+            # Make it explicit that the scale is autoscaled to this plot, so the
+            # colours of two different measurements are not compared directly.
+            colorbar_label += f"\n{scale_mode} scale: {vmin:.3g}-{vmax:.3g} {unit}"
+        cbar.set_label(colorbar_label)
 
         secax = ax.twinx()
 
@@ -353,9 +380,41 @@ class AnalysisController(AnalysisControllerBase):
 
         return self.canvas
 
+    def get_color_limits(self, amplitudes):
+        """Colour scale limits for the spectrogram image.
+
+        Defaults to a relative scale (a multiple of the mean amplitude in the
+        visible band) so that weak periodic content stays visible whatever the
+        absolute level. Set SPECTROGRAM_COLOR_SCALE_MODE to "fixed" with
+        SPECTROGRAM_FIXED_CLIM when two measurements must be compared directly.
+        """
+        mode = getattr(settings, "SPECTROGRAM_COLOR_SCALE_MODE", "relative")
+
+        if mode == "fixed":
+            limits = settings.SPECTROGRAM_FIXED_CLIM.get(self.channel)
+            if limits:
+                return float(limits[0]), float(limits[1]), "fixed"
+            logging.warning(
+                "No SPECTROGRAM_FIXED_CLIM entry for channel %s, falling back to a relative scale.",
+                self.channel)
+            mode = "relative"
+
+        if mode == "full":
+            vmax = float(np.max(amplitudes))
+        else:
+            vmax = settings.SPECTROGRAM_COLOR_SCALE_FACTOR *                 float(np.mean(amplitudes))
+
+        if not np.isfinite(vmax) or vmax <= 0:
+            vmax = 1.0
+
+        return 0.0, vmax, mode
+
     def getStatsTableData(self):
         stats = []
-        if self.selected_freqs and self.selected_freqs[-1]:
+        if getattr(self, "plot_failed", False) or len(self.frequencies) == 0:
+            return stats
+        if (self.selected_freqs and self.selected_freqs[-1]
+                and np.isfinite(self.selected_freqs[-1])):
             wavelength = 1 / self.selected_freqs[-1]
             stats.append(["Selected frequency:", ""])
             if self.window_type == "MD":
@@ -363,11 +422,11 @@ class AnalysisController(AnalysisControllerBase):
                     self.machine_speed / 60
                 stats.append([
                     "Frequency:\nWavelength:",
-                    f"{self.selected_freqs[-1]:.2f} 1/m ({frequency_in_hz:.2f} Hz)\n{100*wavelength:.2f} m"])
+                    f"{self.selected_freqs[-1]:.2f} 1/m ({frequency_in_hz:.2f} Hz)\n{100*wavelength:.2f} cm"])
             elif self.window_type == "CD":
                 stats.append([
                     "Frequency:\nWavelength:",
-                    f"{self.selected_freqs[-1]:.2f} 1/m\n{100*wavelength:.3f} m"
+                    f"{self.selected_freqs[-1]:.2f} 1/m\n{100*wavelength:.3f} cm"
                 ])
         return stats
 
@@ -382,7 +441,13 @@ class AnalysisController(AnalysisControllerBase):
         if bin_index is None:
             return None
 
-        return float(self.frequencies[bin_index])
+        snapped = float(self.frequencies[bin_index])
+        if snapped <= 0 or not np.isfinite(snapped):
+            # The DC bin has no wavelength, so refuse to select it rather than
+            # letting 1/f divide by zero further down.
+            return None
+
+        return snapped
 
     def get_freq_in_hz(self, freq_1m):
         return freq_1m * self.machine_speed / 60
@@ -585,10 +650,14 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         plot_min = self.controller.ax.get_ylim()[0] if self.controller.ax.get_ylim()[
             0] > 0 else 0
         plot_max = self.controller.ax.get_ylim()[1]
-        wrange = (plot_max - plot_min) * 0.01
+        wrange, search_min, search_max = frequency_refinement_range(
+            self.controller.selected_freqs[-1], plot_min, plot_max)
+        if wrange is None:
+            logging.warning("Cannot refine a non-positive frequency selection.")
+            return
 
         refined = hs_units(d, self.controller.fs, self.controller.selected_freqs[-1],
-                           wrange, plot_min, plot_max, settings.MAX_HARMONICS_DISPLAY)
+                           wrange, search_min, search_max, settings.MAX_HARMONICS_DISPLAY)
 
         print(self.controller.fs)
         # Todo: Only search withing the visible window
@@ -599,6 +668,13 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         print(
             f"Fundamental frequency estimation took {elapsed_time_ms:.2f} ms")
         print("Refined frequency: ", refined)
+        if refined is None or not np.isfinite(refined) or refined <= 0:
+            # No usable candidate in the search range: keep the user's selection
+            # rather than replacing it with zero, whose wavelength is 1/0.
+            logging.warning(
+                "Frequency refinement found no candidate in the visible range; keeping %.4f 1/m.",
+                self.controller.selected_freqs[-1])
+            return
         self.controller.selected_freqs[-1] = refined
         self.refresh()
 
@@ -680,7 +756,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.refresh_widgets()
         machine_speed = self.controller.machine_speed
         selected_freqs = self.controller.selected_freqs
-        if selected_freqs:
+        if selected_freqs and selected_freqs[-1] and np.isfinite(selected_freqs[-1]):
             wavelength = 1 / selected_freqs[-1]
             if self.window_type == "MD":
                 frequency_in_hz = selected_freqs[-1] * machine_speed / 60

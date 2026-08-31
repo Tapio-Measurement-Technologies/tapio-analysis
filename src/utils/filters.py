@@ -2,6 +2,7 @@ from scipy.signal import firwin, convolve, freqz
 import numpy as np
 import matplotlib.pyplot as plt
 
+from utils.signal_processing import interpolate_non_finite
 import settings
 import logging
 
@@ -32,7 +33,12 @@ def bandpass_filter(data, lowcut, highcut, fs, numtaps=settings.FILTER_NUMTAPS, 
     :return: Array-like, the filtered data.
     """
 
-    data = np.asarray(data, dtype=float)
+    data = np.asarray(data, dtype=float).reshape(-1)
+
+    # Convolution is FFT based at these lengths, so a single non-finite sample
+    # would turn the whole output into NaN. Fill gaps before filtering.
+    data, _ = interpolate_non_finite(data, context="band pass filter input")
+
     data_length = len(data)
     if data_length < 4:
         return data.copy()
@@ -50,12 +56,23 @@ def bandpass_filter(data, lowcut, highcut, fs, numtaps=settings.FILTER_NUMTAPS, 
         logging.warning("Data length too small for filter length. Using smaller filter window length.")
 
     epsilon = 0.0001
+    nyquist = fs / 2.0
+    low_edge = max(0.0, float(lowcut)) + epsilon
+    high_edge = min(float(highcut), nyquist * (1 - epsilon))
+    if not (0 < low_edge < high_edge < nyquist):
+        # Degenerate band (e.g. low == high). Return the mean level rather than
+        # raising, so the caller still gets a well defined, clearly empty result.
+        logging.warning(
+            "Band pass range [%s, %s] 1/m is not a valid band at fs=%s; returning mean level.",
+            lowcut, highcut, fs)
+        return np.full(data_length, original_mean)
+
     # Pad the data with a mirrored copy if mirror is True
     if mirror:
         data = mirror_pad(data, numtaps)
 
     # Create the filter coefficients
-    fir_coeff = firwin(numtaps, [epsilon+lowcut, highcut], pass_zero=False, fs=fs)
+    fir_coeff = firwin(numtaps, [low_edge, high_edge], pass_zero=False, fs=fs)
 
     if window == "hamming":
         hamming_window = np.hamming(numtaps)

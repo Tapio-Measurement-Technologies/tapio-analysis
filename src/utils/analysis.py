@@ -35,6 +35,10 @@ class AnalysisControllerBase(QObject, PlotMixin):
         if annotations:
             self.set_annotations(annotations)
 
+    def getStatsTableData(self):
+        """Rows for the report stats table. Subclasses override this."""
+        return None
+
     def set_default(self, key: str, value: Any):
         if not hasattr(self, key):
             setattr(self, key, value)

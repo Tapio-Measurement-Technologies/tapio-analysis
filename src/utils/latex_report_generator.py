@@ -4,7 +4,7 @@ import shutil
 import numpy as np
 import io
 import uuid
-from .report_generator import ReportGenerator
+from .report_generator import ReportGenerator, stats_for_report
 import settings
 
 
@@ -139,7 +139,7 @@ class LatexReportGenerator(ReportGenerator):
                 fig.add_image(plot_filename, width=NoEscape('1\\textwidth'))
 
         # Add stats table
-        data = analysis.controller.getStatsTableData()
+        data = stats_for_report(analysis.controller)
         if data:
             # Get number of columns
             shape = np.shape(data)

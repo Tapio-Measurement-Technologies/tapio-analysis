@@ -18,7 +18,7 @@ from gui.paper_machine_data import PaperMachineDataWindow
 from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
 from utils.types import AnalysisType, PlotAnnotation
-from utils.signal_processing import safe_spectral_params
+from utils.signal_processing import safe_spectral_params, interpolate_non_finite
 import matplotlib.patches as mpatches
 from scipy.signal import welch
 import numpy as np
@@ -168,7 +168,9 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 self.measurement.distances, self.analysis_range_low)
             self.high_index = np.searchsorted(
                 self.measurement.distances, self.analysis_range_high, side='right')
-            self.data = self.measurement.channel_df[self.channel][self.low_index:self.high_index]
+            self.data, _ = interpolate_non_finite(
+                self.measurement.channel_df[self.channel][self.low_index:self.high_index],
+                context=f"{self.channel} cepstrum")
 
             spectral_params = safe_spectral_params(
                 self.nperseg,
@@ -205,10 +207,9 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             x = self.measurement.cd_distances[self.low_index:self.high_index]
 
             unfiltered_data = [
-                np.asarray(
+                interpolate_non_finite(
                     self.measurement.segments[self.channel][sample_idx][self.low_index:self.high_index],
-                    dtype=float,
-                )
+                    context=f"{self.channel} cepstrum profile")[0]
                 for sample_idx in self.selected_samples
                 if 0 <= sample_idx < len(self.measurement.segments[self.channel])
             ]
@@ -243,29 +244,47 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             Pxx = np.mean(spectra, axis=0)
 
         # --- CEPSTRUM CALCULATION AND PLOTTING ---
-        # Use the extracted data segment for cepstrum calculation
-        if self.window_type == "MD":
-            data_for_cepstrum = self.data
-        else:  # CD
-            data_for_cepstrum = np.mean(unfiltered_data, axis=0)
-        data_for_cepstrum = np.asarray(data_for_cepstrum, dtype=float).reshape(-1)
-        if len(data_for_cepstrum) < 2:
+        # The cepstrum is taken from the Welch-averaged power spectrum computed
+        # above, not from a single FFT of the whole record. A raw periodogram has
+        # chi-squared(2) statistics, so log|X| is dominated by estimator noise and
+        # the cepstrum of that noise buries the rahmonics - the previous version
+        # failed to rank the true period first even on a noise-free harmonic
+        # series. Averaging over segments first is what makes the peaks emerge,
+        # and it also makes the spectrum length slider control the result.
+        if len(Pxx) < 4:
             self.canvas.draw()
             self.updated.emit()
             return self.canvas
 
-        # Calculate real cepstrum
-        spectrum = np.fft.fft(data_for_cepstrum)
-        log_spectrum = np.log(np.abs(spectrum) + 1e-12)  # avoid log(0)
-        cepstrum = np.fft.ifft(log_spectrum).real
+        # Clamp the spectrum to a fixed dynamic range below its peak before
+        # taking the log. Without this the near-empty bins between harmonics
+        # dominate log(P) and their broadband cepstral content buries the
+        # rahmonics; with it, the true period ranks first even at high noise.
+        power = np.asarray(Pxx, dtype=float).copy()
+        peak = power.max()
+        if not np.isfinite(peak) or peak <= 0:
+            self.canvas.draw()
+            self.updated.emit()
+            return self.canvas
+        floor = peak * 10 ** (-settings.CEPSTRUM_DYNAMIC_RANGE_DB / 10.0)
+        power = np.maximum(power, floor)
 
-        # Quefrency axis (in meters)
-        quefrency = np.arange(len(cepstrum)) * self.measurement.sample_step
+        log_spectrum = np.log(power)
+        # Remove the mean of the log spectrum: it only sets cepstrum[0] and would
+        # otherwise dwarf every rahmonic on the plot.
+        log_spectrum = log_spectrum - np.mean(log_spectrum)
 
-        # Plot only the first half (up to Nyquist quefrency)
-        N = len(cepstrum) // 2
-        self.quefrencies = quefrency[:N]
-        self.cepstrum_amplitudes = cepstrum[:N]
+        cepstrum = np.fft.irfft(log_spectrum, n=2 * (len(log_spectrum) - 1))
+
+        # The spectrum is one-sided over [0, fs/2] with len(Pxx) bins, so the
+        # inverse transform is sampled at intervals of 1/(2*f_max) = sample_step.
+        quefrency_step = 1.0 / (2.0 * f[-1]) if f[-1] > 0 else self.measurement.sample_step
+        quefrency = np.arange(len(cepstrum)) * quefrency_step
+
+        # The real cepstrum of a real spectrum is symmetric; keep the first half.
+        half = len(cepstrum) // 2
+        self.quefrencies = quefrency[:half]
+        self.cepstrum_amplitudes = cepstrum[:half]
         self.frequencies = self.quefrencies
         self.amplitudes = self.cepstrum_amplitudes
         ax.plot(self.quefrencies, self.cepstrum_amplitudes)

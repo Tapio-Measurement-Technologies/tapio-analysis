@@ -1,5 +1,17 @@
 from abc import ABC, abstractmethod
 
+
+def stats_for_report(controller):
+    """Statistics for a report section, or None if the controller has no valid results.
+
+    A plot that raised leaves the previous configuration's arrays behind, so the
+    report must not fall back to them. Controllers signal this with plot_failed.
+    """
+    if getattr(controller, "plot_failed", False):
+        return None
+    return controller.getStatsTableData()
+
+
 class ReportGenerator(ABC):
     def __init__(self, report_data):
         self.report_data = report_data

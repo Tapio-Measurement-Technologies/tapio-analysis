@@ -1,7 +1,6 @@
 from PyQt6.QtWidgets import QVBoxLayout, QMessageBox, QHBoxLayout, QGroupBox
 from PyQt6.QtGui import QAction
 from matplotlib import pyplot as plt
-from scipy.optimize import curve_fit
 from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
 from utils.types import AnalysisType, PlotAnnotation
@@ -19,6 +18,31 @@ import numpy as np
 
 analysis_name = "Formation"
 analysis_types = ["MD", "CD"]
+
+
+def fit_linear(x, y):
+    """Ordinary least squares fit of y = a*x + b.
+
+    Replaces scipy.optimize.curve_fit, which ran an iterative non-linear solver
+    on what is a closed-form linear problem. Returns None if the fit is not
+    defined (fewer than two finite points, or constant x).
+    """
+    x = np.asarray(x, dtype=float).reshape(-1)
+    y = np.asarray(y, dtype=float).reshape(-1)
+    common_length = min(len(x), len(y))
+    x = x[:common_length]
+    y = y[:common_length]
+
+    finite_mask = np.isfinite(x) & np.isfinite(y)
+    x = x[finite_mask]
+    y = y[finite_mask]
+
+    if len(x) < 2 or np.ptp(x) == 0:
+        return None
+
+    design = np.column_stack((x, np.ones_like(x)))
+    coefficients, *_ = np.linalg.lstsq(design, y, rcond=None)
+    return coefficients
 
 
 def safe_correlation(x, y):
@@ -131,21 +155,13 @@ class AnalysisController(AnalysisControllerBase):
                 self.updated.emit()
                 return self.canvas
 
-            def linear(x, a, b):
-                return a * x + b
-            try:
-                params, covariance = curve_fit(
-                    linear, transmission_data, bw_data)
-            except (RuntimeError, ValueError):
+            params = fit_linear(transmission_data, bw_data)
+            if params is None:
                 self.canvas.draw()
                 self.updated.emit()
                 return self.canvas
 
-            def f(x):
-                return linear(x, *params)
-
-            vectorized_function = np.vectorize(f)
-            estimated_bw = vectorized_function(transmission_data)
+            estimated_bw = params[0] * transmission_data + params[1]
 
             self.correlation_coefficient = safe_correlation(bw_data, estimated_bw)
 
@@ -187,22 +203,14 @@ class AnalysisController(AnalysisControllerBase):
             transmission_mean_profile = np.mean(transmission_data, axis=0)
             bw_mean_profile = np.mean(bw_profiles, axis=0)
 
-            def linear(x, a, b):
-                return a * x + b
-            try:
-                params, covariance = curve_fit(
-                    linear, transmission_mean_profile, bw_mean_profile)
-            except (RuntimeError, ValueError):
+            params = fit_linear(transmission_mean_profile, bw_mean_profile)
+            if params is None:
                 self.canvas.draw()
                 self.updated.emit()
                 return self.canvas
 
-            def f(x):
-                return linear(x, *params)
-
-            vectorized_function = np.vectorize(f)
             estimated_bw_profiles = [
-                vectorized_function(i) for i in transmission_data]
+                params[0] * profile + params[1] for profile in transmission_data]
 
             self.correlation_coefficient = safe_correlation(
                 bw_mean_profile,
@@ -248,11 +256,13 @@ class AnalysisController(AnalysisControllerBase):
         std = np.std(self.stats)
         min_val = np.min(self.stats)
         max_val = np.max(self.stats)
-        units = self.measurement.units[self.channel]
+        # f_N = sigma_b / sqrt(b), so its unit is the square root of the basis
+        # weight unit, not the basis weight unit itself.
+        units = settings.FORMATION_INDEX_UNIT
 
         stats.append(["Correlation coefficient:",
                      f"{self.correlation_coefficient:.2f}"])
-        stats.append(["", f"{self.channel} [{units}]"])
+        stats.append(["", f"Formation index [{units}]"])
         stats.append([
             "Mean:\nStdev:\nMin:\nMax:",
             f"{mean:.2f}\n{std:.2f}\n{min_val:.2f}\n{max_val:.2f}"
@@ -261,20 +271,40 @@ class AnalysisController(AnalysisControllerBase):
         return stats
 
     def calculate_formation_index(self, arr, window_size=settings.FORMATION_WINDOW_LENGTH):
-        arr = np.array(arr)
-        num_values = len(arr) - window_size + 1
-        if num_values <= 0:
+        """Sliding-window formation index f_N = sigma_b / sqrt(b), b = mean basis weight.
+
+        Computed with running sums instead of a Python loop, which makes it O(N)
+        rather than O(N * window_size). The data is centred on its own mean first
+        so that the sum-of-squares term does not lose precision to cancellation
+        when the mean is much larger than the standard deviation.
+
+        Units: (g/m^2)^0.5.
+        """
+        values = np.asarray(arr, dtype=float).reshape(-1)
+        window_size = int(window_size)
+        num_values = len(values) - window_size + 1
+        if window_size < 1 or num_values <= 0:
             return np.array([])
-        result = np.empty(num_values)
 
-        for i in range(num_values):
-            window = arr[i:i + window_size]
-            variance = np.var(window)
-            mean_value = np.mean(window)
-            sqrt_mean = np.sqrt(mean_value) if mean_value > 0 else 0
-            result[i] = variance / sqrt_mean if sqrt_mean != 0 else 0
+        offset = float(np.mean(values))
+        centred = values - offset
 
-        return result
+        cumulative = np.concatenate(([0.0], np.cumsum(centred)))
+        cumulative_squares = np.concatenate(([0.0], np.cumsum(centred ** 2)))
+
+        window_sum = cumulative[window_size:] - cumulative[:-window_size]
+        window_square_sum = (cumulative_squares[window_size:]
+                             - cumulative_squares[:-window_size])
+
+        centred_mean = window_sum / window_size
+        # Clamp to zero: rounding can make an all-constant window slightly negative.
+        variance = np.maximum(window_square_sum / window_size - centred_mean ** 2, 0.0)
+        std = np.sqrt(variance)
+
+        mean_value = centred_mean + offset
+        sqrt_mean = np.sqrt(np.maximum(mean_value, 0.0))
+
+        return np.divide(std, sqrt_mean, out=np.zeros_like(std), where=sqrt_mean > 0)
 
 
 class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin, SampleSelectMixin, ShowProfilesMixin, CopyPlotMixin, ChildWindowCloseMixin):
