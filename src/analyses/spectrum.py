@@ -1,5 +1,6 @@
 import logging
-from PyQt6.QtWidgets import QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QGroupBox
+from PyQt6.QtWidgets import (QVBoxLayout, QLabel, QPushButton, QHBoxLayout,
+                             QGroupBox, QMenu)
 from PyQt6.QtGui import QAction
 from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase, Analysis
@@ -11,6 +12,7 @@ import matplotlib.patches as mpatches
 from matplotlib.ticker import AutoMinorLocator, LogLocator
 from utils.plot_formatting import wavelength_labels_cm_from_frequencies
 from scipy.signal import welch, find_peaks
+from matplotlib.backend_bases import MouseButton
 from gui.components import (
     AnalysisRangeMixin,
     ChannelMixin,
@@ -23,7 +25,8 @@ from gui.components import (
     AutoDetectPeaksMixin,
     ChildWindowCloseMixin,
     ExportMixin,
-    ControlsPanelWidget
+    ControlsPanelWidget,
+    event_global_position
 )
 from gui.paper_machine_data import PaperMachineDataWindow
 import numpy as np
@@ -898,30 +901,53 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         if self.sosAnalysisWindow:
             self.sosAnalysisWindow.refresh()
 
+    def select_frequency_at(self, ax, xdata):
+        """Select the spectrum bin nearest to a position on the frequency axis."""
+        if ax is None or xdata is None:
+            return False
+
+        # Check if the x-coordinate is within the axis limits
+        xlim = ax.get_xlim()
+        if not (xlim[0] <= xdata <= xlim[1]) or xdata < 0:
+            return False  # Do not proceed if the x-coordinate is out of bounds
+        if not self.controller.selected_freqs:
+            self.controller.selected_freqs = []
+
+        snapped_frequency = self.controller.snap_frequency_to_bin(xdata)
+        if snapped_frequency is None:
+            return False
+
+        self.controller.selected_freqs.append(snapped_frequency)
+        self.refresh(restore_lim=True)
+        if self.sosAnalysisWindow:
+            self.sosAnalysisWindow.refresh()
+        return True
+
+    def show_frequency_context_menu(self, event):
+        """Right-click menu offering the same selection as the selector button."""
+        menu = QMenu(self)
+        select_action = menu.addAction("Select frequency")
+        select_action.setEnabled(event.xdata is not None)
+
+        action = menu.exec(event_global_position(self.controller.canvas, event))
+
+        if action == select_action:
+            self.select_frequency_at(event.inaxes, event.xdata)
+
     def onclick(self, event):
         # Frequency selector functionality with axis limit check and label update
         if self.is_navigation_mode_active():
             return
 
-        if event.inaxes is not None and event.button == settings.FREQUENCY_SELECTOR_MOUSE_BUTTON:
+        if event.inaxes is None:
+            return
 
-            ax = event.inaxes
+        if event.button == settings.FREQUENCY_SELECTOR_MOUSE_BUTTON:
+            self.select_frequency_at(event.inaxes, event.xdata)
+            return
 
-            # Check if the x-coordinate is within the axis limits
-            xlim = ax.get_xlim()
-            if not (xlim[0] <= event.xdata <= xlim[1]) or event.xdata < 0:
-                return  # Do not proceed if the x-coordinate is out of bounds
-            if not self.controller.selected_freqs:
-                self.controller.selected_freqs = []
-
-            snapped_frequency = self.controller.snap_frequency_to_bin(event.xdata)
-            if snapped_frequency is None:
-                return
-
-            self.controller.selected_freqs.append(snapped_frequency)
-            self.refresh(restore_lim=True)
-            if self.sosAnalysisWindow:
-                self.sosAnalysisWindow.refresh()
+        if event.button == MouseButton.RIGHT:
+            self.show_frequency_context_menu(event)
 
     def on_scroll(self, event):
         if self.is_navigation_mode_active():

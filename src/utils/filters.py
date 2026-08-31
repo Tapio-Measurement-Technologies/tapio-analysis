@@ -1,4 +1,4 @@
-from scipy.signal import firwin, convolve, freqz
+from scipy.signal import firwin, convolve, freqz, fftconvolve
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -17,6 +17,89 @@ def mirror_pad(data, numtaps):
     start_mirror = data[:numtaps][::-1]
     end_mirror = data[-numtaps:][::-1]
     return np.concatenate((start_mirror, data, end_mirror))
+
+
+def bandpass_filter_columns(data, lowcut, highcut, fs, numtaps=settings.FILTER_NUMTAPS,
+                            window="hamming", mirror=True, correct_mean=True):
+    """Apply the same band pass filter to every column of a 2D array.
+
+    Equivalent to calling bandpass_filter() on each column, but the filter
+    coefficients are built once and all columns go through a single FFT
+    convolution, which is substantially faster than one transform per channel.
+
+    :param data: 2D array, samples along axis 0 and channels along axis 1.
+    :return: Filtered array of the same shape.
+    """
+    values = np.asarray(data, dtype=float)
+    if values.ndim == 1:
+        return bandpass_filter(values, lowcut, highcut, fs, numtaps=numtaps,
+                               window=window, mirror=mirror,
+                               correct_mean=correct_mean).reshape(-1, 1)
+
+    data_length, channel_count = values.shape
+    if data_length < 4 or channel_count == 0:
+        return values.copy()
+
+    filled = np.empty_like(values)
+    for index in range(channel_count):
+        filled[:, index], _ = interpolate_non_finite(
+            values[:, index], context="band pass filter input")
+
+    original_means = filled.mean(axis=0)
+
+    numtaps = _adjusted_numtaps(numtaps, data_length)
+    coefficients = _bandpass_coefficients(lowcut, highcut, fs, numtaps, window)
+    if coefficients is None:
+        return np.broadcast_to(original_means, values.shape).copy()
+
+    padded = filled
+    if mirror:
+        padded = np.concatenate(
+            (filled[:numtaps][::-1], filled, filled[-numtaps:][::-1]), axis=0)
+
+    # Transpose so each channel is a contiguous row: transforming along the
+    # fastest varying axis is markedly quicker than striding down columns.
+    padded = np.ascontiguousarray(padded.T)
+    filtered = fftconvolve(padded, coefficients[None, :], mode='same', axes=1).T
+
+    if mirror:
+        filtered = filtered[numtaps:-numtaps]
+
+    if correct_mean:
+        filtered = filtered - filtered.mean(axis=0) + original_means
+
+    return filtered
+
+
+def _adjusted_numtaps(numtaps, data_length):
+    """Shrink the filter to fit short data, keeping the tap count odd."""
+    if data_length >= numtaps:
+        return numtaps
+
+    new_numtaps = max(3, data_length - (data_length % 2) - 1)
+    logging.warning(
+        "Data length too small for filter length. Using smaller filter window length.")
+    return new_numtaps
+
+
+def _bandpass_coefficients(lowcut, highcut, fs, numtaps, window):
+    """FIR band pass coefficients, or None when the band is degenerate."""
+    epsilon = 0.0001
+    nyquist = fs / 2.0
+    low_edge = max(0.0, float(lowcut)) + epsilon
+    high_edge = min(float(highcut), nyquist * (1 - epsilon))
+
+    if not (0 < low_edge < high_edge < nyquist):
+        logging.warning(
+            "Band pass range [%s, %s] 1/m is not a valid band at fs=%s; returning mean level.",
+            lowcut, highcut, fs)
+        return None
+
+    coefficients = firwin(numtaps, [low_edge, high_edge], pass_zero=False, fs=fs)
+    if window == "hamming":
+        coefficients = coefficients * np.hamming(numtaps)
+
+    return coefficients
 
 
 def bandpass_filter(data, lowcut, highcut, fs, numtaps=settings.FILTER_NUMTAPS, window="hamming", mirror=True, use_epsilon=True, correct_mean=True):

@@ -5,7 +5,7 @@ import os
 import numpy as np
 import pandas as pd
 import json
-from utils.measurement import Measurement
+from utils.measurement import Measurement, drop_unusable_channels
 
 menu_text = "Load Tapio data"
 menu_priority = 2
@@ -50,6 +50,9 @@ def load_data(fileNames: list[str]) -> Measurement | None:
 
         # Add calculated channels
         sensor_df, units = add_calculated_channels(sensor_df, units)
+
+        # Drop channels that carry no usable data (e.g. a disconnected sensor).
+        sensor_df, units = drop_unusable_channels(sensor_df, units)
 
         # Update measurement object with loaded data
         measurement.measurement_label = info

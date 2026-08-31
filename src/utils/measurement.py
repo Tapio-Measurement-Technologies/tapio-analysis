@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass, field
 from typing import Optional
 import numpy as np
@@ -128,14 +129,9 @@ class Measurement:
                 channel_segments.append(segment)
 
             if channel_segments:
-                # Strips differ slightly in length because tape spacing varies.
-                # Align them at the leading tape and trim the trailing end, so
-                # index 0 of every profile is the same distance from the tape
-                # that starts the strip. Centre cropping instead shifted each
-                # strip by half its own length difference, which smeared short
-                # wavelength CD structure in the mean profile and spectrum.
                 min_length = min(map(len, channel_segments))
-                trimmed_segments = [seg[:min_length] for seg in channel_segments]
+                trimmed_segments = [
+                    trim_segment(segment, min_length) for segment in channel_segments]
 
                 segments[channel] = np.array(trimmed_segments)
 
@@ -157,6 +153,99 @@ class Measurement:
         #     print(len(self.cd_distances))
 
         return self
+
+
+def drop_unusable_channels(channel_df, units=None):
+    """Remove channels that carry no usable data.
+
+    A sensor that was disconnected, or whose calibration produced no finite
+    values, yields an all-NaN column. Such a channel cannot be plotted or
+    correlated and only clutters the channel selectors, so it is dropped at load
+    time. DROP_CHANNEL_NAN_FRACTION sets how much of a channel must be
+    non-finite before it is discarded; at the default of 1.0 only entirely
+    non-finite channels go.
+
+    :param channel_df: DataFrame of channel data.
+    :param units: Optional unit mapping, pruned alongside the columns.
+    :return: (channel_df, units) with unusable channels removed.
+    """
+    try:
+        import settings
+        threshold = getattr(settings, "DROP_CHANNEL_NAN_FRACTION", 1.0)
+    except ImportError:
+        threshold = 1.0
+
+    if channel_df is None or channel_df.empty or threshold is None:
+        return channel_df, units
+
+    dropped = []
+    for channel in channel_df.columns:
+        values = channel_df[channel].to_numpy(dtype=float, na_value=np.nan)
+        if len(values) == 0:
+            continue
+        non_finite_fraction = np.count_nonzero(~np.isfinite(values)) / len(values)
+        if non_finite_fraction >= threshold:
+            dropped.append((channel, non_finite_fraction))
+
+    if not dropped:
+        return channel_df, units
+
+    for channel, fraction in dropped:
+        logging.warning(
+            "Ignoring channel %s: %.0f%% of its samples are not finite.",
+            channel, 100 * fraction)
+
+    channel_df = channel_df.drop(columns=[channel for channel, _ in dropped])
+
+    if isinstance(units, dict):
+        for channel, _ in dropped:
+            units.pop(channel, None)
+
+    return channel_df, units
+
+
+def get_cd_segment_alignment():
+    try:
+        import settings
+        return getattr(settings, "CD_SEGMENT_ALIGNMENT", "left")
+    except ImportError:
+        return "left"
+
+
+def trim_segment(segment, length):
+    """Trim a CD strip to a common length, honouring CD_SEGMENT_ALIGNMENT.
+
+    Strips differ slightly in length because tape spacing varies, so they must
+    be cut to a common length before they can be averaged. Which end is kept
+    decides what CD position index 0 of every profile refers to:
+
+      "left"   keep the start, so every profile begins at its leading tape.
+      "right"  keep the end, so every profile ends at its trailing tape.
+      "center" cut equally from both ends. This shifts each strip by half its
+               own length difference relative to the others, which smears short
+               wavelength CD structure in the mean profile and spectrum.
+
+    :param segment: One CD strip.
+    :param length: Common length in samples.
+    :return: The trimmed strip.
+    """
+    alignment = get_cd_segment_alignment()
+    extra = len(segment) - length
+
+    if extra <= 0:
+        return segment
+
+    if alignment == "right":
+        return segment[extra:]
+    if alignment == "center":
+        start = extra // 2
+        return segment[start:start + length]
+    if alignment != "left":
+        logging.warning(
+            "Unknown CD_SEGMENT_ALIGNMENT %r, using 'left'. "
+            "Valid values are 'left', 'center' and 'right'.", alignment)
+
+    return segment[:length]
 
 
 def get_default_tape_width_mm():

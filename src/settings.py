@@ -85,6 +85,10 @@ ANALYSES_EXCLUDED_FROM_REPORT = ["sos", "find_samples"]
 
 UPDATE_ON_SLIDE = False
 IGNORE_CHANNELS = ["Density"]
+# Channels whose data is at least this fraction non-finite are dropped on load.
+# A disconnected sensor or a failed calibration yields an all-NaN channel that
+# cannot be plotted or correlated. Set to None to keep every channel.
+DROP_CHANNEL_NAN_FRACTION = 1.0
 CORRELATION_MATRIX_SAMPLE_LIMIT = 2000
 CORRELATION_MATRIX_HISTOGRAM_BINS = 20
 CORRELATION_MATRIX_LABEL_FONT_SIZE = 8
@@ -141,6 +145,14 @@ FREQUENCY_REFINEMENT_MAX_RELATIVE = 0.10
 CD_SAMPLE_LENGTH_SLIDER_MIN = 2  # Minimum allowed sample length in meters
 CD_SAMPLE_LENGTH_SLIDER_MAX = 15  # Maximum allowed sample length in meters
 CD_SAMPLE_LENGTH_SLIDER_STEP = 0.01
+
+# How CD strips of unequal length are trimmed to a common length. This decides
+# which physical CD position index 0 of every profile refers to, and therefore
+# how well short wavelength CD structure survives averaging.
+#   "left"   keep the start, so every profile begins at its leading tape
+#   "right"  keep the end, so every profile ends at its trailing tape
+#   "center" cut equally from both ends (shifts strips relative to each other)
+CD_SEGMENT_ALIGNMENT = "left"
 
 # Tape width which will be cut off from all CD samples
 TAPE_WIDTH_MM = 65.00

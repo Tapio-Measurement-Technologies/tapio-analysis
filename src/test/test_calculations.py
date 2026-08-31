@@ -11,10 +11,11 @@ import pandas as pd
 import pytest
 
 import settings
-from analyses import cepstrum, coherence, formation, spectrogram, spectrum, time_domain
+from analyses import (cepstrum, coherence, correlation_matrix, formation,
+                      spectrogram, spectrum, time_domain)
 from gui.components import StatsWidget
-from utils.filters import bandpass_filter
-from utils.measurement import Measurement
+from utils.filters import bandpass_filter, bandpass_filter_columns
+from utils.measurement import Measurement, drop_unusable_channels
 from utils.report_generator import stats_for_report
 from utils.signal_processing import (coherence_significance_level,
                                      frequency_refinement_range,
@@ -551,13 +552,15 @@ def test_cepstrum_responds_to_segment_length(qt_app):
 # CD strip alignment
 # --------------------------------------------------------------------------
 
-def test_cd_segments_are_aligned_at_the_leading_tape():
-    """Strips of unequal length are trimmed at the trailing end, so index 0 of
-    every profile is the same distance from the tape that starts the strip."""
+def unequal_strip_measurement():
+    """Three CD strips of deliberately different lengths.
+
+    The channel is a ramp equal to its own sample index, so the first and last
+    value of a trimmed strip state exactly which samples were kept.
+    """
     sample_step = 0.001
     length = 3000
     distances = np.arange(length) * sample_step
-    # Tape positions chosen so the three strips have different lengths.
     peak_locations = [0.0, 1.0, 2.05, 2.95]
 
     measurement = Measurement(
@@ -569,12 +572,284 @@ def test_cd_segments_are_aligned_at_the_leading_tape():
         peak_locations=peak_locations,
         tape_width_mm=0.0,
     )
+    return measurement, distances, peak_locations
+
+
+def test_cd_segments_align_left_by_default(monkeypatch):
+    """Every profile begins at its leading tape."""
+    monkeypatch.setattr(settings, "CD_SEGMENT_ALIGNMENT", "left")
+    measurement, distances, peak_locations = unequal_strip_measurement()
     measurement.split_data_to_segments()
     segments = measurement.segments["BW"]
 
     assert segments.shape[0] == 3
     for index, strip in enumerate(segments):
         start = np.searchsorted(distances, peak_locations[index], side='left')
-        # The data is a ramp equal to its own sample index, so the first value of
-        # each strip states exactly where that strip starts.
         assert strip[0] == pytest.approx(float(start))
+
+
+def test_cd_segments_align_right(monkeypatch):
+    """Every profile ends at its trailing tape."""
+    monkeypatch.setattr(settings, "CD_SEGMENT_ALIGNMENT", "right")
+    measurement, distances, peak_locations = unequal_strip_measurement()
+    measurement.split_data_to_segments()
+    segments = measurement.segments["BW"]
+
+    for index, strip in enumerate(segments):
+        end = np.searchsorted(distances, peak_locations[index + 1], side='right')
+        assert strip[-1] == pytest.approx(float(end - 1))
+
+
+def test_cd_segments_align_center(monkeypatch):
+    """Equal amounts are cut from both ends of each strip."""
+    monkeypatch.setattr(settings, "CD_SEGMENT_ALIGNMENT", "center")
+    measurement, distances, peak_locations = unequal_strip_measurement()
+    measurement.split_data_to_segments()
+    segments = measurement.segments["BW"]
+
+    common_length = segments.shape[1]
+    for index, strip in enumerate(segments):
+        start = np.searchsorted(distances, peak_locations[index], side='left')
+        end = np.searchsorted(distances, peak_locations[index + 1], side='right')
+        offset = (end - start - common_length) // 2
+        assert strip[0] == pytest.approx(float(start + offset))
+
+
+def test_cd_segment_alignment_falls_back_to_left(monkeypatch):
+    monkeypatch.setattr(settings, "CD_SEGMENT_ALIGNMENT", "sideways")
+    measurement, distances, peak_locations = unequal_strip_measurement()
+    measurement.split_data_to_segments()
+    segments = measurement.segments["BW"]
+
+    for index, strip in enumerate(segments):
+        start = np.searchsorted(distances, peak_locations[index], side='left')
+        assert strip[0] == pytest.approx(float(start))
+
+
+# --------------------------------------------------------------------------
+# Correlation matrix
+# --------------------------------------------------------------------------
+
+def correlated_measurement(length=20000, channel_count=4):
+    rng = np.random.default_rng(11)
+    base = rng.normal(size=length)
+    channels = {}
+    for index in range(channel_count):
+        channels[f"C{index}"] = (100.0 + index + (1.0 - 0.2 * index) * base
+                                 + rng.normal(0, 0.5, length))
+    return md_measurement(channels)
+
+
+def build_correlation_controller(qt_app, measurement=None):
+    measurement = measurement or correlated_measurement()
+    controller = correlation_matrix.AnalysisController(measurement, "MD")
+    controller.analysis_range_low = 0.0
+    controller.analysis_range_high = measurement.distances[-1]
+    controller.band_pass_low, controller.band_pass_high = 0.0, 30.0
+    controller.plot()
+    return controller
+
+
+def test_correlation_matrix_draws_only_the_lower_triangle(qt_app):
+    controller = build_correlation_controller(qt_app)
+    count = len(controller.panel_channels)
+
+    created = [(row, column)
+               for row in range(count) for column in range(count)
+               if controller.axes[row, column] is not None]
+
+    assert all(column <= row for row, column in created)
+    assert len(created) == count * (count + 1) // 2
+    assert len(controller.figure.axes) == count * (count + 1) // 2
+
+
+def test_correlation_matrix_annotations_use_the_full_slice(qt_app):
+    controller = build_correlation_controller(qt_app)
+    correlations = controller.data_slice.corr()
+
+    for (row, column), annotation in controller.correlation_labels.items():
+        assert float(annotation.get_text()) == pytest.approx(
+            correlations.iloc[row, column], abs=0.005)
+
+
+def test_correlation_matrix_reuses_panels_across_refreshes(qt_app):
+    controller = build_correlation_controller(qt_app)
+    before = [id(ax) for ax in controller.figure.axes]
+
+    controller.band_pass_high = 20.0
+    controller.plot()
+
+    assert [id(ax) for ax in controller.figure.axes] == before
+
+    # A different channel set must rebuild rather than reuse.
+    controller.measurement = correlated_measurement(channel_count=3)
+    controller.plot()
+    assert len(controller.panel_channels) == 3
+    assert len(controller.figure.axes) == 3 * 4 // 2
+
+
+def test_correlation_matrix_updates_values_when_reusing(qt_app):
+    controller = build_correlation_controller(qt_app)
+    first = {key: line.get_xydata().copy()
+             for key, line in controller.scatter_lines.items()}
+
+    controller.analysis_range_high = controller.measurement.distances[-1] / 2
+    controller.plot()
+
+    changed = any(not np.array_equal(first[key], line.get_xydata())
+                  for key, line in controller.scatter_lines.items())
+    assert changed, "reused panels kept the previous data"
+
+
+# --------------------------------------------------------------------------
+# Batched band pass filtering
+# --------------------------------------------------------------------------
+
+def test_bandpass_filter_columns_matches_per_column_filtering():
+    rng = np.random.default_rng(12)
+    length, channel_count = 30000, 5
+    data = np.column_stack([
+        100 + index + sine(length, 2.0 * (index + 1)) + rng.normal(0, 0.3, length)
+        for index in range(channel_count)])
+    data[700, 1] = np.nan  # exercise the gap-filling path
+
+    per_column = np.column_stack([
+        bandpass_filter(data[:, index], 0.0, 30.0, FS)
+        for index in range(channel_count)])
+    batched = bandpass_filter_columns(data, 0.0, 30.0, FS)
+
+    assert np.allclose(per_column, batched, atol=1e-9)
+    assert np.allclose(batched.mean(axis=0), np.nanmean(data, axis=0), atol=1e-9)
+
+
+def test_bandpass_filter_columns_handles_degenerate_band():
+    data = np.column_stack([sine(5000, 5.0, offset=100.0),
+                            sine(5000, 7.0, offset=50.0)])
+    filtered = bandpass_filter_columns(data, 5.0, 5.0, FS)
+    assert np.allclose(filtered, data.mean(axis=0))
+
+
+# --------------------------------------------------------------------------
+# Channels with no usable data
+# --------------------------------------------------------------------------
+
+def test_all_nan_channels_are_dropped(monkeypatch):
+    monkeypatch.setattr(settings, "DROP_CHANNEL_NAN_FRACTION", 1.0)
+    frame = pd.DataFrame({
+        "Good": np.arange(100, dtype=float),
+        "Dead": np.full(100, np.nan),
+        "Partly": np.where(np.arange(100) < 50, np.nan, 1.0),
+    })
+    units = {"Good": "g/m2", "Dead": "g/m2", "Partly": "g/m2"}
+
+    kept, kept_units = drop_unusable_channels(frame.copy(), dict(units))
+
+    assert list(kept.columns) == ["Good", "Partly"]
+    assert "Dead" not in kept_units
+
+
+def test_nan_channel_threshold_is_configurable(monkeypatch):
+    frame = pd.DataFrame({
+        "Good": np.arange(100, dtype=float),
+        "Partly": np.where(np.arange(100) < 50, np.nan, 1.0),
+    })
+
+    monkeypatch.setattr(settings, "DROP_CHANNEL_NAN_FRACTION", 0.4)
+    kept, _ = drop_unusable_channels(frame.copy(), {})
+    assert list(kept.columns) == ["Good"]
+
+    monkeypatch.setattr(settings, "DROP_CHANNEL_NAN_FRACTION", None)
+    kept, _ = drop_unusable_channels(frame.copy(), {})
+    assert list(kept.columns) == ["Good", "Partly"]
+
+
+# --------------------------------------------------------------------------
+# Frequency selection from the plot
+# --------------------------------------------------------------------------
+
+class _FakeMouseEvent:
+    """Matplotlib mouse event stand-in. guiEvent is None so a popup falls back
+    to the cursor position rather than needing a real Qt event."""
+
+    def __init__(self, inaxes, button, xdata=None, ydata=None):
+        self.inaxes = inaxes
+        self.button = button
+        self.xdata = xdata
+        self.ydata = ydata
+        self.guiEvent = None
+
+
+def _spectrum_window(qt_app):
+    measurement = md_measurement({"BW": sine(100000, 5.0, 1.0, 100.0)})
+    controller = spectrum.AnalysisController(measurement, "MD")
+    controller.analysis_range_low = 0.0
+    controller.analysis_range_high = measurement.distances[-1]
+    controller.frequency_range_low = 0.0
+    controller.frequency_range_high = FS / 2
+    controller.nperseg = 20000
+    controller.auto_detect_peaks = False
+    controller.plot()
+    window = spectrum.AnalysisWindow(controller, "MD")
+    controller.selected_freqs = []
+    return controller, window
+
+
+def test_spectrum_right_click_offers_select_frequency(qt_app):
+    from matplotlib.backend_bases import MouseButton
+
+    controller, window = _spectrum_window(qt_app)
+    opened = {}
+    window.show_frequency_context_menu = lambda event: opened.setdefault("x", event.xdata)
+
+    window.onclick(_FakeMouseEvent(controller.ax, MouseButton.RIGHT, xdata=7.5))
+    assert opened.get("x") == 7.5
+
+    # Outside the axes nothing opens.
+    opened.clear()
+    window.onclick(_FakeMouseEvent(None, MouseButton.RIGHT, xdata=7.5))
+    assert not opened
+
+
+def test_spectrum_menu_action_matches_selector_button(qt_app):
+    from matplotlib.backend_bases import MouseButton
+
+    controller, window = _spectrum_window(qt_app)
+
+    # What the menu entry calls.
+    assert window.select_frequency_at(controller.ax, 5.0) is True
+    from_menu = controller.selected_freqs[-1]
+
+    # What the configured selector button does.
+    controller.selected_freqs = []
+    window.onclick(_FakeMouseEvent(controller.ax, MouseButton.MIDDLE, xdata=5.0))
+    from_button = controller.selected_freqs[-1]
+
+    assert from_menu == pytest.approx(from_button)
+
+    # A left click must not select anything.
+    before = len(controller.selected_freqs)
+    window.onclick(_FakeMouseEvent(controller.ax, MouseButton.LEFT, xdata=12.0))
+    assert len(controller.selected_freqs) == before
+
+
+def test_spectrogram_menu_selects_on_the_frequency_axis(qt_app):
+    from matplotlib.backend_bases import MouseButton
+
+    measurement = md_measurement({"BW": sine(100000, 5.0, 1.0, 100.0)})
+    controller = spectrogram.AnalysisController(measurement, "MD")
+    controller.analysis_range_low = 0.0
+    controller.analysis_range_high = measurement.distances[-1]
+    controller.frequency_range_low = 0.0
+    controller.frequency_range_high = FS / 2
+    controller.plot()
+    window = spectrogram.AnalysisWindow(controller, "MD")
+    controller.selected_freqs = []
+
+    # The spectrogram puts frequency on the y axis.
+    assert window.select_frequency_at(controller.ax, 5.0) is True
+    assert controller.selected_freqs[-1] == pytest.approx(5.0, abs=0.5)
+
+    opened = {}
+    window.show_frequency_context_menu = lambda event: opened.setdefault("y", event.ydata)
+    window.onclick(_FakeMouseEvent(controller.ax, MouseButton.RIGHT, ydata=8.25))
+    assert opened.get("y") == 8.25

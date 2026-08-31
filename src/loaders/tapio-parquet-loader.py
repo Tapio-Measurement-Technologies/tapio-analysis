@@ -9,7 +9,7 @@ import json
 from scipy.interpolate import interp1d
 from scipy.optimize import curve_fit
 import settings
-from utils.measurement import Measurement
+from utils.measurement import Measurement, drop_unusable_channels
 
 menu_text = "Load Tapio Parquet data"
 menu_priority = 3
@@ -234,6 +234,9 @@ def load_data(fileNames: list[str], parent: Optional[QWidget] = None) -> Measure
         measurement.units = {
             channel_name: "V" for channel_name in measurement.channel_df.columns
         }
+        # Drop channels that carry no usable data (e.g. a disconnected sensor).
+        measurement.channel_df, measurement.units = drop_unusable_channels(
+            measurement.channel_df, measurement.units)
         measurement.channels = measurement.channel_df.columns
         valid_files_processed = True
 

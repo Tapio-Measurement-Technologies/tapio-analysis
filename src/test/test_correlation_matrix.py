@@ -8,7 +8,7 @@ from utils.measurement import Measurement
 def test_cd_correlation_matrix_uses_selected_range_once(qt_app, monkeypatch):
     monkeypatch.setattr(
         correlation_matrix,
-        "bandpass_filter",
+        "bandpass_filter_columns",
         lambda data, *_args, **_kwargs: np.asarray(data, dtype=float),
     )
     monkeypatch.setattr(

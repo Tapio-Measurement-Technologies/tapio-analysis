@@ -5,7 +5,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QImage, QMouseEvent
 from PyQt6.QtWidgets import QVBoxLayout, QWidget
 from PyQt6.QtWidgets import QComboBox, QLabel, QDoubleSpinBox, QFileDialog, QCheckBox, QHBoxLayout, QMessageBox, QGridLayout, QPushButton, QScrollArea, QProgressDialog
-from PyQt6.QtGui import QAction, QIcon
+from PyQt6.QtGui import QAction, QIcon, QCursor
 from qtpy.QtCore import Qt, Signal
 from superqt import QLabeledDoubleRangeSlider, QLabeledSlider, QLabeledDoubleSlider
 from matplotlib.figure import Figure
@@ -1129,6 +1129,24 @@ class ChildWindowCloseMixin:
     def closeEvent(self, event):
         self.close_child_windows()
         super().closeEvent(event)
+
+
+def event_global_position(canvas, event):
+    """Screen position of a matplotlib mouse event, for popping up a menu there.
+
+    Qt6 deprecated QMouseEvent.pos() in favour of position(), and a synthetic
+    event may carry no Qt event at all, so fall back to the cursor position.
+    """
+    gui_event = getattr(event, "guiEvent", None)
+    if gui_event is not None:
+        position = getattr(gui_event, "position", None)
+        if position is not None:
+            return canvas.mapToGlobal(position().toPoint())
+        legacy_position = getattr(gui_event, "pos", None)
+        if legacy_position is not None:
+            return canvas.mapToGlobal(legacy_position())
+
+    return QCursor.pos()
 
 
 class StatWidget(QWidget):
