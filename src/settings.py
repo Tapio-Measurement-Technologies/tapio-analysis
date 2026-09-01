@@ -439,8 +439,6 @@ ANALYSIS_EXPORT_ATTRIBUTES = [
     "spectrum_length_slider_max",
     "frequency_range_low",
     "frequency_range_high",
-    "quefrency_range_low",
-    "quefrency_range_high",
     "selected_samples",
     "selected_elements",
     "selected_freqs",
@@ -565,18 +563,25 @@ SPECTRUM_MODE = "mean_spectrum_of_profiles"  # or "spectrum_of_mean_profile"
 # dominate and bury the rahmonics; too small and weak harmonic families are lost.
 CEPSTRUM_DYNAMIC_RANGE_DB = 30.0
 
-# Cepstrum: the quefrency (period) window, in metres, that is plotted and
-# searched for rahmonics by default. Both ends are clamped to what the current
-# window length can produce, and the user can move them with the slider.
-#   MIN cuts off the hump that every cepstrum has at very low quefrencies. That
-#   hump comes from the broad shape of the spectrum rather than from any
-#   periodicity, and it wins the peak search if it is left in.
-#   MAX is set by what the periods mean physically: a rahmonic family here comes
-#   from a rotating element, so the interesting periods are roll circumferences,
-#   a few metres at most. The axis can reach half a Welch segment - hundreds of
-#   metres - which puts all the structure in the leftmost pixels.
-CEPSTRUM_QUEFRENCY_RANGE_MIN_DEFAULT = 0.05
-CEPSTRUM_QUEFRENCY_RANGE_MAX_DEFAULT = 5.0
+# Cepstrum: the frequency range, in 1/m, plotted and searched for rahmonics by
+# default. The cepstrum is drawn against the frequency of the harmonic family it
+# finds, so a peak sits on the same tick as the fundamental it explains in the
+# spectrum, and these bounds read the same way as the spectrum's.
+#   MIN bounds the longest period shown. A rahmonic family comes from a rotating
+#   element, so the interesting periods are roll circumferences: 0.2 1/m is a 5 m
+#   circumference, and below that the axis runs to half a Welch segment, which is
+#   hundreds of metres of empty plot.
+#   MAX cuts off the short periods, and with them the hump every cepstrum has
+#   near quefrency zero. That hump comes from the broad shape of the spectrum
+#   rather than from any periodicity, and it wins the peak search if left in.
+#   20 1/m is a 5 cm period.
+# Note that the cepstrum resolves a constant step in period, so on a frequency
+# axis its resolution falls off as f squared: bins crowd together at the left of
+# the range and spread out towards the right. CEPSTRUM_SHOW_BINS draws the bin
+# positions so that this is visible rather than implied.
+CEPSTRUM_FREQUENCY_RANGE_MIN_DEFAULT = 0.2
+CEPSTRUM_FREQUENCY_RANGE_MAX_DEFAULT = 20.0
+CEPSTRUM_SHOW_BINS = True
 
 
 SPECTRUM_SHOW_HARMONICS_NUMBERS = True

@@ -328,53 +328,6 @@ class FrequencyRangeMixin:
         self.refresh()  # Optionally refresh the plot if needed
 
 
-class QuefrencyRangeMixin:
-    """Range control for a cepstrum's x axis, which is a period in metres.
-
-    The upper bound of the axis depends on the current window length, so the
-    slider is re-scaled on every refresh and the stored values are clamped into
-    the new range rather than left pointing outside it.
-    """
-
-    def initQuefrencyRangeSlider(self, block_signals=False):
-        # Prevent recursive refresh calls when updating values elsewhere
-        self.quefrencyRangeSlider.blockSignals(block_signals)
-        max_quefrency = self.controller.max_quefrency
-        self.quefrencyRangeSlider.setDecimals(3)
-        self.quefrencyRangeSlider.setRange(0, max_quefrency)
-
-        low = min(self.controller.quefrency_range_low, max_quefrency)
-        high = min(self.controller.quefrency_range_high, max_quefrency)
-        if high <= low:
-            low, high = 0.0, max_quefrency
-        self.controller.quefrency_range_low = low
-        self.controller.quefrency_range_high = high
-
-        self.quefrencyRangeSlider.setValue((low, high))
-        self.quefrencyRangeSlider.blockSignals(False)
-
-    def addQuefrencyRangeSlider(self, layout, live_update=settings.UPDATE_ON_SLIDE):
-        self.quefrencyRangeLabel = QLabel("Quefrency range [m]")
-        layout.addWidget(self.quefrencyRangeLabel)
-        self.quefrencyRangeSlider = ExtraQLabeledDoubleRangeSlider(
-            Qt.Orientation.Horizontal)
-        self.initQuefrencyRangeSlider()
-
-        if live_update:
-            self.quefrencyRangeSlider.valueChanged.connect(
-                self.quefrencyRangeChanged)
-        else:
-            self.quefrencyRangeSlider.sliderReleased.connect(
-                self.quefrencyRangeChanged)
-            self.quefrencyRangeSlider.editingFinished.connect(
-                self.quefrencyRangeChanged)
-        layout.addWidget(self.quefrencyRangeSlider)
-
-    def quefrencyRangeChanged(self):
-        self.controller.quefrency_range_low, self.controller.quefrency_range_high = self.quefrencyRangeSlider.value()
-        self.refresh()
-
-
 class AnalysisRangeMixin:
 
     def initAnalysisRangeSlider(self, block_signals=False):

@@ -19,7 +19,7 @@ Tapio Analysis is an open-source software developed by Tapio Measurement Technol
 - **MD Formation**: Long-term variations in formation index, an indicator describing short-term basis weight variation.
 - **CD Profile**: True CD profile from actual CD strips with tools for filtering, mean profile calculation and statistics. Accurate data with sub-millimeter resolution.
 - **CD Spectrum**: Quantify and find root cause of periodic CD variations originating from CD controls, actuators etc.
-- **MD Cepstrum**: Find the period of a whole harmonic family at once, collapsing a row of spectrum harmonics into a single peak at the rotating element's circumference. Reports the period in metres, centimetres, 1/m and Hz.
+- **MD Cepstrum**: Find a whole harmonic family at once, collapsing a row of spectrum harmonics into a single peak. Shares the spectrum's axes, so a cepstrum peak lands on the same frequency as the fundamental it explains.
 - **Spectral Coherence**: Identify which frequencies are shared or absent between different channels.
 - **Spectrogram**: Study the stability of the periodic content in the sample along the length of the sample.
 - **CD Formation**: Visualize formation index in different CD locations

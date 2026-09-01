@@ -530,7 +530,12 @@ def cepstrum_controller(measurement, nperseg=20000, **attributes):
 
 @pytest.mark.parametrize("noise", [0.0, 0.2, 1.0])
 def test_cepstrum_finds_a_known_period(qt_app, noise):
-    """Peak detection must rank the true period first, not the envelope hump."""
+    """Peak detection must rank the true family first, not the envelope hump.
+
+    The cepstrum is drawn against the frequency of the family it finds, so a
+    2 m period is reported as its fundamental at 0.5 1/m - the same place the
+    spectrum puts it.
+    """
     period = 2.0
     measurement = harmonic_series_measurement(period=period, noise=noise)
 
@@ -538,15 +543,16 @@ def test_cepstrum_finds_a_known_period(qt_app, noise):
     controller.plot()
 
     assert controller.selected_freqs
-    assert controller.selected_freqs[0] == pytest.approx(period, abs=2 * SAMPLE_STEP)
+    found_period = 1 / controller.selected_freqs[0]
+    assert found_period == pytest.approx(period, abs=2 * SAMPLE_STEP)
 
 
 def test_cepstrum_responds_to_segment_length(qt_app):
     """The spectrum length control must actually change the cepstrum.
 
-    The bins are one sample step apart whatever the window length, so the axis
-    is not the thing that changes here - the amplitudes are, because the Welch
-    averaging they come from does.
+    The bins are one sample step apart in quefrency whatever the window length,
+    so the axis is not the thing that changes here - the amplitudes are, because
+    the Welch averaging they come from does.
     """
     distances = np.arange(100000) * SAMPLE_STEP
     values = 100.0 + np.sin(2 * np.pi * distances / 2.0)
@@ -556,7 +562,7 @@ def test_cepstrum_responds_to_segment_length(qt_app):
     for nperseg in (5000, 20000):
         controller = cepstrum_controller(measurement, nperseg=nperseg)
         controller.plot()
-        results.append(controller.cepstrum_amplitudes.copy())
+        results.append(controller.amplitudes.copy())
 
     assert len(results[0]) == len(results[1])
     assert not np.allclose(results[0], results[1])
@@ -564,7 +570,7 @@ def test_cepstrum_responds_to_segment_length(qt_app):
 
 @pytest.mark.parametrize("nperseg", [20000, 20001])
 def test_cepstrum_quefrency_step_is_the_sample_step(qt_app, nperseg):
-    """Quefrency is a period, so its bins are spaced one sample apart.
+    """The underlying cepstrum bins are spaced one sample apart.
 
     An odd segment length must not skew the scale: irfft reconstructs an even
     number of samples, so the controller has to round the segment down.
@@ -574,22 +580,37 @@ def test_cepstrum_quefrency_step_is_the_sample_step(qt_app, nperseg):
     controller = cepstrum_controller(measurement, nperseg=nperseg)
     controller.plot()
 
-    steps = np.diff(controller.quefrencies)
-    assert steps == pytest.approx(SAMPLE_STEP)
+    assert np.diff(controller.quefrencies) == pytest.approx(SAMPLE_STEP)
 
 
-def test_cepstrum_quefrency_range_clips_the_result(qt_app):
+def test_cepstrum_frequency_axis_is_the_reciprocal_of_the_quefrencies(qt_app):
+    """A peak lands on the same tick as the fundamental it explains."""
+    measurement = harmonic_series_measurement()
+
+    controller = cepstrum_controller(measurement)
+    controller.plot()
+
+    # Quefrency ascends, so the frequency axis is its reversed reciprocal.
+    assert controller.frequencies == pytest.approx((1 / controller.quefrencies)[::-1])
+    assert controller.amplitudes == pytest.approx(controller.cepstrum_amplitudes[::-1])
+    # Ascending, so interpolation and bin search behave.
+    assert np.all(np.diff(controller.frequencies) > 0)
+
+
+def test_cepstrum_frequency_range_clips_the_result(qt_app):
     measurement = harmonic_series_measurement()
 
     controller = cepstrum_controller(measurement,
-                                     quefrency_range_low=1.0,
-                                     quefrency_range_high=3.0)
+                                     frequency_range_low=0.5,
+                                     frequency_range_high=2.0)
     controller.plot()
 
-    assert len(controller.quefrencies) > 0
-    assert controller.quefrencies[0] >= 1.0
-    assert controller.quefrencies[-1] <= 3.0
-    assert len(controller.cepstrum_amplitudes) == len(controller.quefrencies)
+    assert len(controller.frequencies) > 0
+    assert controller.frequencies[0] >= 0.5
+    assert controller.frequencies[-1] <= 2.0
+    # The bounds swap when they are applied, because a period is a reciprocal.
+    assert controller.quefrencies[0] >= 1 / 2.0 - SAMPLE_STEP
+    assert controller.quefrencies[-1] <= 1 / 0.5 + SAMPLE_STEP
 
 
 def test_cepstrum_snaps_a_selection_to_a_bin(qt_app):
@@ -598,17 +619,30 @@ def test_cepstrum_snaps_a_selection_to_a_bin(qt_app):
     controller = cepstrum_controller(measurement)
     controller.plot()
 
-    off_bin = controller.quefrencies[10] + 0.4 * SAMPLE_STEP
-    snapped = controller.snap_quefrency_to_bin(off_bin)
+    spacing = controller.frequencies[11] - controller.frequencies[10]
+    off_bin = controller.frequencies[10] + 0.4 * spacing
+    snapped = controller.snap_frequency_to_bin(off_bin)
 
-    assert snapped == pytest.approx(controller.quefrencies[10])
+    assert snapped == pytest.approx(controller.frequencies[10])
 
-    # A zero period has no frequency, so the DC bin must refuse selection when
-    # the range is opened up far enough to include it.
-    zero_included = cepstrum_controller(measurement, quefrency_range_low=0.0)
-    zero_included.plot()
-    assert zero_included.quefrencies[0] == 0.0
-    assert zero_included.snap_quefrency_to_bin(0.0) is None
+    # Every bin on this axis is a positive frequency, so there is no DC bin to
+    # refuse; what has to be refused is snapping with no result to snap to.
+    controller.frequencies = np.array([])
+    assert controller.snap_frequency_to_bin(1.0) is None
+
+
+def test_cepstrum_scroll_steps_one_cepstrum_bin(qt_app):
+    """The bins are uniform in quefrency, so the step is taken there."""
+    measurement = harmonic_series_measurement()
+
+    controller = cepstrum_controller(measurement, auto_detect_peaks=True)
+    controller.plot()
+
+    before = 1 / controller.selected_freqs[-1]
+    assert controller.move_selected_frequency_by_bins(3)
+    after = 1 / controller.selected_freqs[-1]
+
+    assert abs(after - before) == pytest.approx(3 * SAMPLE_STEP, abs=1e-9)
 
 
 def test_cepstrum_refinement_beats_the_bin_spacing(qt_app):
@@ -619,32 +653,31 @@ def test_cepstrum_refinement_beats_the_bin_spacing(qt_app):
     controller = cepstrum_controller(measurement, auto_detect_peaks=True)
     controller.plot()
 
-    selected = controller.selected_freqs[-1]
-    refined = controller.refine_selected_quefrency()
+    selected = 1 / controller.selected_freqs[-1]
+    refined = controller.refine_selected_frequency()
 
     assert refined is not None
-    assert abs(refined - period) < abs(selected - period)
+    assert abs(1 / refined - period) < abs(selected - period)
 
 
-def test_cepstrum_reports_the_period_in_every_unit(qt_app):
-    """The harmonic series base has to be readable as m, cm, 1/m and Hz."""
+def test_cepstrum_reports_the_family_in_every_unit(qt_app):
+    """The harmonic series base has to be readable as 1/m, Hz, cm and m."""
     measurement = harmonic_series_measurement()
 
     controller = cepstrum_controller(measurement, machine_speed=600.0)
     controller.plot()
 
-    quefrency = 2.0
-    assert controller.quefrency_to_frequency(quefrency) == pytest.approx(0.5)
+    frequency = 0.5
+    assert controller.frequency_to_quefrency(frequency) == pytest.approx(2.0)
     # 0.5 1/m at 600 m/min = 10 m/s is 5 Hz.
-    assert controller.quefrency_to_hz(quefrency) == pytest.approx(5.0)
-    assert controller.quefrency_to_frequency(0.0) is None
+    assert controller.get_freq_in_hz(frequency) == pytest.approx(5.0)
+    assert controller.frequency_to_quefrency(0.0) is None
     assert controller.quefrency_to_hz(0.0) is None
 
-    description = controller.describe_quefrency(quefrency, amplitude=1.0)
-    assert "2.0000 m" in description
-    assert "200.00 cm" in description
+    description = controller.describe_frequency(frequency, amplitude=1.0)
     assert "0.500 1/m" in description
     assert "5.00 Hz" in description
+    assert "200.00 cm" in description
 
 
 def test_cepstrum_stats_table_lists_the_selection(qt_app):
@@ -656,10 +689,10 @@ def test_cepstrum_stats_table_lists_the_selection(qt_app):
 
     stats = controller.getStatsTableData()
 
-    assert stats[0] == ["Quefrency [m]", "Wavelength [cm]",
-                        "Frequency [1/m]", "Frequency [Hz]", "Amplitude"]
+    assert stats[0] == ["Frequency [1/m]", "Frequency [Hz]",
+                        "Wavelength [cm]", "Quefrency [m]", "Amplitude"]
     assert len(stats) == 2
-    assert float(stats[1][0]) == pytest.approx(2.0, abs=2 * SAMPLE_STEP)
+    assert float(stats[1][3]) == pytest.approx(2.0, abs=2 * SAMPLE_STEP)
 
 
 def test_cepstrum_manual_selection_survives_redraws(qt_app):
@@ -676,10 +709,10 @@ def test_cepstrum_manual_selection_survives_redraws(qt_app):
     detected = controller.selected_freqs[-1]
     elsewhere = detected * 1.5
 
-    assert window.select_quefrency_at(controller.ax, elsewhere)
+    assert window.select_frequency_at(controller.ax, elsewhere)
     assert not controller.auto_detect_peaks
     picked = controller.selected_freqs[-1]
-    assert picked == pytest.approx(elsewhere, abs=SAMPLE_STEP)
+    assert picked == pytest.approx(elsewhere, rel=0.05)
 
     window.refresh()
     assert controller.selected_freqs[-1] == picked
@@ -693,7 +726,7 @@ def test_cepstrum_manual_selection_survives_redraws(qt_app):
 
     window.clearFrequency()
     assert controller.selected_freqs == []
-    assert window.selectedQuefrencyLabel.text() == "Selected quefrency: None"
+    assert window.selectedFrequencyLabel.text() == "Selected frequency: None"
 
 
 def test_cepstrum_export_carries_the_unit_columns(qt_app):
@@ -704,12 +737,12 @@ def test_cepstrum_export_carries_the_unit_columns(qt_app):
 
     exported = controller.getExportData()
 
-    assert list(exported.columns) == ["Quefrency [m]", "Wavelength [cm]",
-                                      "Frequency [1/m]", "BW cepstrum amplitude"]
+    assert list(exported.columns) == ["Frequency [1/m]", "Wavelength [cm]",
+                                      "Quefrency [m]", "BW cepstrum amplitude"]
+    assert exported["Quefrency [m]"].iloc[0] == pytest.approx(
+        1 / exported["Frequency [1/m]"].iloc[0])
     assert exported["Wavelength [cm]"].iloc[0] == pytest.approx(
         100 * exported["Quefrency [m]"].iloc[0])
-    assert exported["Frequency [1/m]"].iloc[0] == pytest.approx(
-        1 / exported["Quefrency [m]"].iloc[0])
 
 
 # --------------------------------------------------------------------------

@@ -5,9 +5,10 @@ from PyQt6.QtGui import QAction
 from gui.components import (
     AnalysisRangeMixin,
     ChannelMixin,
-    QuefrencyRangeMixin,
+    FrequencyRangeMixin,
     MachineSpeedMixin,
     SpectrumLengthMixin,
+    ShowWavelengthMixin,
     CopyPlotMixin,
     AutoDetectPeaksMixin,
     ChildWindowCloseMixin,
@@ -19,6 +20,7 @@ from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
 from utils.types import AnalysisType, PlotAnnotation
 from utils.signal_processing import safe_spectral_params, interpolate_non_finite
+from utils.plot_formatting import wavelength_labels_cm_from_frequencies
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as path_effects
 from scipy.signal import welch, find_peaks
@@ -33,8 +35,8 @@ analysis_types = ["MD"]
 class AnalysisController(AnalysisControllerBase, ExportMixin):
     nperseg: float
     overlap: float
-    quefrency_range_low: float
-    quefrency_range_high: float
+    frequency_range_low: float
+    frequency_range_high: float
     spectrum_length_slider_min: float
     spectrum_length_slider_max: float
     analysis_range_low: float
@@ -60,10 +62,11 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                          settings.MD_SPECTRUM_ANALYSIS_RANGE_LOW_DEFAULT * self.max_dist)
         self.set_default('analysis_range_high',
                          settings.MD_SPECTRUM_ANALYSIS_RANGE_HIGH_DEFAULT * self.max_dist)
-        self.set_default('quefrency_range_low',
-                         min(settings.CEPSTRUM_QUEFRENCY_RANGE_MIN_DEFAULT, self.max_quefrency))
-        self.set_default('quefrency_range_high',
-                         min(settings.CEPSTRUM_QUEFRENCY_RANGE_MAX_DEFAULT, self.max_quefrency))
+        self.set_default('frequency_range_low',
+                         settings.CEPSTRUM_FREQUENCY_RANGE_MIN_DEFAULT)
+        self.set_default('frequency_range_high',
+                         min(settings.CEPSTRUM_FREQUENCY_RANGE_MAX_DEFAULT, self.max_freq))
+        self.set_default('show_wavelength', settings.SHOW_WAVELENGTH_DEFAULT)
         self.set_default('machine_speed', settings.PAPER_MACHINE_SPEED_DEFAULT)
         self.set_default('selected_elements', [])
         self.set_default('selected_freqs', [])
@@ -87,6 +90,20 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         """
         return (int(self.nperseg) // 2) * self.quefrency_step
 
+    def quefrency_window(self):
+        """The quefrency slice the frequency range asks for.
+
+        A period is the reciprocal of a frequency, so the two bounds swap: the
+        top of the frequency range is what cuts off the short periods, and with
+        them the hump every cepstrum has near quefrency zero.
+        """
+        f_low = max(float(self.frequency_range_low), 0.0)
+        f_high = max(float(self.frequency_range_high), 0.0)
+
+        q_low = 1.0 / f_high if f_high > 0 else 0.0
+        q_high = 1.0 / f_low if f_low > 0 else self.max_quefrency
+        return q_low, min(q_high, self.max_quefrency)
+
     def _finish_plot(self):
         self.canvas.draw()
         self.updated.emit()
@@ -102,7 +119,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         self.quefrencies = np.array([])
         self.cepstrum_amplitudes = np.array([])
         self.current_vlines = []
-        ax.set_xlabel("Quefrency (period) [m]")
+        ax.set_xlabel("Frequency [1/m]")
         ax.set_ylabel("Cepstrum amplitude")
         ax.grid(True)
 
@@ -183,28 +200,41 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         quefrency = quefrency[:half]
         cepstrum = cepstrum[:half]
 
-        q_low_index = np.searchsorted(quefrency, self.quefrency_range_low)
-        q_high_index = np.searchsorted(
-            quefrency, self.quefrency_range_high, side='right')
+        # The frequency range is applied as the quefrency window it implies, so
+        # that the plot, the peak search, the statistics table and the export all
+        # describe the same data.
+        q_low, q_high = self.quefrency_window()
+        q_low_index = np.searchsorted(quefrency, q_low)
+        q_high_index = np.searchsorted(quefrency, q_high, side='right')
 
         self.quefrencies = quefrency[q_low_index:q_high_index]
         self.cepstrum_amplitudes = cepstrum[q_low_index:q_high_index]
-        # Aliases: PlotMixin.invalidate_results and the report code address every
-        # analysis through frequencies/amplitudes.
-        self.frequencies = self.quefrencies
-        self.amplitudes = self.cepstrum_amplitudes
 
         if len(self.quefrencies) == 0:
+            self.frequencies = np.array([])
+            self.amplitudes = np.array([])
             return self._finish_plot()
 
-        ax.plot(self.quefrencies, self.cepstrum_amplitudes)
+        # The x axis is the spatial frequency of the harmonic family, so a
+        # cepstrum peak lands on the same tick as the fundamental it explains in
+        # the spectrum. Quefrency ascends, so its reciprocal descends: reverse
+        # both to keep x ascending for plotting and interpolation.
+        self.frequencies = (1.0 / self.quefrencies)[::-1]
+        self.amplitudes = self.cepstrum_amplitudes[::-1]
+
+        # Mark the bins: they are evenly spaced in period, so on this axis they
+        # crowd at the left and thin out towards the right, and the line between
+        # two distant points is interpolation rather than measurement.
+        ax.plot(self.frequencies, self.amplitudes,
+                marker='.' if settings.CEPSTRUM_SHOW_BINS else None,
+                markersize=2.5, linewidth=1)
 
         self.addSecondaryAxis(ax)
 
         if self.auto_detect_peaks:
             self.detectPeaks()
 
-        self.drawSelectedQuefrency(ax)
+        self.drawSelectedFrequency(ax)
         self.drawPaperMachineElements(ax)
 
         handles, labels = ax.get_legend_handles_labels()
@@ -221,26 +251,30 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         return self._finish_plot()
 
     def addSecondaryAxis(self, ax):
-        """Label the top axis in Hz, the rotational rate a period corresponds to.
-
-        A quefrency is a wavelength, so the machine-frame frequency is the
-        reciprocal scaled by the machine speed. That makes the mapping
-        non-linear, so the ticks stay on the primary axis positions and only
-        their labels are recomputed - the same approach Spectrum uses.
-        """
+        """Wavelength or Hz on the top axis, the same pair the spectrum offers."""
         secax = ax.twiny()
 
-        def update_secax(*args):
-            primary_ticks = ax.get_xticks()
-            secax.set_xticks(primary_ticks)
-            secax.set_xlim(*ax.get_xlim())
-            labels = []
-            for tick in secax.get_xticks():
-                hz = self.quefrency_to_hz(tick)
-                labels.append("" if hz is None else f"{hz:.2f}")
-            secax.set_xticklabels(labels)
+        if self.show_wavelength:
+            def update_secax(*args):
+                primary_ticks = ax.get_xticks()
+                secax.set_xticks(primary_ticks)
+                secax.set_xlim(*ax.get_xlim())
+                secax.set_xticklabels(
+                    wavelength_labels_cm_from_frequencies(secax.get_xticks()))
 
-        secax.set_xlabel("Frequency [Hz]")
+            secax.set_xlabel("Wavelength [cm]")
+        else:
+            def update_secax(*args):
+                primary_ticks = ax.get_xticks()
+                secax.set_xticks(primary_ticks)
+                secax.set_xlim(*ax.get_xlim())
+                secondary_ticks = secax.get_xticks() * self.machine_speed / 60
+                secax.set_xticklabels(
+                    [f"{tick:.2f}" for tick in secondary_ticks])
+
+            secax.set_xlabel(
+                f"Frequency [Hz] at machine speed {self.machine_speed:.1f} m/min")
+
         ax.set_zorder(secax.get_zorder() + 1)
         update_secax()
 
@@ -269,27 +303,30 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         else:
             count = 1
 
-        self.selected_freqs = [float(self.quefrencies[peak])
+        # Detection runs on the quefrency axis, where the bins are uniform, and
+        # the result is reported as the frequency the plot is drawn against.
+        self.selected_freqs = [1.0 / float(self.quefrencies[peak])
                                for peak in ranked[:count]]
 
-    def drawSelectedQuefrency(self, ax):
-        """Mark the selected period and its rahmonics.
+    def drawSelectedFrequency(self, ax):
+        """Mark the selected harmonic family and its rahmonics.
 
-        A cepstral peak at q0 repeats at n*q0, the direct analogue of the
-        harmonics at n*f0 that Spectrum draws. The selection is deliberately not
-        snapped here: snapping happens when the user clicks, so that the sub-bin
-        value produced by Refine survives the redraw.
+        The cepstrum repeats a period at n*q0. On this axis that is f0/n, so the
+        rahmonics run to the left of the fundamental rather than to the right as
+        the spectrum's harmonics do. The selection is deliberately not snapped
+        here: snapping happens when the user clicks, so that the sub-bin value
+        produced by Refine survives the redraw.
         """
         if not self.selected_freqs:
             return
 
-        q0 = self.selected_freqs[-1]
-        if not np.isfinite(q0) or q0 <= 0:
+        f0 = self.selected_freqs[-1]
+        if not np.isfinite(f0) or f0 <= 0:
             return
 
         xlim = ax.get_xlim()
         for i in range(1, 1 + settings.MAX_HARMONICS_DISPLAY):
-            rahmonic = q0 * i
+            rahmonic = f0 / i
             if (rahmonic > xlim[1]) or (rahmonic < xlim[0]):
                 continue
 
@@ -298,9 +335,9 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 continue
 
             if i == 1:
-                label = self.describe_quefrency(q0, amplitude)
+                label = self.describe_frequency(f0, amplitude)
                 logging.info("Cepstral peak in %s: %s", self.channel,
-                             self.describe_quefrency(q0, amplitude, symbols=False))
+                             self.describe_frequency(f0, amplitude, symbols=False))
             else:
                 label = None
 
@@ -330,7 +367,11 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 ])
 
     def drawPaperMachineElements(self, ax):
-        """Mark the periods of the elements checked in the Paper machine data window."""
+        """Mark the elements checked in the Paper machine data window.
+
+        The axis is a spatial frequency, so an element sits on its own frequency
+        here just as it does in the spectrum.
+        """
         if not self.selected_elements:
             return
 
@@ -341,35 +382,35 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             spatial_frequency = element.get("spatial_frequency")
             if not spatial_frequency:
                 continue
-            # An element that repeats at f 1/m has a period of 1/f metres.
-            element_quefrency = 1.0 / spatial_frequency
 
-            for i in range(1, settings.MAX_HARMONICS_DISPLAY):
-                rahmonic = element_quefrency * i
-                if (rahmonic > xlim[1]) or (rahmonic < xlim[0]):
-                    continue
+            if (spatial_frequency > xlim[1]) or (spatial_frequency < xlim[0]):
+                continue
 
-                label = None
-                if i == 1:
-                    name = element.get("name", "Element")
-                    label = f"{name}: {self.describe_quefrency(element_quefrency)}"
-
-                vl = ax.axvline(x=rahmonic,
-                                linestyle='--',
-                                alpha=1 - (1 / settings.MAX_HARMONICS_DISPLAY) * i,
-                                label=label,
-                                color=colors[index % len(colors)])
-                self.current_vlines.append(vl)
+            # One line per element. A whole harmonic family collapses to a
+            # single cepstrum peak, so unlike in the spectrum there is no ladder
+            # of harmonics to follow.
+            name = element.get("name", "Element")
+            vl = ax.axvline(x=spatial_frequency,
+                            linestyle='--',
+                            alpha=0.8,
+                            label=f"{name}: {self.describe_frequency(spatial_frequency)}",
+                            color=colors[index % len(colors)])
+            self.current_vlines.append(vl)
 
     def get_freq_in_hz(self, freq_1m):
         """Convert a spatial frequency [1/m] to a machine frequency [Hz]."""
         return freq_1m * self.machine_speed / 60
 
-    def quefrency_to_frequency(self, quefrency):
-        """Convert a quefrency [m], which is a period, to a frequency [1/m]."""
-        if quefrency is None or not np.isfinite(quefrency) or quefrency <= 0:
+    def frequency_to_quefrency(self, frequency):
+        """The period [m] a spatial frequency [1/m] corresponds to."""
+        if frequency is None or not np.isfinite(frequency) or frequency <= 0:
             return None
-        return 1.0 / quefrency
+        return 1.0 / frequency
+
+    # A period and a wavelength are the same length here, so the two directions
+    # are one function. Kept under both names because the call sites read better
+    # for one or the other.
+    quefrency_to_frequency = frequency_to_quefrency
 
     def quefrency_to_hz(self, quefrency):
         frequency = self.quefrency_to_frequency(quefrency)
@@ -377,88 +418,96 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             return None
         return self.get_freq_in_hz(frequency)
 
-    def describe_quefrency(self, quefrency, amplitude=None, symbols=True):
-        """One-line readout of a period in every unit the user works in.
+    def describe_frequency(self, frequency, amplitude=None, symbols=True):
+        """One-line readout of a harmonic family base, as the spectrum writes it.
 
         symbols=False spells the wavelength out instead of using a lambda. The
         console on Windows is usually cp1252, where printing the symbol raises
         UnicodeEncodeError - and a raise inside plot() is caught upstream and
         shown as "Invalid parameters", losing the whole analysis.
         """
-        frequency = self.quefrency_to_frequency(quefrency)
-        if frequency is None:
+        quefrency = self.frequency_to_quefrency(frequency)
+        if quefrency is None:
             return "None"
 
         wavelength = "λ" if symbols else "wavelength"
-        text = (f"{quefrency:.4f} m  "
-                f"{wavelength} = {100 * quefrency:.2f} cm  "
-                f"f = {frequency:.3f} 1/m ({self.get_freq_in_hz(frequency):.2f} Hz)")
+        text = (f"{frequency:.3f} 1/m ({self.get_freq_in_hz(frequency):.2f} Hz)  "
+                f"{wavelength} = {100 * quefrency:.2f} cm")
         if amplitude is not None:
             text += f"  A = {amplitude:.4g}"
         return text
 
-    def get_nearest_quefrency_bin_index(self, quefrency):
-        if quefrency is None or not hasattr(self, "quefrencies") or len(self.quefrencies) == 0:
+    def get_nearest_frequency_bin_index(self, frequency):
+        if frequency is None or not hasattr(self, "frequencies") or len(self.frequencies) == 0:
             return None
 
-        return int(np.abs(self.quefrencies - quefrency).argmin())
+        return int(np.abs(self.frequencies - frequency).argmin())
 
-    def snap_quefrency_to_bin(self, quefrency):
-        bin_index = self.get_nearest_quefrency_bin_index(quefrency)
+    def snap_frequency_to_bin(self, frequency):
+        bin_index = self.get_nearest_frequency_bin_index(frequency)
         if bin_index is None:
             return None
 
-        snapped = float(self.quefrencies[bin_index])
+        snapped = float(self.frequencies[bin_index])
         if snapped <= 0 or not np.isfinite(snapped):
-            # A zero period has no frequency, so refuse to select it rather than
-            # letting 1/q divide by zero further down.
             return None
 
         return snapped
 
-    def get_bin_location(self, quefrency):
-        bin_index = self.get_nearest_quefrency_bin_index(quefrency)
+    def get_bin_location(self, frequency):
+        bin_index = self.get_nearest_frequency_bin_index(frequency)
         if bin_index is None:
             return None, None
 
-        return float(self.quefrencies[bin_index]), float(self.cepstrum_amplitudes[bin_index])
+        return float(self.frequencies[bin_index]), float(self.amplitudes[bin_index])
 
-    def get_cepstrum_amplitude_at(self, quefrency):
-        if quefrency is None or not hasattr(self, "quefrencies") or len(self.quefrencies) == 0:
+    def get_cepstrum_amplitude_at(self, frequency):
+        if frequency is None or not hasattr(self, "frequencies") or len(self.frequencies) == 0:
             return None
 
-        if quefrency < self.quefrencies[0] or quefrency > self.quefrencies[-1]:
+        if frequency < self.frequencies[0] or frequency > self.frequencies[-1]:
             return None
 
-        return float(np.interp(quefrency, self.quefrencies, self.cepstrum_amplitudes))
+        return float(np.interp(frequency, self.frequencies, self.amplitudes))
 
-    def move_selected_quefrency_by_bins(self, bin_step):
+    def move_selected_frequency_by_bins(self, bin_step):
+        """Step the selection one cepstrum bin at a time.
+
+        The bins are uniform in quefrency, not in frequency, so the step is
+        taken there and converted back. Quefrency runs opposite to frequency,
+        hence the sign flip, which keeps scrolling up moving right on the plot.
+        """
         if not self.selected_freqs:
             return False
 
-        current_index = self.get_nearest_quefrency_bin_index(self.selected_freqs[-1])
+        current_index = self.get_nearest_frequency_bin_index(self.selected_freqs[-1])
         if current_index is None:
             return False
 
-        new_index = int(np.clip(current_index + bin_step, 0, len(self.quefrencies) - 1))
-        self.selected_freqs[-1] = float(self.quefrencies[new_index])
+        new_index = int(np.clip(current_index + bin_step, 0, len(self.frequencies) - 1))
+        self.selected_freqs[-1] = float(self.frequencies[new_index])
         return True
 
-    def refine_selected_quefrency(self):
-        """Sub-bin period estimate by fitting a parabola over the selected peak.
+    def refine_selected_frequency(self):
+        """Sub-bin estimate by fitting a parabola over the selected peak.
 
-        The cepstral peak of a real period almost never lands exactly on a bin,
-        and the bin spacing is the measurement's sample step. Interpolating over
-        the peak and its two neighbours recovers most of that lost resolution.
-        Returns None when the selection sits at an edge or on a flat stretch,
-        where the fit has no meaning.
+        The fit is done on the quefrency axis, where the bins are evenly spaced
+        one sample step apart; the frequency axis is not uniform, so a parabola
+        fitted there would be biased. A real period almost never lands exactly
+        on a bin, and this recovers most of that lost resolution. Returns None
+        when the selection sits at an edge or on a flat stretch, where the fit
+        has no meaning.
         """
         if not self.selected_freqs:
             return None
 
+        quefrency = self.frequency_to_quefrency(self.selected_freqs[-1])
+        if quefrency is None or len(self.quefrencies) == 0:
+            return None
+
         amplitudes = self.cepstrum_amplitudes
-        index = self.get_nearest_quefrency_bin_index(self.selected_freqs[-1])
-        if index is None or index == 0 or index >= len(amplitudes) - 1:
+        index = int(np.abs(self.quefrencies - quefrency).argmin())
+        if index == 0 or index >= len(amplitudes) - 1:
             return None
 
         y0, y1, y2 = (float(amplitudes[index - 1]),
@@ -472,27 +521,27 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         if not np.isfinite(delta) or abs(delta) > 1:
             return None
 
-        refined = float(self.quefrencies[index]) + delta * self.quefrency_step
-        if not np.isfinite(refined) or refined <= 0:
+        refined_quefrency = float(self.quefrencies[index]) + delta * self.quefrency_step
+        if not np.isfinite(refined_quefrency) or refined_quefrency <= 0:
             return None
 
-        return refined
+        return 1.0 / refined_quefrency
 
     def getStatsTableData(self):
-        stats = [["Quefrency [m]", "Wavelength [cm]",
-                  "Frequency [1/m]", "Frequency [Hz]", "Amplitude"]]
+        stats = [["Frequency [1/m]", "Frequency [Hz]",
+                  "Wavelength [cm]", "Quefrency [m]", "Amplitude"]]
 
-        for quefrency in self.selected_freqs:
-            frequency = self.quefrency_to_frequency(quefrency)
-            if frequency is None:
+        for frequency in self.selected_freqs:
+            quefrency = self.frequency_to_quefrency(frequency)
+            if quefrency is None:
                 continue
 
-            amplitude = self.get_cepstrum_amplitude_at(quefrency)
+            amplitude = self.get_cepstrum_amplitude_at(frequency)
             stats.append([
-                f"{quefrency:.4f}",
-                f"{100 * quefrency:.2f}",
                 f"{frequency:.3f}",
                 f"{self.get_freq_in_hz(frequency):.2f}",
+                f"{100 * quefrency:.2f}",
+                f"{quefrency:.4f}",
                 "-" if amplitude is None else f"{amplitude:.4g}"
             ])
 
@@ -500,22 +549,21 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
     def getExportData(self):
         quefrencies = np.asarray(self.quefrencies, dtype=float)
-        with np.errstate(divide='ignore', invalid='ignore'):
-            frequencies = np.where(quefrencies > 0, 1.0 / quefrencies, np.nan)
+        frequencies = np.asarray(self.frequencies, dtype=float)
 
         data = {
-            "Quefrency [m]": quefrencies,
-            "Wavelength [cm]": 100 * quefrencies,
             "Frequency [1/m]": frequencies,
-            f"{self.channel} cepstrum amplitude": self.cepstrum_amplitudes
+            "Wavelength [cm]": 100 * quefrencies[::-1],
+            "Quefrency [m]": quefrencies[::-1],
+            f"{self.channel} cepstrum amplitude": self.amplitudes
         }
 
         return pd.DataFrame(data)
 
 
-class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin, ChannelMixin, QuefrencyRangeMixin,
-                     MachineSpeedMixin, SpectrumLengthMixin, CopyPlotMixin, AutoDetectPeaksMixin,
-                     ChildWindowCloseMixin):
+class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin, ChannelMixin, FrequencyRangeMixin,
+                     MachineSpeedMixin, SpectrumLengthMixin, ShowWavelengthMixin, CopyPlotMixin,
+                     AutoDetectPeaksMixin, ChildWindowCloseMixin):
 
     def __init__(self, controller: AnalysisController, window_type: AnalysisType = "MD"):
         super().__init__(controller, window_type)
@@ -589,7 +637,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         analysisParamsGroup.setLayout(analysisParamsLayout)
         self.controlsPanel.addWidget(analysisParamsGroup)
         self.addAnalysisRangeSlider(analysisParamsLayout)
-        self.addQuefrencyRangeSlider(analysisParamsLayout)
+        self.addFrequencyRangeSlider(analysisParamsLayout)
         self.addSpectrumLengthSlider(analysisParamsLayout)
         self.addMachineSpeedSpinner(analysisParamsLayout)
 
@@ -599,13 +647,14 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         displayOptionsGroup.setLayout(displayOptionsLayout)
         self.controlsPanel.addWidget(displayOptionsGroup)
 
+        self.addShowWavelengthCheckbox(displayOptionsLayout)
         self.addAutoDetectPeaksCheckbox(displayOptionsLayout)
 
-        self.refineButton = QPushButton("Refine Quefrency Selection")
+        self.refineButton = QPushButton("Refine Frequency Selection")
         self.refineButton.clicked.connect(self.refineFrequency)
         displayOptionsLayout.addWidget(self.refineButton)
 
-        self.clearButton = QPushButton("Clear Quefrency Selection")
+        self.clearButton = QPushButton("Clear Frequency Selection")
         self.clearButton.clicked.connect(self.clearFrequency)
         displayOptionsLayout.addWidget(self.clearButton)
 
@@ -613,8 +662,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         plotLayout = QVBoxLayout()
         mainHorizontalLayout.addLayout(plotLayout, 1)
 
-        self.selectedQuefrencyLabel = QLabel("Selected quefrency: None")
-        plotLayout.addWidget(self.selectedQuefrencyLabel)
+        self.selectedFrequencyLabel = QLabel("Selected frequency: None")
+        plotLayout.addWidget(self.selectedFrequencyLabel)
 
         # Matplotlib figure and canvas
         self.controller.addPlot(plotLayout)
@@ -625,16 +674,12 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
 
         self.refresh()
 
-    def selectedQuefrency(self):
+    def selectedFrequency(self):
         selected_freqs = self.controller.selected_freqs
         return selected_freqs[-1] if selected_freqs else None
 
-    def selectedFrequency(self):
-        """The selection as a spatial frequency, which is what other views speak."""
-        return self.controller.quefrency_to_frequency(self.selectedQuefrency())
-
     def takeManualControl(self):
-        """Stop re-detecting peaks once the user has picked a quefrency.
+        """Stop re-detecting peaks once the user has picked a frequency.
 
         Detection runs on every recompute, so without this a click, a scroll or
         a refinement would be overwritten by the next redraw. Unticking the box
@@ -646,30 +691,30 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
     def clearFrequency(self):
         self.takeManualControl()
         self.controller.selected_freqs = []
-        self.selectedQuefrencyLabel.setText("Selected quefrency: None")
+        self.selectedFrequencyLabel.setText("Selected frequency: None")
 
         self.refresh()
 
     def refineFrequency(self):
         if not self.controller.selected_freqs:
-            logging.warning("No selected quefrency to refine.")
+            logging.warning("No selected frequency to refine.")
             return
 
         self.takeManualControl()
 
         original = self.controller.selected_freqs[-1]
-        refined = self.controller.refine_selected_quefrency()
+        refined = self.controller.refine_selected_frequency()
         if refined is None:
             logging.warning(
-                "Quefrency refinement found no usable peak around %.4f m; keeping it.",
+                "Refinement found no usable cepstral peak around %.3f 1/m; keeping it.",
                 original)
             return
 
         self.controller.selected_freqs[-1] = refined
         self.refresh(restore_lim=True)
 
-    def select_quefrency_at(self, ax, xdata):
-        """Select the cepstrum bin nearest to a position on the quefrency axis."""
+    def select_frequency_at(self, ax, xdata):
+        """Select the cepstrum bin nearest to a position on the frequency axis."""
         if ax is None or xdata is None:
             return False
 
@@ -680,12 +725,12 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         if not self.controller.selected_freqs:
             self.controller.selected_freqs = []
 
-        snapped_quefrency = self.controller.snap_quefrency_to_bin(xdata)
-        if snapped_quefrency is None:
+        snapped_frequency = self.controller.snap_frequency_to_bin(xdata)
+        if snapped_frequency is None:
             return False
 
         self.takeManualControl()
-        self.controller.selected_freqs.append(snapped_quefrency)
+        self.controller.selected_freqs.append(snapped_frequency)
         self.refresh(restore_lim=True)
         return True
 
@@ -696,8 +741,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         annotation entries and this one share a single right-click menu.
         """
         return [(
-            "Select quefrency",
-            lambda menu_event: self.select_quefrency_at(
+            "Select frequency",
+            lambda menu_event: self.select_frequency_at(
                 menu_event.inaxes, menu_event.xdata),
             event.xdata is not None,
         )]
@@ -710,7 +755,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
             return
 
         if event.button == settings.FREQUENCY_SELECTOR_MOUSE_BUTTON:
-            self.select_quefrency_at(event.inaxes, event.xdata)
+            self.select_frequency_at(event.inaxes, event.xdata)
 
     def on_scroll(self, event):
         if self.is_navigation_mode_active():
@@ -719,7 +764,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         if event.inaxes is None or event.button not in ("up", "down"):
             return
 
-        if not self.controller.move_selected_quefrency_by_bins(event.step):
+        if not self.controller.move_selected_frequency_by_bins(event.step):
             return
 
         self.takeManualControl()
@@ -750,9 +795,10 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
     def refresh_widgets(self):
         self.initAnalysisRangeSlider(block_signals=True)
         self.initChannelSelector(block_signals=True)
-        self.initQuefrencyRangeSlider(block_signals=True)
+        self.initFrequencyRangeSlider(block_signals=True)
         self.initSpectrumLengthSlider(block_signals=True)
         self.initAutoDetectPeaksCheckbox(block_signals=True)
+        self.initShowWavelengthCheckbox(block_signals=True)
         self.initMachineSpeedSpinner(block_signals=True)
 
     def refresh(self, restore_lim=False):
@@ -761,13 +807,13 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.restore_view_limits(view_limits)
         self.refresh_widgets()
 
-        quefrency = self.selectedQuefrency()
-        if quefrency is not None:
-            amplitude = self.controller.get_cepstrum_amplitude_at(quefrency)
-            self.selectedQuefrencyLabel.setText(
-                f"Selected quefrency: {self.controller.describe_quefrency(quefrency, amplitude)}")
+        frequency = self.selectedFrequency()
+        if frequency is not None:
+            amplitude = self.controller.get_cepstrum_amplitude_at(frequency)
+            self.selectedFrequencyLabel.setText(
+                f"Selected frequency: {self.controller.describe_frequency(frequency, amplitude)}")
         else:
-            self.selectedQuefrencyLabel.setText("Selected quefrency: None")
+            self.selectedFrequencyLabel.setText("Selected frequency: None")
 
         if self.paperMachineDataWindow:
             self.paperMachineDataWindow.refresh_pm_data(
