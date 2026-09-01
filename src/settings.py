@@ -43,7 +43,8 @@ ANALYSIS_SECTIONS = [
                 module_name="formation",           type="MD"),
             MainWindowSectionModule(
                 module_name="coherence",           type="MD"),
-            # MainWindowSectionModule(module_name="cepstrum",            type="MD")
+            MainWindowSectionModule(
+                module_name="cepstrum",            type="MD")
         ]
     ),
     MainWindowSection(
@@ -67,8 +68,7 @@ ANALYSIS_SECTIONS = [
             MainWindowSectionModule(
                 module_name="formation",            type="CD"),
             MainWindowSectionModule(
-                module_name="coherence",            type="CD"),
-            # MainWindowSectionModule(module_name="cepstrum",             type="CD")
+                module_name="coherence",            type="CD")
         ]
     ),
     MainWindowSection(
@@ -439,6 +439,8 @@ ANALYSIS_EXPORT_ATTRIBUTES = [
     "spectrum_length_slider_max",
     "frequency_range_low",
     "frequency_range_high",
+    "quefrency_range_low",
+    "quefrency_range_high",
     "selected_samples",
     "selected_elements",
     "selected_freqs",
@@ -562,6 +564,19 @@ SPECTRUM_MODE = "mean_spectrum_of_profiles"  # or "spectrum_of_mean_profile"
 # no cepstral content. Too large and the near-empty bins between harmonics
 # dominate and bury the rahmonics; too small and weak harmonic families are lost.
 CEPSTRUM_DYNAMIC_RANGE_DB = 30.0
+
+# Cepstrum: the quefrency (period) window, in metres, that is plotted and
+# searched for rahmonics by default. Both ends are clamped to what the current
+# window length can produce, and the user can move them with the slider.
+#   MIN cuts off the hump that every cepstrum has at very low quefrencies. That
+#   hump comes from the broad shape of the spectrum rather than from any
+#   periodicity, and it wins the peak search if it is left in.
+#   MAX is set by what the periods mean physically: a rahmonic family here comes
+#   from a rotating element, so the interesting periods are roll circumferences,
+#   a few metres at most. The axis can reach half a Welch segment - hundreds of
+#   metres - which puts all the structure in the leftmost pixels.
+CEPSTRUM_QUEFRENCY_RANGE_MIN_DEFAULT = 0.05
+CEPSTRUM_QUEFRENCY_RANGE_MAX_DEFAULT = 5.0
 
 
 SPECTRUM_SHOW_HARMONICS_NUMBERS = True

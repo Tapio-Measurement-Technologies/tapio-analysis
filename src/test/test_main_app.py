@@ -8,6 +8,7 @@ from PyQt6.QtTest import QTest
 from PyQt6.QtCore import Qt
 from main import MainWindow
 from analyses.cd_profile import AnalysisWindow as CDProfileWindow
+from analyses.cepstrum import AnalysisWindow as CepstrumWindow
 from analyses.channel_correlation import AnalysisWindow as ChannelCorrelationWindow
 from analyses.formation import AnalysisWindow as FormationWindow
 from analyses.spectrogram import AnalysisWindow as SpectrogramWindow
@@ -111,7 +112,7 @@ class TestMainApp(unittest.TestCase):
     def _interact_with_window(self):
         # Perform interactions with the window widgets
         for window in store.open_windows:
-            if isinstance(window, (CDProfileWindow, ChannelCorrelationWindow, FormationWindow, SpectrogramWindow, SpectrumWindow, TimeDomainWindow, VCAWindow)):
+            if isinstance(window, (CDProfileWindow, CepstrumWindow, ChannelCorrelationWindow, FormationWindow, SpectrogramWindow, SpectrumWindow, TimeDomainWindow, VCAWindow)):
                 self._toggle_checkboxes(window)
                 self._move_sliders(window)
 

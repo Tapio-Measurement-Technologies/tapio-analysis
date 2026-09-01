@@ -1,6 +1,6 @@
 import logging
 from PyQt6.QtWidgets import (QVBoxLayout, QLabel, QPushButton, QHBoxLayout,
-                             QGroupBox, QMenu)
+                             QGroupBox)
 from PyQt6.QtGui import QAction
 from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase, Analysis
@@ -12,7 +12,6 @@ import matplotlib.patches as mpatches
 from matplotlib.ticker import AutoMinorLocator, LogLocator
 from utils.plot_formatting import wavelength_labels_cm_from_frequencies
 from scipy.signal import welch, find_peaks
-from matplotlib.backend_bases import MouseButton
 from gui.components import (
     AnalysisRangeMixin,
     ChannelMixin,
@@ -25,8 +24,7 @@ from gui.components import (
     AutoDetectPeaksMixin,
     ChildWindowCloseMixin,
     ExportMixin,
-    ControlsPanelWidget,
-    event_global_position
+    ControlsPanelWidget
 )
 from gui.paper_machine_data import PaperMachineDataWindow
 import numpy as np
@@ -846,6 +844,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.controller.addPlot(plotStatsLayout)
         self.controller.canvas.mpl_connect('button_press_event', self.onclick)
         self.controller.canvas.mpl_connect('scroll_event', self.on_scroll)
+        self.controller.canvas.set_context_menu_actions_provider(
+            self.contextMenuActions)
 
         self.refresh()
 
@@ -923,16 +923,18 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
             self.sosAnalysisWindow.refresh()
         return True
 
-    def show_frequency_context_menu(self, event):
-        """Right-click menu offering the same selection as the selector button."""
-        menu = QMenu(self)
-        select_action = menu.addAction("Select frequency")
-        select_action.setEnabled(event.xdata is not None)
+    def contextMenuActions(self, event):
+        """Offer the same selection as the selector button on the canvas menu.
 
-        action = menu.exec(event_global_position(self.controller.canvas, event))
-
-        if action == select_action:
-            self.select_frequency_at(event.inaxes, event.xdata)
+        Contributed to the canvas menu rather than popped from here, so that the
+        annotation entries and this one share a single right-click menu.
+        """
+        return [(
+            "Select frequency",
+            lambda menu_event: self.select_frequency_at(
+                menu_event.inaxes, menu_event.xdata),
+            event.xdata is not None,
+        )]
 
     def onclick(self, event):
         # Frequency selector functionality with axis limit check and label update
@@ -944,10 +946,6 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
 
         if event.button == settings.FREQUENCY_SELECTOR_MOUSE_BUTTON:
             self.select_frequency_at(event.inaxes, event.xdata)
-            return
-
-        if event.button == MouseButton.RIGHT:
-            self.show_frequency_context_menu(event)
 
     def on_scroll(self, event):
         if self.is_navigation_mode_active():

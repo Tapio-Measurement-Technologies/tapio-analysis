@@ -19,7 +19,17 @@ class EmittingStream(QObject):
         self.textWritten.emit(str(text))
         # Tee into the original stream
         if self.original_stream is not None:
-            self.original_stream.write(text)
+            try:
+                self.original_stream.write(text)
+            except UnicodeEncodeError:
+                # The Windows console is usually cp1252, which cannot encode the
+                # symbols the analyses use in their labels. Losing a character
+                # in the console is fine; raising is not, because these writes
+                # happen inside plot() and the failure is reported to the user
+                # as "Invalid parameters" with no plot at all.
+                encoding = getattr(self.original_stream, "encoding", None) or "ascii"
+                self.original_stream.write(
+                    text.encode(encoding, errors="replace").decode(encoding, errors="replace"))
 
     def flush(self):
         pass  # Needed for compatibility

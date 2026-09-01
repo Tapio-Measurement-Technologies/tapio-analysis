@@ -1,4 +1,4 @@
-from PyQt6.QtGui import QKeyEvent, QFontMetrics
+from PyQt6.QtGui import QKeyEvent, QFontMetrics, QCursor
 from PyQt6.QtCore import Qt, pyqtSignal, QSize
 from PyQt6.QtWidgets import QMenu, QTextEdit
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
@@ -8,6 +8,24 @@ import matplotlib.text as mtext
 from matplotlib.lines import Line2D
 from functools import wraps
 from utils.types import PlotAnnotation
+
+def event_global_position(canvas, event):
+    """Screen position of a matplotlib mouse event, for popping up a menu there.
+
+    Qt6 deprecated QMouseEvent.pos() in favour of position(), and a synthetic
+    event may carry no Qt event at all, so fall back to the cursor position.
+    """
+    gui_event = getattr(event, "guiEvent", None)
+    if gui_event is not None:
+        position = getattr(gui_event, "position", None)
+        if position is not None:
+            return canvas.mapToGlobal(position().toPoint())
+        legacy_position = getattr(gui_event, "pos", None)
+        if legacy_position is not None:
+            return canvas.mapToGlobal(legacy_position())
+
+    return QCursor.pos()
+
 
 def check_axes(func):
     @wraps(func)
@@ -80,6 +98,10 @@ class AnnotableCanvas(FigureCanvasQTAgg):
         self.toolbar = None # Will be set by parent if toolbar is available
         self.annotations_enabled = True
         self.custom_context_menu_handler = None
+        # Callback returning extra entries for the right-click menu, so that an
+        # analysis can offer its own action without popping a second menu on top
+        # of the annotation one. See set_context_menu_actions_provider.
+        self.context_menu_actions_provider = None
 
         self.mpl_connect('pick_event', self.on_pick)
         self.mpl_connect('button_press_event', self.on_press)
@@ -215,17 +237,45 @@ class AnnotableCanvas(FigureCanvasQTAgg):
             self.editing_annotation = None
             self.draw_idle()
 
+    def set_context_menu_actions_provider(self, provider):
+        """Contribute analysis specific entries to the canvas right-click menu.
+
+        The provider is called with the mouse event and returns a list of
+        (label, callback, enabled) tuples. They are shown above the annotation
+        entries, separated from them. Going through the canvas keeps everything
+        on one menu: an analysis that pops its own menu from a second
+        button_press_event handler ends up showing two menus at once, because
+        the canvas raises the annotation menu for the same click.
+        """
+        self.context_menu_actions_provider = provider
+
     def _show_add_context_menu(self, event):
         # Don't show context menu if zoom/pan mode is active
         if self.toolbar and self.toolbar.mode:
             return
 
         menu = QMenu(self)
+
+        extra_callbacks = {}
+        if self.context_menu_actions_provider:
+            for label, callback, enabled in self.context_menu_actions_provider(event):
+                extra_action = menu.addAction(label)
+                extra_action.setEnabled(enabled)
+                extra_callbacks[extra_action] = callback
+            if extra_callbacks:
+                menu.addSeparator()
+
         add_text_action = menu.addAction("Add Text Label")
         add_arrow_action = menu.addAction("Add Arrow")
         add_vline_action = menu.addAction("Add Vertical Line")
 
-        action = menu.exec(self.mapToGlobal(event.guiEvent.pos()))
+        action = menu.exec(event_global_position(self, event))
+
+        # Dispatch the analysis entries first: they do their own bounds checking
+        # and must not be dropped by the annotation guard below.
+        if action in extra_callbacks:
+            extra_callbacks[action](event)
+            return
 
         if not hasattr(event, 'inaxes') or event.inaxes not in self.figure.axes:
             return
@@ -274,7 +324,7 @@ class AnnotableCanvas(FigureCanvasQTAgg):
         menu = QMenu(self)
         remove_action = menu.addAction("Remove")
 
-        action = menu.exec(self.mapToGlobal(event.guiEvent.pos()))
+        action = menu.exec(event_global_position(self, event))
 
         if action == remove_action:
             self.remove_annotation(annotation_to_remove)

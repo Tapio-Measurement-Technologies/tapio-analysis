@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
 
-from analyses import channel_correlation, coherence, formation, spectrogram, spectrum, vca
+from analyses import (cepstrum, channel_correlation, coherence, formation,
+                      spectrogram, spectrum, vca)
 from utils.measurement import Measurement
 
 
@@ -74,6 +75,33 @@ def test_channel_correlation_can_open_with_one_channel(qt_app):
 
     assert controller.channel == "Only"
     assert controller.channel2 == "Only"
+
+
+def test_cepstrum_handles_data_shorter_than_the_window(qt_app):
+    """A 32-sample record against a 20000-sample window must not raise."""
+    measurement = make_cd_measurement()
+
+    controller = cepstrum.AnalysisController(measurement, "MD")
+    controller.plot()
+
+    assert len(controller.quefrencies) == len(controller.cepstrum_amplitudes)
+
+
+def test_cepstrum_handles_an_all_nan_channel(qt_app):
+    distances = np.arange(64, dtype=float)
+    measurement = Measurement(
+        channel_df=pd.DataFrame({"Dead": np.full(len(distances), np.nan)}),
+        channels=["Dead"],
+        units={"Dead": "u"},
+        distances=distances,
+        cd_distances=distances,
+        sample_step=1.0,
+    )
+
+    controller = cepstrum.AnalysisController(measurement, "MD")
+    controller.plot()
+
+    assert len(controller.quefrencies) == 0
 
 
 def test_vca_variance_components_do_not_return_negative_residual(qt_app):

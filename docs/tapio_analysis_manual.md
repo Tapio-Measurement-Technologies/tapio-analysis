@@ -192,6 +192,18 @@ It is typical for rotating elements to cause peaks in the spectrum at integer mu
 ### Coherence
 - Investigate if different channels have the same spectral content.
 
+### Cepstrum
+- Find the *period* of a whole harmonic family at once. Where the spectrum shows a rotating element as a fundamental plus a row of harmonics, the cepstrum collapses that row into a single peak at the element's period, which makes a weak but clearly harmonic element easier to spot than it is in the spectrum.
+- The cepstrum is the inverse transform of the log of the (Welch averaged) spectrum. Its x axis is therefore not a frequency but a **quefrency**, which is a length: it is the period, and equally the wavelength, of the harmonic family. A peak at 1.10 m means a harmonic family whose fundamental has a wavelength of 1.10 m, so a roll of that circumference.
+- Because the x axis is a length, everything is reported in all the units you would otherwise read off the spectrum: the top axis is labelled in Hz at the machine speed you set, and the selection label and legend give the period in metres and centimetres, the spatial frequency in 1/m, and the frequency in Hz.
+- **Use the middle mouse button to select a quefrency**, or pick `Select quefrency` from the right-click menu, where it sits above the annotation entries. The selection snaps to the nearest bin, and the scroll wheel moves it one bin at a time. The repeats of a period are called *rahmonics*, and they are drawn and numbered at integer multiples of the selection, exactly as harmonics are in the spectrum.
+- `Detect peaks` picks the strongest peak inside the quefrency range automatically. Selecting, scrolling or refining unticks it, so that your own choice is not overwritten on the next redraw.
+- The refine button fits a parabola over the selected peak and its two neighbours. The bins are one sample step apart, and a real period almost never falls exactly on one, so this recovers a sub-bin estimate. It declines and keeps your value when the selection is not on a peak.
+- `Quefrency range [m]` sets both the plotted range and the range that is searched for peaks. Its lower end matters: every cepstrum has a large hump at very low quefrencies that comes from the broad shape of the spectrum rather than from any periodicity, and the lower bound is what keeps that hump from dominating. The defaults are set by `CEPSTRUM_QUEFRENCY_RANGE_MIN_DEFAULT` and `CEPSTRUM_QUEFRENCY_RANGE_MAX_DEFAULT`.
+- Before the log is taken, the spectrum is floored at `CEPSTRUM_DYNAMIC_RANGE_DB` below its peak. Without this the near-empty bins between harmonics dominate the log spectrum and their broadband content buries the rahmonics.
+- `View -> Paper machine data` marks the checked elements at their periods (the reciprocal of their spatial frequency), and highlights the element closest to your selection.
+- The window length slider matters more here than elsewhere: the cepstrum is taken from the Welch averaged spectrum, so the averaging is what makes the rahmonics emerge from the estimator noise, and the longest period the axis can show is half a window.
+
 ## CD Analysis
 - The CD analysis tools in Tapio Analysis are based on splitting a measurement of a sample roll consisting of multiple CD Strips separated by tapes into multiple CD profiles. The splitting is based on detecting the peaks caused by the tapes.
 - CD analysis tools make use of the mean profile calculated from the individual CD strips.

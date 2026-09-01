@@ -508,44 +508,208 @@ def test_harmonic_fit_recovers_phase():
 # Cepstrum
 # --------------------------------------------------------------------------
 
-@pytest.mark.parametrize("noise", [0.0, 0.2, 1.0])
-def test_cepstrum_finds_a_known_period(qt_app, noise):
-    period = 2.0
-    distances = np.arange(200000) * SAMPLE_STEP
+def harmonic_series_measurement(period=2.0, length=200000, noise=0.0, seed=7):
+    """A signal whose only periodicity is a harmonic family of the given period."""
+    distances = np.arange(length) * SAMPLE_STEP
     harmonics = sum((1.0 / k) * np.sin(2 * np.pi * k * distances / period + k)
                     for k in range(1, 9))
-    values = 100.0 + harmonics + np.random.default_rng(7).normal(0, noise, len(distances))
-    measurement = md_measurement({"BW": values})
+    values = 100.0 + harmonics + \
+        np.random.default_rng(seed).normal(0, noise, len(distances))
+    return md_measurement({"BW": values})
 
+
+def cepstrum_controller(measurement, nperseg=20000, **attributes):
     controller = cepstrum.AnalysisController(measurement, "MD")
     controller.analysis_range_low = 0.0
     controller.analysis_range_high = measurement.distances[-1]
-    controller.nperseg = 20000
+    controller.nperseg = nperseg
+    for name, value in attributes.items():
+        setattr(controller, name, value)
+    return controller
+
+
+@pytest.mark.parametrize("noise", [0.0, 0.2, 1.0])
+def test_cepstrum_finds_a_known_period(qt_app, noise):
+    """Peak detection must rank the true period first, not the envelope hump."""
+    period = 2.0
+    measurement = harmonic_series_measurement(period=period, noise=noise)
+
+    controller = cepstrum_controller(measurement, auto_detect_peaks=True)
     controller.plot()
 
-    quefrencies = controller.quefrencies
-    amplitudes = controller.cepstrum_amplitudes
-    considered = quefrencies > 0.05
-    peak_quefrency = quefrencies[considered][np.argmax(amplitudes[considered])]
-    assert peak_quefrency == pytest.approx(period, abs=2 * SAMPLE_STEP)
+    assert controller.selected_freqs
+    assert controller.selected_freqs[0] == pytest.approx(period, abs=2 * SAMPLE_STEP)
 
 
 def test_cepstrum_responds_to_segment_length(qt_app):
-    """The spectrum length control must actually change the cepstrum."""
+    """The spectrum length control must actually change the cepstrum.
+
+    The bins are one sample step apart whatever the window length, so the axis
+    is not the thing that changes here - the amplitudes are, because the Welch
+    averaging they come from does.
+    """
     distances = np.arange(100000) * SAMPLE_STEP
     values = 100.0 + np.sin(2 * np.pi * distances / 2.0)
     measurement = md_measurement({"BW": values})
 
-    lengths = []
+    results = []
     for nperseg in (5000, 20000):
-        controller = cepstrum.AnalysisController(measurement, "MD")
-        controller.analysis_range_low = 0.0
-        controller.analysis_range_high = measurement.distances[-1]
-        controller.nperseg = nperseg
+        controller = cepstrum_controller(measurement, nperseg=nperseg)
         controller.plot()
-        lengths.append(len(controller.quefrencies))
+        results.append(controller.cepstrum_amplitudes.copy())
 
-    assert lengths[0] != lengths[1]
+    assert len(results[0]) == len(results[1])
+    assert not np.allclose(results[0], results[1])
+
+
+@pytest.mark.parametrize("nperseg", [20000, 20001])
+def test_cepstrum_quefrency_step_is_the_sample_step(qt_app, nperseg):
+    """Quefrency is a period, so its bins are spaced one sample apart.
+
+    An odd segment length must not skew the scale: irfft reconstructs an even
+    number of samples, so the controller has to round the segment down.
+    """
+    measurement = harmonic_series_measurement()
+
+    controller = cepstrum_controller(measurement, nperseg=nperseg)
+    controller.plot()
+
+    steps = np.diff(controller.quefrencies)
+    assert steps == pytest.approx(SAMPLE_STEP)
+
+
+def test_cepstrum_quefrency_range_clips_the_result(qt_app):
+    measurement = harmonic_series_measurement()
+
+    controller = cepstrum_controller(measurement,
+                                     quefrency_range_low=1.0,
+                                     quefrency_range_high=3.0)
+    controller.plot()
+
+    assert len(controller.quefrencies) > 0
+    assert controller.quefrencies[0] >= 1.0
+    assert controller.quefrencies[-1] <= 3.0
+    assert len(controller.cepstrum_amplitudes) == len(controller.quefrencies)
+
+
+def test_cepstrum_snaps_a_selection_to_a_bin(qt_app):
+    measurement = harmonic_series_measurement()
+
+    controller = cepstrum_controller(measurement)
+    controller.plot()
+
+    off_bin = controller.quefrencies[10] + 0.4 * SAMPLE_STEP
+    snapped = controller.snap_quefrency_to_bin(off_bin)
+
+    assert snapped == pytest.approx(controller.quefrencies[10])
+
+    # A zero period has no frequency, so the DC bin must refuse selection when
+    # the range is opened up far enough to include it.
+    zero_included = cepstrum_controller(measurement, quefrency_range_low=0.0)
+    zero_included.plot()
+    assert zero_included.quefrencies[0] == 0.0
+    assert zero_included.snap_quefrency_to_bin(0.0) is None
+
+
+def test_cepstrum_refinement_beats_the_bin_spacing(qt_app):
+    """A period between two bins should refine closer than the bins allow."""
+    period = 2.0 + 0.5 * SAMPLE_STEP
+    measurement = harmonic_series_measurement(period=period)
+
+    controller = cepstrum_controller(measurement, auto_detect_peaks=True)
+    controller.plot()
+
+    selected = controller.selected_freqs[-1]
+    refined = controller.refine_selected_quefrency()
+
+    assert refined is not None
+    assert abs(refined - period) < abs(selected - period)
+
+
+def test_cepstrum_reports_the_period_in_every_unit(qt_app):
+    """The harmonic series base has to be readable as m, cm, 1/m and Hz."""
+    measurement = harmonic_series_measurement()
+
+    controller = cepstrum_controller(measurement, machine_speed=600.0)
+    controller.plot()
+
+    quefrency = 2.0
+    assert controller.quefrency_to_frequency(quefrency) == pytest.approx(0.5)
+    # 0.5 1/m at 600 m/min = 10 m/s is 5 Hz.
+    assert controller.quefrency_to_hz(quefrency) == pytest.approx(5.0)
+    assert controller.quefrency_to_frequency(0.0) is None
+    assert controller.quefrency_to_hz(0.0) is None
+
+    description = controller.describe_quefrency(quefrency, amplitude=1.0)
+    assert "2.0000 m" in description
+    assert "200.00 cm" in description
+    assert "0.500 1/m" in description
+    assert "5.00 Hz" in description
+
+
+def test_cepstrum_stats_table_lists_the_selection(qt_app):
+    measurement = harmonic_series_measurement()
+
+    controller = cepstrum_controller(measurement, machine_speed=600.0,
+                                     auto_detect_peaks=True)
+    controller.plot()
+
+    stats = controller.getStatsTableData()
+
+    assert stats[0] == ["Quefrency [m]", "Wavelength [cm]",
+                        "Frequency [1/m]", "Frequency [Hz]", "Amplitude"]
+    assert len(stats) == 2
+    assert float(stats[1][0]) == pytest.approx(2.0, abs=2 * SAMPLE_STEP)
+
+
+def test_cepstrum_manual_selection_survives_redraws(qt_app):
+    """Peak detection runs on every recompute and must not overwrite a choice.
+
+    Selecting, scrolling or refining while "Detect peaks" is ticked used to be
+    undone by the redraw that the same action triggered.
+    """
+    measurement = harmonic_series_measurement()
+
+    controller = cepstrum_controller(measurement, auto_detect_peaks=True)
+    window = cepstrum.AnalysisWindow(controller, "MD")
+
+    detected = controller.selected_freqs[-1]
+    elsewhere = detected * 1.5
+
+    assert window.select_quefrency_at(controller.ax, elsewhere)
+    assert not controller.auto_detect_peaks
+    picked = controller.selected_freqs[-1]
+    assert picked == pytest.approx(elsewhere, abs=SAMPLE_STEP)
+
+    window.refresh()
+    assert controller.selected_freqs[-1] == picked
+
+    # A refinement lands between bins, so the redraw must not snap it back.
+    controller.selected_freqs = [detected]
+    window.refineFrequency()
+    refined = controller.selected_freqs[-1]
+    window.refresh()
+    assert controller.selected_freqs[-1] == refined
+
+    window.clearFrequency()
+    assert controller.selected_freqs == []
+    assert window.selectedQuefrencyLabel.text() == "Selected quefrency: None"
+
+
+def test_cepstrum_export_carries_the_unit_columns(qt_app):
+    measurement = harmonic_series_measurement()
+
+    controller = cepstrum_controller(measurement)
+    controller.plot()
+
+    exported = controller.getExportData()
+
+    assert list(exported.columns) == ["Quefrency [m]", "Wavelength [cm]",
+                                      "Frequency [1/m]", "BW cepstrum amplitude"]
+    assert exported["Wavelength [cm]"].iloc[0] == pytest.approx(
+        100 * exported["Quefrency [m]"].iloc[0])
+    assert exported["Frequency [1/m]"].iloc[0] == pytest.approx(
+        1 / exported["Quefrency [m]"].iloc[0])
 
 
 # --------------------------------------------------------------------------
@@ -795,19 +959,29 @@ def _spectrum_window(qt_app):
 
 
 def test_spectrum_right_click_offers_select_frequency(qt_app):
+    """The selection entry rides on the canvas menu, not a second menu.
+
+    An analysis that pops its own menu from a button_press_event handler shows
+    it on top of the annotation menu the canvas raises for the same click.
+    """
     from matplotlib.backend_bases import MouseButton
 
     controller, window = _spectrum_window(qt_app)
-    opened = {}
-    window.show_frequency_context_menu = lambda event: opened.setdefault("x", event.xdata)
 
-    window.onclick(_FakeMouseEvent(controller.ax, MouseButton.RIGHT, xdata=7.5))
-    assert opened.get("x") == 7.5
+    assert controller.canvas.context_menu_actions_provider == window.contextMenuActions
 
-    # Outside the axes nothing opens.
-    opened.clear()
-    window.onclick(_FakeMouseEvent(None, MouseButton.RIGHT, xdata=7.5))
-    assert not opened
+    event = _FakeMouseEvent(controller.ax, MouseButton.RIGHT, xdata=7.5)
+    (label, callback, enabled), = window.contextMenuActions(event)
+    assert label == "Select frequency"
+    assert enabled
+
+    callback(event)
+    assert controller.selected_freqs[-1] == pytest.approx(7.5, abs=0.5)
+
+    # Without a position on the axis the entry is offered but disabled.
+    (_, _, enabled), = window.contextMenuActions(
+        _FakeMouseEvent(None, MouseButton.RIGHT))
+    assert not enabled
 
 
 def test_spectrum_menu_action_matches_selector_button(qt_app):
@@ -849,7 +1023,12 @@ def test_spectrogram_menu_selects_on_the_frequency_axis(qt_app):
     assert window.select_frequency_at(controller.ax, 5.0) is True
     assert controller.selected_freqs[-1] == pytest.approx(5.0, abs=0.5)
 
-    opened = {}
-    window.show_frequency_context_menu = lambda event: opened.setdefault("y", event.ydata)
-    window.onclick(_FakeMouseEvent(controller.ax, MouseButton.RIGHT, ydata=8.25))
-    assert opened.get("y") == 8.25
+    # The canvas menu entry drives the same y-axis selection.
+    assert controller.canvas.context_menu_actions_provider == window.contextMenuActions
+    controller.selected_freqs = []
+    event = _FakeMouseEvent(controller.ax, MouseButton.RIGHT, ydata=8.25)
+    (label, callback, enabled), = window.contextMenuActions(event)
+    assert label == "Select frequency"
+    assert enabled
+    callback(event)
+    assert controller.selected_freqs[-1] == pytest.approx(8.25, abs=0.5)
