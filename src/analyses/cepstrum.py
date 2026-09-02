@@ -360,7 +360,8 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                               va='bottom',
                               fontsize=8,
                               color="tab:gray",
-                              alpha=0.8)
+                              alpha=0.8,
+                              clip_on=True)
                 txt.set_path_effects([
                     path_effects.Stroke(linewidth=2, foreground='white'),
                     path_effects.Normal()

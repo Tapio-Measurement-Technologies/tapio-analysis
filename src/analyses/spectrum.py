@@ -529,7 +529,12 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                             va='bottom',
                             fontsize=8,
                             color="tab:gray",
-                            alpha=0.8
+                            alpha=0.8,
+                            # Text is unclipped by default, so a harmonic the
+                            # user zooms past would keep being drawn out in the
+                            # figure margins, and its width would defeat the
+                            # constrained layout.
+                            clip_on=True
                         )
                         txt.set_path_effects([
                             path_effects.Stroke(

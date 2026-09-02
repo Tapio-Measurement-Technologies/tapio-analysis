@@ -1037,6 +1037,26 @@ class PlotMixin:
         if hasattr(self, "correlation_coefficient"):
             self.correlation_coefficient = np.nan
 
+    def reset_navigation_history(self):
+        """Make the view just drawn the one the toolbar's home button restores.
+
+        plot() clears the figure, and Figure.clear() empties the toolbar's view
+        stack, so straight after a refresh there is no home view at all and the
+        button does nothing. The next zoom then records whatever is on screen as
+        home - and a refresh that puts a zoom back (a frequency click, the
+        scroll wheel, a checkbox) leaves the zoomed view on screen, so home ends
+        up anchored to the zoom instead of the range the parameters define.
+
+        Push the fresh view now, before any zoom is restored on top of it, so
+        home always returns to the plot the current parameters produce.
+        """
+        toolbar = getattr(self, "toolbar", None)
+        if toolbar is None or not self.figure.axes:
+            return
+
+        toolbar.update()  # Drop views belonging to the previous plot
+        toolbar.push_current()
+
     def updatePlot(self):
         try:
             annotations = self.canvas.get_annotations()
@@ -1044,6 +1064,7 @@ class PlotMixin:
             self.plot()
             # Re-apply interactive annotations
             self.canvas.set_annotations(annotations)
+            self.reset_navigation_history()
 
         except Exception as e:
             # Print the exception details with traceback
