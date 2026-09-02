@@ -191,31 +191,6 @@ def read_channel_names_units_from_ca(cal_file):
     return sensor_names, units, logical_channel_numbers, sensor_columns
 
 
-def resolve_data_columns(sensor_names, logical_channel_numbers):
-    """Column each sensor occupies in the interleaved data file.
-
-    The logical channel number is the channel's place in the acquired data
-    stream, which is what makes -1 mean "not acquired". Numbers that cannot be a
-    set of columns fall back to the order the sensors are listed in, which is
-    also what this resolves to for a file that numbers its acquired channels
-    0, 1, 2 ... in listing order.
-    """
-    columns = []
-    for sensor_name in sensor_names:
-        try:
-            columns.append(int(float(logical_channel_numbers[sensor_name])))
-        except (KeyError, TypeError, ValueError):
-            columns.append(-1)
-
-    if all(column >= 0 for column in columns) and len(set(columns)) == len(columns):
-        return columns
-
-    logging.warning(
-        "Logical channel numbers %s cannot be data file columns; reading the "
-        "channels in the order the calibration file lists them.", columns)
-    return list(range(len(sensor_names)))
-
-
 def read_info_from_header(header_file):
     """Read measurement info from header file."""
     info = None
@@ -347,7 +322,7 @@ def read_binary_data(file_path, num_channels):
 def parse_legacy_data(header_file_path, cal_file_path, data_file_path):
     """Parse legacy Tapio data files and return processed data."""
     with open(cal_file_path, 'r', encoding='iso-8859-1') as cal_file:
-        sensor_names, units, logical_channel_numbers, sensor_columns = read_channel_names_units_from_ca(
+        sensor_names, units, _logical_channel_numbers, sensor_columns = read_channel_names_units_from_ca(
             cal_file)
         channels_n, ad_factor, formation, transmission_channel, bw_channel = read_common_from_ca(
             cal_file)
@@ -366,12 +341,14 @@ def parse_legacy_data(header_file_path, cal_file_path, data_file_path):
             "Calibration file declares %d channels, %d of which were acquired.",
             channels_n, len(sensor_names))
 
-    data_columns = resolve_data_columns(sensor_names, logical_channel_numbers)
-    data = read_binary_data(data_file_path, max(data_columns) + 1)
+    # A logical channel number identifies the acquisition channel, but is not a
+    # literal column in the compact .da2 stream. Disabled channels (-1) have no
+    # samples in that stream, so its record width is the number of acquired
+    # sensors and its columns retain their Sensor Names order.
+    data = read_binary_data(data_file_path, len(sensor_names))
 
     # Align data based on sensor distances
-    data = align_sensor_data(
-        data, sensor_names, sensor_distances, sample_step, data_columns)
+    data = align_sensor_data(data, sensor_names, sensor_distances, sample_step)
 
     # Create dataframe from aligned data
     sensor_df = pd.DataFrame(data, columns=sensor_names)
@@ -390,16 +367,8 @@ def parse_legacy_data(header_file_path, cal_file_path, data_file_path):
     return sensor_df, units, sample_step, info, pm_speed
 
 
-def align_sensor_data(data, sensor_names, sensor_distances, sample_step,
-                      data_columns=None):
-    """Align sensor data based on sensor distances.
-
-    :param data_columns: Column of the data file each sensor was read from.
-        Defaults to the position in sensor_names.
-    """
-    if data_columns is None:
-        data_columns = list(range(len(sensor_names)))
-
+def align_sensor_data(data, sensor_names, sensor_distances, sample_step):
+    """Align sensor data based on sensor distances."""
     align_data_slices = {}
 
     # Compensate for the case that minimum distance is smaller than zero (some calibrations might have this).
@@ -417,7 +386,7 @@ def align_sensor_data(data, sensor_names, sensor_distances, sample_step,
 
     for index, sensor_name in enumerate(sensor_names):
         start_trim = align_data_slices[sensor_name]
-        channel_data = data[start_trim:start_trim + data_len, data_columns[index]]
+        channel_data = data[start_trim:start_trim + data_len, index]
         trimmed_data[:, index] = channel_data
 
     return trimmed_data

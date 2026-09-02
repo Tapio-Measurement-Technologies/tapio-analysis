@@ -943,13 +943,13 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
 
     def onclick(self, event):
         # Frequency selector functionality with axis limit check and label update
-        if self.is_navigation_mode_active():
-            return
-
         if event.inaxes is None:
             return
 
         if event.button == settings.FREQUENCY_SELECTOR_MOUSE_BUTTON:
+            # Matplotlib's zoom tool only uses left and right clicks. Keep the
+            # middle button available for selecting a frequency while zoom mode
+            # remains active.
             self.select_frequency_at(event.inaxes, event.xdata)
 
     def on_scroll(self, event):

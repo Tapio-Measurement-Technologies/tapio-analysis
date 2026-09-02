@@ -566,10 +566,11 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], ChannelMixin, BandP
         self.controller.remove_peak(nearest_peak_index)
         self.sync_after_peak_change(preserve_view=True)
 
-    def set_threshold_and_detect(self, threshold):
+    def set_threshold_and_detect(self, threshold, preserve_view=False):
         if threshold is None:
             return
 
+        view_limits = self.get_current_view_limits() if preserve_view else None
         self.controller.highlighted_intervals = []
         self.controller.threshold = threshold
         self.measurement.peak_channel = self.controller.channel
@@ -580,7 +581,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], ChannelMixin, BandP
         self.measurement.selected_samples = self.get_selected_samples()
         self.controller.selected_samples = self.measurement.selected_samples.copy()
         self.measurement.split_data_to_segments()
-        self.refresh()
+        self.refresh(update_home_limits=not preserve_view)
+        self.restore_view_limits(view_limits)
 
     def show_tape_context_menu(self, event):
         if event.inaxes not in self.controller.figure.axes:
@@ -621,12 +623,14 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], ChannelMixin, BandP
         if event.inaxes not in self.controller.figure.axes:
             return
 
-        if self.is_navigation_mode_active():
-            return
-
         if self.is_selector_button(event.button):
             if event.ydata is not None:
-                self.set_threshold_and_detect(event.ydata)
+                # Zoom mode only owns left and right clicks, so middle-click
+                # threshold selection can safely run before this mode check.
+                self.set_threshold_and_detect(event.ydata, preserve_view=True)
+            return
+
+        if self.is_navigation_mode_active():
             return
 
         if event.button == MouseButton.LEFT and event.xdata is not None:

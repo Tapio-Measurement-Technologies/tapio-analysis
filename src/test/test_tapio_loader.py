@@ -18,8 +18,11 @@ SENSOR_ROWS = [
     ("Alpha", "u1", "0"),
     ("Beta", "u2", "1"),
     ("Spare", "u3", "-1"),
-    ("Gamma", "u4", "2"),
+    # Logical numbers can retain a gap even though the compact data stream has
+    # no column for the disabled sensor.
+    ("Gamma", "u4", "3"),
 ]
+DISTANCES = [0.0, 0.002, 0.003, 0.004]
 SCALES = [10.0, 20.0, 30.0, 40.0]
 OFFSETS = [1.0, 2.0, 3.0, 4.0]
 
@@ -43,7 +46,7 @@ def write_calibration_file(path):
         "[Sensor Param.]",
         row([32, len(SENSOR_ROWS)]),
         row([1] * len(SENSOR_ROWS)),          # Calibrated
-        row([0] * len(SENSOR_ROWS)),          # Sensor distances
+        row(DISTANCES),                       # Sensor distances
         row(SCALES),
         row(OFFSETS),
         row([0] * len(SENSOR_ROWS)),          # Calibration types: all linear
@@ -99,7 +102,7 @@ def test_disabled_channel_is_left_out_but_keeps_its_column(measurement_files):
     assert sensor_names == ACQUIRED
     assert "Spare" not in units
     assert sensor_columns == ACQUIRED_COLUMNS
-    assert logical == {"Alpha": "0", "Beta": "1", "Gamma": "2"}
+    assert logical == {"Alpha": "0", "Beta": "1", "Gamma": "3"}
 
 
 def test_calibration_is_read_from_the_channel_s_own_column(measurement_files):
@@ -113,7 +116,7 @@ def test_calibration_is_read_from_the_channel_s_own_column(measurement_files):
     assert scales == {"Alpha": 10.0, "Beta": 20.0, "Gamma": 40.0}
     assert offsets == {"Alpha": 1.0, "Beta": 2.0, "Gamma": 4.0}
     assert types == {"Alpha": 0.0, "Beta": 0.0, "Gamma": 0.0}
-    assert distances == {"Alpha": 0.0, "Beta": 0.0, "Gamma": 0.0}
+    assert distances == {"Alpha": 0.0, "Beta": 0.002, "Gamma": 0.004}
     assert asymptotes == {"Alpha": 0.0, "Beta": 0.0, "Gamma": 0.0}
 
 
@@ -127,9 +130,12 @@ def test_channels_are_calibrated_with_their_own_parameters(measurement_files):
     assert pm_speed == 16.0
 
     counts = raw_counts()
+    aligned_length = SAMPLE_COUNT - round(max(DISTANCES) / SAMPLE_STEP)
     for index, channel in enumerate(ACQUIRED):
         column = ACQUIRED_COLUMNS[channel]
-        expected = counts[:, index] * (SCALES[column] / AD_FACTOR) + OFFSETS[column]
+        start = round(DISTANCES[column] / SAMPLE_STEP)
+        raw_values = counts[start:start + aligned_length, index]
+        expected = raw_values * (SCALES[column] / AD_FACTOR) + OFFSETS[column]
         np.testing.assert_allclose(sensor_df[channel].to_numpy(), expected)
 
 
@@ -149,14 +155,30 @@ def test_a_short_parameter_row_is_reported(measurement_files):
                 cal_file, sensor_names, sensor_columns)
 
 
-def test_a_file_without_disabled_channels_is_read_in_order():
+def test_a_file_without_disabled_channels_has_matching_parameter_columns():
     """The bundled measurement acquires every declared channel."""
     calibration_file = os.path.join(
         os.path.dirname(__file__), "../../test-data/test_MD_L_1.ca2")
 
     with open(calibration_file, encoding="iso-8859-1") as cal_file:
-        sensor_names, _, logical, sensor_columns = \
+        sensor_names, _, _, sensor_columns = \
             tapio.read_channel_names_units_from_ca(cal_file)
 
     assert [sensor_columns[name] for name in sensor_names] == list(range(len(sensor_names)))
-    assert tapio.resolve_data_columns(sensor_names, logical) == list(range(len(sensor_names)))
+
+
+def test_sensor_distance_trimming_aligns_the_same_location_across_channels():
+    sensor_distances = {"Alpha": 0.0, "Beta": 0.002, "Gamma": 0.004}
+    data = np.zeros((20, len(ACQUIRED)))
+    expected_location = 8
+    for column, sensor_name in enumerate(ACQUIRED):
+        distance_samples = round(sensor_distances[sensor_name] / SAMPLE_STEP)
+        data[expected_location + distance_samples, column] = 1.0
+
+    aligned = tapio.align_sensor_data(
+        data, ACQUIRED, sensor_distances, SAMPLE_STEP)
+
+    np.testing.assert_array_equal(
+        np.argmax(aligned, axis=0),
+        [expected_location] * len(ACQUIRED),
+    )

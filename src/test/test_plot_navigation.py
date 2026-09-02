@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 from matplotlib.backend_bases import MouseButton, MouseEvent
 
-from analyses import spectrum
+from analyses import find_samples, spectrum
 from utils.measurement import Measurement
 
 SAMPLE_STEP = 0.01
@@ -32,7 +32,12 @@ def make_spectrum_window():
     return spectrum.AnalysisWindow(controller, "MD")
 
 
-def zoom_to(window, x_low, x_high):
+def make_find_samples_window():
+    controller = find_samples.AnalysisController(make_md_measurement(), "MD")
+    return find_samples.AnalysisWindow(controller, "MD")
+
+
+def zoom_to(window, x_low, x_high, keep_active=False):
     """Zoom the plot to a frequency range the way the toolbar's zoom tool does."""
     controller = window.controller
     canvas = controller.canvas
@@ -48,7 +53,51 @@ def zoom_to(window, x_low, x_high):
         'button_press_event', canvas, press[0], press[1], MouseButton.LEFT))
     toolbar.release_zoom(MouseEvent(
         'button_release_event', canvas, release[0], release[1], MouseButton.LEFT))
-    toolbar.zoom()
+    if not keep_active:
+        toolbar.zoom()
+
+
+def test_spectrum_middle_click_works_while_zoom_tool_stays_active(qt_app):
+    window = make_spectrum_window()
+    controller = window.controller
+
+    zoom_to(window, FUNDAMENTAL - 1, FUNDAMENTAL + 1, keep_active=True)
+    zoomed_view = controller.figure.axes[0].get_xlim()
+    assert controller.toolbar.mode
+
+    ax = controller.figure.axes[0]
+    target_frequency = FUNDAMENTAL + 0.25
+    click = ax.transData.transform((target_frequency, np.mean(ax.get_ylim())))
+    controller.canvas.callbacks.process('button_press_event', MouseEvent(
+        'button_press_event', controller.canvas, click[0], click[1],
+        MouseButton.MIDDLE,
+    ))
+
+    assert controller.selected_freqs[-1] == pytest.approx(
+        controller.snap_frequency_to_bin(target_frequency)
+    )
+    assert controller.figure.axes[0].get_xlim() == pytest.approx(zoomed_view)
+
+
+def test_find_samples_middle_click_works_while_zoom_tool_stays_active(qt_app):
+    window = make_find_samples_window()
+    controller = window.controller
+
+    zoom_to(window, 1.0, 2.0, keep_active=True)
+    ax = controller.figure.axes[0]
+    zoomed_xlim = ax.get_xlim()
+    zoomed_ylim = ax.get_ylim()
+    threshold = np.mean(zoomed_ylim)
+    click = ax.transData.transform((1.5, threshold))
+
+    controller.canvas.callbacks.process('button_press_event', MouseEvent(
+        'button_press_event', controller.canvas, click[0], click[1],
+        MouseButton.MIDDLE,
+    ))
+
+    assert controller.threshold == pytest.approx(threshold)
+    assert controller.figure.axes[0].get_xlim() == pytest.approx(zoomed_xlim)
+    assert controller.figure.axes[0].get_ylim() == pytest.approx(zoomed_ylim)
 
 
 def test_home_returns_to_the_parameter_view_after_a_restored_zoom(qt_app):
