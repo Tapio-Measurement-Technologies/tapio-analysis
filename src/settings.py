@@ -152,7 +152,7 @@ CD_SAMPLE_LENGTH_SLIDER_STEP = 0.01
 #   "left"   keep the start, so every profile begins at its leading tape
 #   "right"  keep the end, so every profile ends at its trailing tape
 #   "center" cut equally from both ends (shifts strips relative to each other)
-CD_SEGMENT_ALIGNMENT = "left"
+CD_SEGMENT_ALIGNMENT = "center"
 
 # Tape width which will be cut off from all CD samples
 TAPE_WIDTH_MM = 65.00
