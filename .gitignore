@@ -172,4 +172,5 @@ src/loaders/*
 !src/loaders/auto_loader.py
 
 
+workspace/*
 
