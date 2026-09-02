@@ -10,7 +10,8 @@ from utils.signal_processing import (hs_units, safe_spectral_params,
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.ticker import AutoMinorLocator, LogLocator
-from utils.plot_formatting import wavelength_labels_cm_from_frequencies
+from utils.plot_formatting import (wavelength_labels_cm_from_frequencies,
+                                   machine_speed_is_known, hz_suffix)
 from scipy.signal import welch, find_peaks
 from gui.components import (
     AnalysisRangeMixin,
@@ -334,7 +335,9 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
         secax = ax.twiny()
 
-        if self.window_type == "CD" or self.show_wavelength:
+        speed_known = machine_speed_is_known(self.machine_speed)
+
+        if self.window_type == "CD" or self.show_wavelength or not speed_known:
 
             def update_secax(*args):
                 primary_ticks = ax.get_xticks()
@@ -407,9 +410,12 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
             # legend_columns = [f"Amplitude [{self.measurement.units[self.channel]}]",
             #                   "Frequency [1/m]", "Wavelength [cm]", "Frequency [Hz]"]
-            if self.window_type == "MD":
+            if self.window_type == "MD" and speed_known:
                 legend_columns = [f"A [{self.measurement.units[self.channel]}]",
                                   "F [1/m]", "λ [cm]", "F [Hz]"]
+            elif self.window_type == "MD":
+                legend_columns = [f"A [{self.measurement.units[self.channel]}]",
+                                  "F [1/m]", "λ [cm]"]
             if self.window_type == "CD":
                 legend_columns = [f"A [{self.measurement.units[self.channel]}]",
                                   "F [1/m]", "λ [cm]"]
@@ -438,13 +444,17 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                         legend_data.append([f"{amplitude:.2f}", f"{selected_freq:.2f}", f"{
                                            100*(1/selected_freq):.2f}"])
                     elif self.window_type == "MD":
-                        label = f"{selected_freq:.2f} 1/m ({self.get_freq_in_hz(selected_freq):.2f} Hz) λ = {
-                            100 * 1/selected_freq:.2f} cm A = {amplitude:.2f} {self.measurement.units[self.channel]}"
+                        label = (f"{selected_freq:.2f} 1/m"
+                                 f"{hz_suffix(selected_freq, self.machine_speed)}"
+                                 f" λ = {100 * 1/selected_freq:.2f} cm"
+                                 f" A = {amplitude:.2f} {self.measurement.units[self.channel]}")
                         print(f"Spectral peak in {self.channel}: {label}")
 
-                        legend_data.append([f"{amplitude:.3f}", f"{selected_freq:.2f}", f"{
-                                           100*(1/selected_freq):.2f}", f"{self.get_freq_in_hz(selected_freq):.2f}"])
-                        print(f"Spectral peak in {self.channel}: {label}")
+                        row = [f"{amplitude:.3f}", f"{selected_freq:.2f}",
+                               f"{100*(1/selected_freq):.2f}"]
+                        if speed_known:
+                            row.append(f"{self.get_freq_in_hz(selected_freq):.2f}")
+                        legend_data.append(row)
 
                     def get_color_cycler(num_colors):
                         # You can change 'tab10' to any colormap you prefer
@@ -562,8 +572,9 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                         if 0 <= freq_idx < len(self.amplitudes):
                             amplitude = self.amplitudes[freq_idx]
                     if self.window_type == "MD":
-                        freq_hz = freq * self.machine_speed / 60 if freq else None
-                        label = f"{name}: {freq:.2f} 1/m {freq_hz:.2f} Hz λ = {100*wavelength:.2f} cm"
+                        label = (f"{name}: {freq:.2f} 1/m"
+                                 f"{hz_suffix(freq, self.machine_speed)}"
+                                 f" λ = {100*wavelength:.2f} cm")
                         if amplitude is not None:
                             label += f" A = {amplitude:.2f} {self.measurement.units[self.channel]}"
                     else:
@@ -597,6 +608,9 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         return self.canvas
 
     def get_freq_in_hz(self, freq_1m):
+        """Frequency in Hz, or None when no machine speed has been set."""
+        if not machine_speed_is_known(self.machine_speed):
+            return None
         return freq_1m * self.machine_speed / 60
 
     def get_nearest_frequency_bin_index(self, freq):
@@ -651,9 +665,13 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         stats = []
 
         # Add headers based on window type
+        speed_known = machine_speed_is_known(self.machine_speed)
         if self.window_type == "MD":
-            stats.append(
-                [f"Amplitude {self.measurement.units[self.channel]}", "Wavelength [cm]", "Frequency [Hz]", ])
+            headers = [f"Amplitude {self.measurement.units[self.channel]}",
+                       "Wavelength [cm]"]
+            if speed_known:
+                headers.append("Frequency [Hz]")
+            stats.append(headers)
         elif self.window_type == "CD":
             stats.append(["Amplitude", "Wavelength [m]"])
 
@@ -668,12 +686,13 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
                 # Add row based on window type
                 if self.window_type == "MD":
-                    frequency_in_hz = self.get_freq_in_hz(freq)
-                    stats.append([
+                    row = [
                         f"{amplitude:.2f}",          # Amplitude
-                        f"{100 * wavelength:.2f}",  # Wavelength in meters
-                        f"{frequency_in_hz:.2f}"   # Frequency in Hz
-                    ])
+                        f"{100 * wavelength:.2f}",  # Wavelength in cm
+                    ]
+                    if speed_known:
+                        row.append(f"{self.get_freq_in_hz(freq):.2f}")
+                    stats.append(row)
                 elif self.window_type == "CD":
                     stats.append([
                         f"{amplitude:.2f}",          # Amplitude
@@ -1009,10 +1028,10 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
             wavelength = 1 / selected_freqs[-1]
 
             if self.window_type == "MD":
-                frequency_in_hz = selected_freqs[-1] * machine_speed / 60
                 self.selectedFrequencyLabel.setText(
-                    f"Selected frequency: {
-                        selected_freqs[-1]:.2f} 1/m ({frequency_in_hz:.2f} Hz) λ = {100*wavelength:.2f} cm"
+                    f"Selected frequency: {selected_freqs[-1]:.2f} 1/m"
+                    f"{hz_suffix(selected_freqs[-1], machine_speed)}"
+                    f" λ = {100*wavelength:.2f} cm"
                 )
 
             elif self.window_type == "CD":

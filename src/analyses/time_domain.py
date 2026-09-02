@@ -20,6 +20,7 @@ from gui.components import (
     ControlsPanelWidget,
 )
 import settings
+from utils.plot_formatting import machine_speed_is_known
 import numpy as np
 import pandas as pd
 
@@ -128,7 +129,11 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             y_max += margin
             ax.set_ylim(y_min, y_max)
 
-        if self.show_time_labels and len(self.distances):
+        # A machine speed of zero means the speed is not known, and distance
+        # cannot be turned into time without it. The axis is left off rather
+        # than divided by zero.
+        if (self.show_time_labels and len(self.distances)
+                and machine_speed_is_known(self.machine_speed)):
             # Convert machine speed to meters per second
             machine_speed_m_per_s = self.machine_speed / 60.0
             # Calculate time in seconds from distances

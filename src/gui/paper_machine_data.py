@@ -1,6 +1,7 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QCheckBox, QHBoxLayout, QToolButton, QScrollArea, QSizePolicy, QFrame, QLabel
 from PyQt6.QtCore import pyqtSignal, Qt, pyqtSlot
 import numpy as np
+from utils.plot_formatting import machine_speed_is_known, frequency_in_hz
 from utils.measurement import Measurement
 import settings
 
@@ -122,6 +123,14 @@ class PaperMachineDataWindow(QWidget):
                 self.clearLayout(child.layout())
 
     def populate_pm_data(self, machine_speed):
+        """Work out where each element lands in the sample.
+
+        An element given as a running frequency or an rpm only has a place in
+        the sample once the machine speed is known, and a speed of zero means it
+        is not. Those elements get no spatial frequency and are left out, rather
+        than dividing by zero. Elements given by a length or a diameter are
+        unaffected, since their spacing is a property of the part itself.
+        """
         for group in self.pm_data:
             if 'elements' in group and isinstance(group['elements'], list):
                 for element in group['elements']:
@@ -130,23 +139,32 @@ class PaperMachineDataWindow(QWidget):
                     if 'machine_speed' in element:
                         machine_speed_at_element = element['machine_speed']
 
+                    element['spatial_frequency'] = None
+
                     if 'frequency' in element:
-                        element['spatial_frequency'] = element['frequency'] / \
-                            (machine_speed / 60)
+                        if machine_speed_is_known(machine_speed):
+                            element['spatial_frequency'] = element['frequency'] / \
+                                (machine_speed / 60)
 
                     elif 'frequency_rpm' in element:
-                        element['spatial_frequency'] = element['frequency_rpm'] / \
-                            (machine_speed_at_element)
+                        if machine_speed_is_known(machine_speed_at_element):
+                            element['spatial_frequency'] = element['frequency_rpm'] / \
+                                (machine_speed_at_element)
 
                     elif 'length' in element:
                         element['spatial_frequency'] = 1 / element['length']
-                    elif 'diameter' in element or 'length' in element:
+                    elif 'diameter' in element:
                         element['spatial_frequency'] = 1 / \
                             (np.pi * element['diameter'])
 
+                    if element['spatial_frequency'] is None:
+                        element['frequency_hz'] = None
+                        continue
+
                     if 'multiplier' in element:
                         element['spatial_frequency'] = element['multiplier'] * element['spatial_frequency']
-                    element['frequency_hz'] = element['spatial_frequency'] * (machine_speed_at_element / 60)
+                    element['frequency_hz'] = frequency_in_hz(
+                        element['spatial_frequency'], machine_speed_at_element)
 
     def refresh_pm_data(self, machine_speed, selected_frequency):
         self.clearLayout(self.mainLayout)
@@ -179,17 +197,25 @@ class PaperMachineDataWindow(QWidget):
 
             if 'elements' in group and isinstance(group['elements'], list):
                 for element in group['elements']:
+                    # An element whose position depends on a machine speed that
+                    # has not been given cannot be placed in the sample.
+                    if not element.get('spatial_frequency'):
+                        continue
+
                     # Add "indentation" to element checkboxes
                     elementCheckboxLayout = QHBoxLayout()
                     wavelength = 1 / element['spatial_frequency']
 
                     elementName = element.get('name', 'Unnamed Element')
+                    hz = element.get('frequency_hz')
+                    hz_text = "" if hz is None else f" {hz:.2f} Hz"
+                    checkbox = QCheckBox(f"{elementName}")
                     if self.window_type == "MD":
-                        checkbox = QCheckBox(f"{elementName}")
-                        label = QLabel(f"{element['spatial_frequency']:.2f} 1/m {element['frequency_hz']:.2f} Hz (λ = {100*wavelength:.2f} cm)")
-                    elif self.window_type == "CD":
-                        checkbox = QCheckBox(f"{elementName}")
-                        label = QLabel(f"{element['spatial_frequency']:.2f} 1/m (λ = {100*wavelength:.2f} cm)")
+                        label = QLabel(f"{element['spatial_frequency']:.2f} 1/m"
+                                       f"{hz_text} (λ = {100*wavelength:.2f} cm)")
+                    else:
+                        label = QLabel(f"{element['spatial_frequency']:.2f} 1/m "
+                                       f"(λ = {100*wavelength:.2f} cm)")
 
                     if selected_frequency:
                         # Check if this element is closest to the selected frequency

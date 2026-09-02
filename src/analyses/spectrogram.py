@@ -24,7 +24,8 @@ from gui.components import (
 )
 from gui.paper_machine_data import PaperMachineDataWindow
 from utils import store
-from utils.plot_formatting import wavelength_labels_cm_from_frequencies
+from utils.plot_formatting import (wavelength_labels_cm_from_frequencies,
+                                   machine_speed_is_known, hz_suffix)
 import settings
 import numpy as np
 from scipy.signal import spectrogram
@@ -274,7 +275,7 @@ class AnalysisController(AnalysisControllerBase):
                     wavelength_labels_cm_from_frequencies(secax.get_yticks()))
             secax.set_ylabel(f"Wavelength [cm]")
 
-        elif self.window_type == "MD":
+        elif self.window_type == "MD" and machine_speed_is_known(self.machine_speed):
             def update_secax(*args):
                 primary_ticks = ax.get_yticks()
                 secax.set_yticks(primary_ticks)
@@ -312,7 +313,7 @@ class AnalysisController(AnalysisControllerBase):
                         continue
 
                     if self.window_type == "MD":
-                        label = f"{selected_freq:.2f} 1/m ({self.get_freq_in_hz(selected_freq):.2f} Hz) λ = {100 * 1/selected_freq:.2f} cm A = {amplitude:.2f} {self.measurement.units[self.channel]}"
+                        label = f"{selected_freq:.2f} 1/m{hz_suffix(selected_freq, self.machine_speed)} λ = {100 * 1/selected_freq:.2f} cm A = {amplitude:.2f} {self.measurement.units[self.channel]}"
                     else:
                         label = f"{selected_freq:.2f} 1/m λ = {100 * 1/selected_freq:.2f} cm A = {amplitude:.2f} {self.measurement.units[self.channel]}"
 
@@ -341,7 +342,7 @@ class AnalysisController(AnalysisControllerBase):
 
                     if i == 1:
                         if self.window_type == "MD":
-                            label = f"{self.selected_freqs[-1]:.2f} 1/m ({self.get_freq_in_hz(self.selected_freqs[-1]):.2f} Hz) λ = {100 * 1/self.selected_freqs[-1]:.2f} cm A = {amplitude:.2f} {self.measurement.units[self.channel]}"
+                            label = f"{self.selected_freqs[-1]:.2f} 1/m{hz_suffix(self.selected_freqs[-1], self.machine_speed)} λ = {100 * 1/self.selected_freqs[-1]:.2f} cm A = {amplitude:.2f} {self.measurement.units[self.channel]}"
                         else:
                             label = f"{self.selected_freqs[-1]:.2f} 1/m λ = {100 * 1/self.selected_freqs[-1]:.2f} cm A = {amplitude:.2f} {self.measurement.units[self.channel]}"
                     else:
@@ -419,11 +420,11 @@ class AnalysisController(AnalysisControllerBase):
             wavelength = 1 / self.selected_freqs[-1]
             stats.append(["Selected frequency:", ""])
             if self.window_type == "MD":
-                frequency_in_hz = self.selected_freqs[-1] * \
-                    self.machine_speed / 60
                 stats.append([
                     "Frequency:\nWavelength:",
-                    f"{self.selected_freqs[-1]:.2f} 1/m ({frequency_in_hz:.2f} Hz)\n{100*wavelength:.2f} cm"])
+                    f"{self.selected_freqs[-1]:.2f} 1/m"
+                    f"{hz_suffix(self.selected_freqs[-1], self.machine_speed)}"
+                    f"\n{100*wavelength:.2f} cm"])
             elif self.window_type == "CD":
                 stats.append([
                     "Frequency:\nWavelength:",
@@ -451,6 +452,9 @@ class AnalysisController(AnalysisControllerBase):
         return snapped
 
     def get_freq_in_hz(self, freq_1m):
+        """Frequency in Hz, or None when no machine speed has been set."""
+        if not machine_speed_is_known(self.machine_speed):
+            return None
         return freq_1m * self.machine_speed / 60
 
     def get_frequency_amplitude(self, freq):
@@ -787,9 +791,10 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         if selected_freqs and selected_freqs[-1] and np.isfinite(selected_freqs[-1]):
             wavelength = 1 / selected_freqs[-1]
             if self.window_type == "MD":
-                frequency_in_hz = selected_freqs[-1] * machine_speed / 60
                 self.selectedFrequencyLabel.setText(
-                    f"Selected frequency: {selected_freqs[-1]:.2f} 1/m ({frequency_in_hz:.2f} Hz) λ = {100*wavelength:.2f} cm")
+                    f"Selected frequency: {selected_freqs[-1]:.2f} 1/m"
+                    f"{hz_suffix(selected_freqs[-1], machine_speed)}"
+                    f" λ = {100*wavelength:.2f} cm")
 
             elif self.window_type == "CD":
                 self.selectedFrequencyLabel.setText(

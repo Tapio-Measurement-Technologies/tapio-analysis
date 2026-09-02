@@ -20,7 +20,8 @@ from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
 from utils.types import AnalysisType, PlotAnnotation
 from utils.signal_processing import safe_spectral_params, interpolate_non_finite
-from utils.plot_formatting import wavelength_labels_cm_from_frequencies
+from utils.plot_formatting import (wavelength_labels_cm_from_frequencies,
+                                   machine_speed_is_known, hz_suffix)
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as path_effects
 from scipy.signal import welch, find_peaks
@@ -254,7 +255,9 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         """Wavelength or Hz on the top axis, the same pair the spectrum offers."""
         secax = ax.twiny()
 
-        if self.show_wavelength:
+        # With no machine speed to convert by, the Hz axis would read zero at
+        # every tick, so the wavelength axis is shown instead.
+        if self.show_wavelength or not machine_speed_is_known(self.machine_speed):
             def update_secax(*args):
                 primary_ticks = ax.get_xticks()
                 secax.set_xticks(primary_ticks)
@@ -399,7 +402,12 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             self.current_vlines.append(vl)
 
     def get_freq_in_hz(self, freq_1m):
-        """Convert a spatial frequency [1/m] to a machine frequency [Hz]."""
+        """Convert a spatial frequency [1/m] to a machine frequency [Hz].
+
+        Returns None when no machine speed has been set.
+        """
+        if not machine_speed_is_known(self.machine_speed):
+            return None
         return freq_1m * self.machine_speed / 60
 
     def frequency_to_quefrency(self, frequency):
@@ -432,7 +440,8 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             return "None"
 
         wavelength = "λ" if symbols else "wavelength"
-        text = (f"{frequency:.3f} 1/m ({self.get_freq_in_hz(frequency):.2f} Hz)  "
+        text = (f"{frequency:.3f} 1/m"
+                f"{hz_suffix(frequency, self.machine_speed, ' ({:.2f} Hz)')}  "
                 f"{wavelength} = {100 * quefrency:.2f} cm")
         if amplitude is not None:
             text += f"  A = {amplitude:.4g}"
@@ -529,8 +538,12 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         return 1.0 / refined_quefrency
 
     def getStatsTableData(self):
-        stats = [["Frequency [1/m]", "Frequency [Hz]",
-                  "Wavelength [cm]", "Quefrency [m]", "Amplitude"]]
+        speed_known = machine_speed_is_known(self.machine_speed)
+        headers = ["Frequency [1/m]"]
+        if speed_known:
+            headers.append("Frequency [Hz]")
+        headers += ["Wavelength [cm]", "Quefrency [m]", "Amplitude"]
+        stats = [headers]
 
         for frequency in self.selected_freqs:
             quefrency = self.frequency_to_quefrency(frequency)
@@ -538,13 +551,15 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 continue
 
             amplitude = self.get_cepstrum_amplitude_at(frequency)
-            stats.append([
-                f"{frequency:.3f}",
-                f"{self.get_freq_in_hz(frequency):.2f}",
+            row = [f"{frequency:.3f}"]
+            if speed_known:
+                row.append(f"{self.get_freq_in_hz(frequency):.2f}")
+            row += [
                 f"{100 * quefrency:.2f}",
                 f"{quefrency:.4f}",
                 "-" if amplitude is None else f"{amplitude:.4g}"
-            ])
+            ]
+            stats.append(row)
 
         return stats
 

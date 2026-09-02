@@ -171,3 +171,34 @@ def wavelength_labels_cm_from_frequencies(frequencies_1m, decimals=2):
         else:
             labels.append(f"{100 / frequency:.{decimals}f}")
     return labels
+
+
+def machine_speed_is_known(machine_speed):
+    """Whether a machine speed can be used to convert 1/m into Hz.
+
+    A speed of zero is how the analysis windows carry "not known": the sample
+    was measured off the machine, or the reel speed was simply not entered. It
+    is not a machine standing still, and multiplying by it yields 0.00 Hz for
+    every frequency, which reads as a measurement rather than as a blank.
+    Callers use this to leave the Hz reading out entirely instead.
+    """
+    try:
+        return machine_speed is not None and float(machine_speed) > 0
+    except (TypeError, ValueError):
+        return False
+
+
+def frequency_in_hz(frequency_1m, machine_speed):
+    """A spatial frequency [1/m] as a machine frequency [Hz].
+
+    :return: The frequency in Hz, or None when the machine speed is not known.
+    """
+    if not machine_speed_is_known(machine_speed):
+        return None
+    return float(frequency_1m) * float(machine_speed) / 60.0
+
+
+def hz_suffix(frequency_1m, machine_speed, template=" ({:.2f} Hz)"):
+    """A parenthesised Hz reading to append to a label, or "" if not known."""
+    hz = frequency_in_hz(frequency_1m, machine_speed)
+    return "" if hz is None else template.format(hz)
