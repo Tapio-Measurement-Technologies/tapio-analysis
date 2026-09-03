@@ -3,31 +3,38 @@
 The formation index says how much small scale mass variation a sheet has. It
 does not say what that variation looks like. The floc distribution answers the
 second question: once the slow variation is filtered away, every contiguous
-stretch that stays beyond a limit counts as one floc, and the result is how
-much of the measured length those flocs take up, sorted by their length.
+run of samples beyond a limit counts as one floc, and the result is how the
+length those flocs cover divides between short flocs and long ones - with how
+much of the sheet they cover at all reported beside it.
 
 The analysed signal is the one the Formation window uses - basis weight
 estimated from transmission by a least squares straight line fit - so a floc
 here is a floc there. Any measured channel can be selected instead when the
 question is about that channel's own structure (caliper bulges, for instance).
 
-Reading the figure: with Limit+ = 1 g/m^2, a distribution value of 5 % at
-2.4...3.2 mm means 5 % of the measured length consists of stretches between
-2.4 and 3.2 mm long that run more than 1 g/m^2 above the local mean. The
-cumulative curve at the same limit ends at the share of the length that is
-beyond the limit at all.
+Reading the figure: the distribution is normalised within the flocs that were
+found, so its bins add up to 100 % for every threshold that caught at least one
+floc, and the cumulative curve ends at 100 %. A value of 20 % at 25.6 mm means
+that a fifth of the length this threshold's flocs cover sits in flocs exactly
+25.6 mm long. How much of the sheet those flocs cover in the first place is a
+different number, and it is in the legend and in the table: the exceeded
+percentage is still measured against the whole analysed length.
 
-Only the positive limit is entered. The other three follow it, as in the
-legacy tool: Limit++ = 2 x Limit+, Limit- = -Limit+, Limit-- = -2 x Limit+.
+Only the positive limit is entered. The other three follow it, as in the legacy
+tool: Limit++ = 2 x Limit+, Limit- = -Limit+, Limit-- = -2 x Limit+. Those names
+are identifiers; the figure shows each limit as the condition it is, "> +2 g/m2"
+and the like, in the unit of the analysed channel.
 """
 
+from matplotlib.ticker import FuncFormatter, MultipleLocator
 from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QGroupBox, QLabel,
                              QComboBox, QDoubleSpinBox, QMessageBox)
 from PyQt6.QtGui import QAction
 from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
-from utils.floc import (bin_centres_mm, floc_distribution, high_pass,
-                        limit_set, usable_high_edge)
+from utils.floc import (bin_lengths_mm, floc_distribution, high_pass,
+                        limit_set, threshold_label, usable_high_edge)
+from utils.plot_formatting import compact_number_label, unit_label
 from utils.types import AnalysisType, PlotAnnotation
 from analyses.formation import fit_linear
 from gui.components import (
@@ -44,12 +51,33 @@ analysis_name = "Floc Distribution"
 analysis_types = ["MD", "CD"]
 
 
-LIMIT_COLORS = {
-    "Limit++": "#b2182b",
-    "Limit+": "#ef8a62",
-    "Limit-": "#67a9cf",
-    "Limit--": "#2166ac",
+# Warm for the excursions above the mean, cool for the ones below, and the
+# stronger limit of each pair darker than the weaker one. The two signs are
+# also drawn solid and dashed: normalised distributions of a roughly symmetric
+# sheet lie almost on top of each other, and colour alone would not separate
+# them where they cross.
+LIMIT_STYLES = {
+    "Limit++": {"color": "#b2182b", "dashes": (), "width": 1.6},
+    "Limit+": {"color": "#ef8a62", "dashes": (), "width": 1.2},
+    "Limit-": {"color": "#67a9cf", "dashes": (5, 2), "width": 1.2},
+    "Limit--": {"color": "#2166ac", "dashes": (5, 2), "width": 1.6},
 }
+DEFAULT_STYLE = {"color": "black", "dashes": (), "width": 1.2}
+
+
+def number(value):
+    """A statistic short enough for a legend or a table cell.
+
+    One decimal, which is as far as any of these numbers is worth reading -
+    except for a value too small for that, which would print as 0.0 and say
+    the threshold caught nothing when it caught a thirtieth of a percent of
+    the paper. Those get as many digits as they need to stay visible.
+    """
+    if not np.isfinite(value):
+        return "-"
+    if value != 0 and abs(value) < 0.05:
+        return compact_number_label(value)
+    return f"{value:.1f}"
 
 
 class AnalysisController(AnalysisControllerBase):
@@ -68,6 +96,7 @@ class AnalysisController(AnalysisControllerBase):
         self.stats = np.array([])
         self.filtered_signal = np.array([])
         self.analysed_length_m = 0.0
+        self.analysed_profile_count = 0
 
         if self.window_type == "MD":
             self.set_default('analysis_range_low', settings.MD_FLOC_RANGE_LOW_DEFAULT * self.max_dist)
@@ -201,7 +230,7 @@ class AnalysisController(AnalysisControllerBase):
         return segments(self.channel)
 
     def calculate(self):
-        """Filter, threshold and count. Returns (shares, cumulative, stats) per limit."""
+        """Filter, threshold and count. Returns one FlocResult per limit."""
         profiles = [profile for profile in self.analysis_profiles()
                     if len(profile) >= 2]
         if not profiles:
@@ -215,19 +244,73 @@ class AnalysisController(AnalysisControllerBase):
 
         results = []
         for name, limit in limit_set(self.limit):
-            shares, cumulative, statistics = floc_distribution(
+            result = floc_distribution(
                 filtered, self.measurement.sample_step, limit,
                 self.high_pass_1m, already_filtered=True)
-            statistics["name"] = name
-            results.append((shares, cumulative, statistics))
+            result.statistics["name"] = name
+            results.append(result)
 
         self.filtered_signal = np.concatenate(filtered)
         self.analysed_length_m = (len(self.filtered_signal)
                                   * self.measurement.sample_step)
+        self.analysed_profile_count = len(filtered)
         return results
 
-    def bin_centres_mm(self):
-        return bin_centres_mm(self.measurement.sample_step)
+    def bin_lengths_mm(self):
+        return bin_lengths_mm(self.measurement.sample_step)
+
+    def configure_length_axis(self, ax, lengths, step_mm):
+        """Put the ticks on real floc lengths, and mark the last bin open ended.
+
+        A locator rather than a fixed list of ticks, so that the axis still
+        labels itself when the toolbar zooms in. Its step is a whole number of
+        sample steps, because those are the only floc lengths the data can
+        contain, and the tick on the last bin is written with a ">=" because
+        that bin is not one length but every floc at least that long. Saying so
+        on the tick is shorter than a sentence under the axis and cannot drift
+        away from the bin it describes.
+        """
+        stride = max(1, int(round(len(lengths) / 6)))
+        last = float(lengths[-1])
+        decimals = 0 if last >= 20 else 1
+
+        def format_length(value, _position):
+            text = f"{value:.{decimals}f}"
+            if abs(value - last) < 0.25 * step_mm:
+                return f"\u2265{text}"
+            return text
+
+        ax.xaxis.set_major_locator(MultipleLocator(stride * step_mm))
+        ax.xaxis.set_major_formatter(FuncFormatter(format_length))
+
+    def analysed_length_label(self):
+        """How much paper the percentages are measured against.
+
+        A CD analysis pools several sample profiles, and it is their total
+        length that the exceeded percentage is a share of, so the number of
+        samples is said as well rather than leaving the length looking like one
+        profile's.
+        """
+        if self.analysed_length_m >= 1.0:
+            length = f"{self.analysed_length_m:.0f} m analysed"
+        else:
+            length = f"{1000.0 * self.analysed_length_m:.0f} mm analysed"
+        if self.analysed_profile_count > 1:
+            return f"{self.analysed_profile_count} samples, {length}"
+        return length
+
+    def metadata_line(self, channel_label):
+        """The one line under the heading: what was measured, how, and how much.
+
+        It ends with the definition of a floc because that is the one thing the
+        figure cannot show and a reader cannot guess, and it is short enough to
+        share the line rather than becoming a paragraph on the plot.
+        """
+        filtering = (f"high-pass {self.high_pass_1m:g} m\u207b\u00b9"
+                     if self.high_pass_1m > 0 else "no high-pass filter")
+        return (f"{channel_label} \u2022 {filtering} \u2022 "
+                f"{self.analysed_length_label()} \u2022 "
+                "floc = one continuous run beyond the threshold")
 
     def plot(self):
         self.figure.clear()
@@ -243,7 +326,7 @@ class AnalysisController(AnalysisControllerBase):
             ax = self.figure.add_subplot(111)
             ax.axis('off')
             ax.text(0.5, 0.5,
-                    "Floc distribution not available\n"
+                    "Floc length distribution not available\n"
                     "(no usable data in the selected range or channel)",
                     ha='center', va='center', color='red')
             self.canvas.draw()
@@ -260,70 +343,100 @@ class AnalysisController(AnalysisControllerBase):
         cumulative_ax = self.figure.add_subplot(grid[1], sharex=distribution_ax)
         table_ax = self.figure.add_subplot(grid[2])
 
-        sizes = self.bin_centres_mm()
-        for shares, cumulative, statistics in results:
-            name = statistics["name"]
-            color = LIMIT_COLORS.get(name)
-            label = f"{name} = {statistics['limit']:.3g} {unit}".strip()
+        lengths = self.bin_lengths_mm()
+        for result in results:
+            statistics = result.statistics
+            style = LIMIT_STYLES.get(statistics["name"], DEFAULT_STYLE)
+            # The legend carries what the normalised curves cannot: how much of
+            # the sheet is beyond this threshold at all. Without it every curve
+            # would end at 100 % and a threshold that caught a twentieth of the
+            # paper would look like one that caught a quarter of it.
+            label = (f"{threshold_label(statistics['limit'], unit)}   "
+                     f"({number(statistics['exceeded_percent'])} % of length)")
             # Steps, not a smooth line: each point is one sample count, and a
-            # line between them would suggest floc sizes the sample step
+            # line between them would suggest floc lengths the sample step
             # cannot resolve.
-            distribution_ax.plot(sizes, shares, drawstyle="steps-mid",
-                                 color=color, lw=1.2, label=label)
-            cumulative_ax.plot(sizes, cumulative, color=color, lw=1.2,
+            distribution_ax.plot(lengths, result.shares, drawstyle="steps-mid",
+                                 color=style["color"], lw=style["width"],
+                                 dashes=style["dashes"], label=label)
+            cumulative_ax.plot(lengths, result.cumulative, color=style["color"],
+                               lw=style["width"], dashes=style["dashes"],
                                label=label)
 
-        # The channel is named the way the Formation window names it. The
-        # filter setting and the analysed length are both on the controls, so
-        # they are not repeated here.
+        # MD or CD in front of the name, unless the name already says it.
+        name = self.measurement.measurement_label or ""
+        direction = ("" if name.upper().startswith(self.window_type)
+                     else self.window_type)
+        heading = " ".join(part for part in (direction, name) if part)
         self.figure.suptitle(
-            f"{self.measurement.measurement_label} - Floc distribution "
-            f"({channel_label})", fontsize=10)
+            f"{heading} \u2014 Floc length distribution".strip(" \u2014"),
+            fontsize=11)
+        distribution_ax.set_title(self.metadata_line(channel_label),
+                                  fontsize=8, color="0.35")
 
-        distribution_ax.set_ylabel("Share of length [%]")
-        distribution_ax.grid(True, alpha=0.4)
-        distribution_ax.legend(fontsize=8)
+        step_mm = 1000.0 * self.measurement.sample_step
+        # Everything from here rightwards is in the open ended last bin.
+        open_bin_edge = lengths[-1] - 0.5 * step_mm
+
+        for ax in (distribution_ax, cumulative_ax):
+            ax.axvline(open_bin_edge, color="0.65", lw=0.8, ls=":", zorder=0)
+            ax.grid(True, alpha=0.25, lw=0.6)
+        distribution_ax.set_xlim(lengths[0] - 0.5 * step_mm,
+                                 lengths[-1] + 0.5 * step_mm)
+        # A shared x axis, so this reaches the distribution panel as well.
+        self.configure_length_axis(cumulative_ax, lengths, step_mm)
+
+        distribution_ax.set_ylabel("Share of floc-covered length [%]")
+        distribution_ax.set_ylim(bottom=0)
+        distribution_ax.legend(fontsize=8, loc="upper right", framealpha=0.9)
         distribution_ax.tick_params(labelbottom=False)
 
-        cumulative_ax.set_xlabel("Floc size [mm]")
-        cumulative_ax.set_ylabel("Cumulative share [%]")
-        cumulative_ax.grid(True, alpha=0.4)
+        cumulative_ax.set_xlabel("Floc length [mm]")
+        cumulative_ax.set_ylabel("Cumulative floc-covered length [%]")
+        # The curves are normalised, so every threshold that found a floc ends
+        # on this line. Drawing it says so without an annotation.
+        cumulative_ax.axhline(100.0, color="0.65", lw=0.8, ls=":", zorder=0)
+        cumulative_ax.set_ylim(0, 105)
 
         self.draw_statistics_table(table_ax, results, unit)
 
         # The high passed signal is what the limits are compared against, so
         # its spread is the number to choose a limit from.
         self.stats = self.filtered_signal
-        self.floc_stats = [statistics for _shares, _cumulative, statistics in results]
+        self.floc_stats = [result.statistics for result in results]
 
         self.canvas.draw()
         self.updated.emit()
         return self.canvas
 
     def draw_statistics_table(self, ax, results, unit):
-        ax.axis('off')
-        columns = [f"Limit [{unit}]".strip(), "Exceeded [%]",
-                   "Floc size [mm]", "Flocs / m", "Flocs"]
-        rows = [statistics["name"] for _s, _c, statistics in results]
-        cells = [[
-            f"{statistics['limit']:.3g}",
-            f"{statistics['exceeded_percent']:.1f}",
-            f"{statistics['mean_size_mm']:.1f}" if np.isfinite(
-                statistics['mean_size_mm']) else "-",
-            f"{statistics['flocs_per_m']:.1f}" if np.isfinite(
-                statistics['flocs_per_m']) else "-",
-            f"{statistics['count']}",
-        ] for _s, _c, statistics in results]
+        """The absolute numbers, which the normalised curves deliberately drop.
 
-        table = ax.table(cellText=cells, rowLabels=rows, colLabels=columns,
-                         cellLoc='center', rowLoc='center', loc='center')
+        Nothing here is normalised: the exceeded percentage is of the whole
+        analysed length, and the mean length and the count are of the flocs as
+        they were detected.
+        """
+        ax.axis('off')
+        columns = ["Threshold", "Length beyond threshold [%]",
+                   "Mean floc length [mm]", "Flocs / m", "Count"]
+        cells = [[
+            threshold_label(statistics['limit'], unit),
+            number(statistics['exceeded_percent']),
+            number(statistics['mean_size_mm']),
+            number(statistics['flocs_per_m']),
+            f"{statistics['count']}",
+        ] for _shares, _cumulative, statistics, _absolute in results]
+
+        table = ax.table(cellText=cells, colLabels=columns,
+                         cellLoc='center', loc='center')
         table.auto_set_font_size(False)
         table.set_fontsize(8)
         table.scale(1.0, 1.25)
-        for index, (_s, _c, statistics) in enumerate(results):
-            # Colour the row label to match the curve it belongs to.
-            table[index + 1, -1].get_text().set_color(
-                LIMIT_COLORS.get(statistics["name"], "black"))
+        for index, result in enumerate(results):
+            # The threshold reads in the colour of the curve it belongs to.
+            table[index + 1, 0].get_text().set_color(
+                LIMIT_STYLES.get(result.statistics["name"],
+                                 DEFAULT_STYLE)["color"])
 
     def getStatsTableData(self):
         """Rows for the report stats table: the numbers of the figure table."""
@@ -334,18 +447,17 @@ class AnalysisController(AnalysisControllerBase):
             return "\n".join(values)
 
         unit = self.channel_unit
-        names = [statistics["name"] for statistics in self.floc_stats]
+        thresholds = [threshold_label(statistics["limit"], unit)
+                      for statistics in self.floc_stats]
         return [
-            ["", f"Limit [{unit}]  Exceeded [%]  Floc size [mm]  Flocs/m".strip()],
+            ["Threshold",
+             "Length beyond threshold [%]  Mean floc length [mm]  Flocs/m"],
             [
-                column(names),
+                column(thresholds),
                 column(
-                    f"{statistics['limit']:.3g}      "
-                    f"{statistics['exceeded_percent']:.1f}      "
-                    f"{statistics['mean_size_mm']:.1f}      "
-                    f"{statistics['flocs_per_m']:.1f}"
-                    if np.isfinite(statistics['mean_size_mm'])
-                    else f"{statistics['limit']:.3g}      0.0      -      -"
+                    f"{number(statistics['exceeded_percent'])}      "
+                    f"{number(statistics['mean_size_mm'])}      "
+                    f"{number(statistics['flocs_per_m'])}"
                     for statistics in self.floc_stats
                 ),
             ],
@@ -358,7 +470,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.sampleSelectorWindow = None
         if not self.controller.can_calculate:
             QMessageBox.warning(
-                self, "Floc distribution not available",
+                self, "Floc length distribution not available",
                 self.controller.warning_message or "No channels to analyse")
             self.close()
             return
@@ -373,7 +485,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
     def initUI(self):
         if settings.FLOC_TITLE_SHOW:
             self.setWindowTitle(
-                f"Floc distribution ({self.measurement.measurement_label})")
+                f"Floc length distribution "
+                f"({self.measurement.measurement_label})")
         self.resize(*settings.FLOC_WINDOW_SIZE)
 
         if self.window_type == "CD":
@@ -397,7 +510,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
 
         self.addAnalysisRangeSlider(analysisParamsLayout)
 
-        self.limitLabel = QLabel("Limit+")
+        self.limitLabel = QLabel("Threshold")
         analysisParamsLayout.addWidget(self.limitLabel)
         self.limitSpinBox = QDoubleSpinBox()
         self.limitSpinBox.setDecimals(settings.FLOC_LIMIT_DECIMALS)
@@ -448,8 +561,13 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
             self.controller.channel = self.channelComboBox.currentText()
         self.channelComboBox.blockSignals(False)
 
-        unit = self.controller.channel_unit
-        self.limitLabel.setText(f"Limit+ [{unit}]" if unit else "Limit+")
+        # The control sets one number and the figure applies four thresholds
+        # to it, so the label says so rather than leaving the other three to be
+        # discovered from the legend.
+        unit = unit_label(self.controller.channel_unit)
+        self.limitLabel.setText(
+            f"Threshold [{unit}]\n\u00b1 this and \u00b12 \u00d7 this" if unit
+            else "Threshold\n\u00b1 this and \u00b12 \u00d7 this")
         self.limitSpinBox.blockSignals(True)
         self.limitSpinBox.setValue(self.controller.limit)
         self.limitSpinBox.blockSignals(False)

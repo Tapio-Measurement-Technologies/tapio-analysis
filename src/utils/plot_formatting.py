@@ -1,4 +1,5 @@
 import math
+import re
 
 import numpy as np
 from matplotlib.ticker import Formatter
@@ -202,3 +203,29 @@ def hz_suffix(frequency_1m, machine_speed, template=" ({:.2f} Hz)"):
     """A parenthesised Hz reading to append to a label, or "" if not known."""
     hz = frequency_in_hz(frequency_1m, machine_speed)
     return "" if hz is None else template.format(hz)
+
+
+_SUPERSCRIPTS = str.maketrans("0123456789-", "⁰¹²³⁴⁵⁶⁷⁸⁹⁻")
+
+
+def unit_label(unit):
+    """A measurement unit written the way a figure should show it.
+
+    Units reach the application as plain text from the calibration file -
+    ``g/m2``, or ``g/m^2`` - and an exponent left on the baseline reads as a
+    digit rather than as a power. Only the exponent is raised; the rest of the
+    string is left exactly as it was measured, so an unknown unit still shows
+    up unchanged instead of being guessed at.
+    """
+    text = str(unit or "").strip()
+    if not text:
+        return ""
+
+    def raise_digits(match):
+        return match.group(1).translate(_SUPERSCRIPTS)
+
+    # ``m^2`` first, so that the following pass does not see the caret form.
+    # A fractional exponent such as ``^0.5`` is left alone: half of it would be
+    # raised and the rest would not.
+    text = re.sub(r"\^(-?\d+)(?![\d.])", raise_digits, text)
+    return re.sub(r"(?<=[A-Za-z])(-?\d+)(?![\w.])", raise_digits, text)
