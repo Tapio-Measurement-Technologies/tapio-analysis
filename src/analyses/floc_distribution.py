@@ -35,7 +35,6 @@ from gui.components import (
     SampleSelectMixin,
     CopyPlotMixin,
     ChildWindowCloseMixin,
-    StatsWidget,
     ControlsPanelWidget,
 )
 import settings
@@ -274,19 +273,19 @@ class AnalysisController(AnalysisControllerBase):
             cumulative_ax.plot(sizes, cumulative, color=color, lw=1.2,
                                label=label)
 
-        conditions = (f"{channel_label}, high pass {self.high_pass_1m:.3g} 1/m, "
-                      f"{self.analysed_length_m:.1f} m analysed")
+        # The channel is named the way the Formation window names it. The
+        # filter setting and the analysed length are both on the controls, so
+        # they are not repeated here.
         self.figure.suptitle(
-            f"{self.measurement.measurement_label} - Floc distribution\n"
-            + conditions, fontsize=10)
+            f"{self.measurement.measurement_label} - Floc distribution "
+            f"({channel_label})", fontsize=10)
 
         distribution_ax.set_ylabel("Share of length [%]")
         distribution_ax.grid(True, alpha=0.4)
         distribution_ax.legend(fontsize=8)
         distribution_ax.tick_params(labelbottom=False)
 
-        cumulative_ax.set_xlabel(
-            "Floc size [mm]   (the last bin holds every longer floc)")
+        cumulative_ax.set_xlabel("Floc size [mm]")
         cumulative_ax.set_ylabel("Cumulative share [%]")
         cumulative_ax.grid(True, alpha=0.4)
 
@@ -419,15 +418,10 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.limitSpinBox.valueChanged.connect(self.limitChanged)
         self.highPassSpinBox.valueChanged.connect(self.highPassChanged)
 
-        plotStatsLayout = QVBoxLayout()
-        mainHorizontalLayout.addLayout(plotStatsLayout, 1)
+        plotLayout = QVBoxLayout()
+        mainHorizontalLayout.addLayout(plotLayout, 1)
 
-        # The statistics are those of the high passed signal, which is what the
-        # limits are compared against.
-        self.stats_widget = StatsWidget()
-        plotStatsLayout.addWidget(self.stats_widget)
-
-        self.controller.addPlot(plotStatsLayout)
+        self.controller.addPlot(plotLayout)
 
         self.refresh()
 
@@ -478,6 +472,4 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
 
     def refresh(self):
         self.controller.updatePlot()
-        self.stats_widget.update_statistics(
-            self.controller.stats, self.controller.channel_unit)
         self.refresh_widgets()
