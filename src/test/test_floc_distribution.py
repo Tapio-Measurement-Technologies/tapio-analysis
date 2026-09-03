@@ -501,20 +501,91 @@ def floc_controller(qt_app):
     return controller
 
 
+def long_floc_controller(qt_app):
+    """A measurement whose flocs run off the end of the bin axis."""
+    length = 40000
+    values = np.zeros(length)
+    # 400 sample stretches: far longer than the 30 bin axis can name, so they
+    # land in the open ended last bin.
+    for start in range(0, length - 400, 1000):
+        values[start:start + 400] = 5.0
+    measurement = md_measurement({"Transmission": 100.0 + values,
+                                  "BW": 100.0 + values})
+    controller = floc_distribution.AnalysisController(measurement, "MD")
+    controller.analysis_range_low = 0.0
+    controller.analysis_range_high = measurement.distances[-1]
+    controller.limit = 1.0
+    controller.high_pass_1m = 0.0     # no filtering, so the stretches stay whole
+    return controller
+
+
+def test_the_axis_stops_where_the_flocs_do(qt_app):
+    """Empty bins past the longest floc are not drawn.
+
+    A coarse sample step cannot hold a floc in most of the thirty bins, and
+    drawing all of them squeezes the distribution into the first centimetre of
+    the panel. The bins are still all calculated.
+    """
+    controller = floc_controller(qt_app)
+    results = controller.calculate()
+    occupied = max(int(np.max(np.nonzero(result.absolute_shares)[0]))
+                   for result in results if np.any(result.absolute_shares))
+
+    visible = controller.visible_bin_count(results)
+    assert visible == occupied + 2
+    assert visible < settings.FLOC_BIN_COUNT
+    # Nothing is cut away: every bin beyond the view is empty for every limit.
+    for result in results:
+        assert result.absolute_shares[visible:].sum() == 0.0
+
+    controller.updatePlot()
+    lengths = controller.bin_lengths_mm()
+    step_mm = 1000.0 * controller.measurement.sample_step
+    assert controller.figure.axes[0].get_xlim()[1] == pytest.approx(
+        lengths[visible - 1] + 0.5 * step_mm)
+
+
 def test_the_last_tick_says_the_last_bin_is_open_ended(qt_app):
+    """When the open ended bin is in view, its tick says that it is."""
+    controller = long_floc_controller(qt_app)
+    results = controller.calculate()
+    assert controller.visible_bin_count(results) == settings.FLOC_BIN_COUNT
+
+    controller.updatePlot()
+    lengths = controller.bin_lengths_mm()
+    formatter = controller.figure.axes[1].xaxis.get_major_formatter()
+    assert formatter(lengths[-1], 0) == "\u226524"
+    assert formatter(lengths[4], 0) == "4"
+
+
+def test_a_trimmed_axis_does_not_claim_an_open_ended_bin(qt_app):
+    """The ">=" belongs to the last bin, so it goes when that bin is not shown."""
     controller = floc_controller(qt_app)
     controller.updatePlot()
     lengths = controller.bin_lengths_mm()
-    axis = controller.figure.axes[1].xaxis
+    formatter = controller.figure.axes[1].xaxis.get_major_formatter()
+    assert "\u2265" not in formatter(lengths[-1], 0)
 
+
+def test_the_ticks_are_floc_lengths_the_sampling_can_produce(qt_app):
+    """A 12.8 mm sample step must not label its ticks 13 mm."""
+    measurement = md_measurement(
+        {"Transmission": np.random.default_rng(9).normal(100.0, 3.0, 20000),
+         "BW": np.random.default_rng(9).normal(100.0, 3.0, 20000)},
+        sample_step=0.0128)
+    controller = floc_distribution.AnalysisController(measurement, "MD")
+    controller.analysis_range_low = 0.0
+    controller.analysis_range_high = measurement.distances[-1]
+    controller.limit = 1.0
+    controller.high_pass_1m = 10.0
+    controller.updatePlot()
+
+    axis = controller.figure.axes[1].xaxis
     formatter = axis.get_major_formatter()
-    assert formatter(lengths[-1], 0) == "\u226524"
-    assert formatter(lengths[4], 0) == "4"
-    # Every tick lands on a floc length the sampling can actually produce.
-    step_mm = 1000.0 * controller.measurement.sample_step
-    ticks = [tick for tick in axis.get_majorticklocs() if tick > 0]
-    assert all((tick / step_mm) == pytest.approx(round(tick / step_mm))
-               for tick in ticks)
+    labels = [formatter(tick, 0) for tick in axis.get_majorticklocs()
+              if tick > 0]
+    assert "12.8" in labels
+    assert "13" not in labels
 
 
 def test_the_stats_table_reports_thresholds_and_absolute_numbers(qt_app):
@@ -523,7 +594,7 @@ def test_the_stats_table_reports_thresholds_and_absolute_numbers(qt_app):
 
     header, (thresholds, values) = controller.getStatsTableData()
     assert header[0] == "Threshold"
-    assert "Length beyond threshold [%]" in header[1]
+    assert "Length beyond [%]" in header[1]
     assert thresholds.splitlines()[0] == "> +2 g/m\u00b2"
     assert thresholds.splitlines()[2] == "< -1 g/m\u00b2"
     # The numbers are the absolute ones, unchanged by the plot normalisation.
@@ -543,8 +614,8 @@ def test_the_figure_draws_without_complaint(qt_app):
                         for artist in figure.findobj(matplotlib.text.Text))
     assert "Floc length distribution" in rendered
     assert "Floc length [mm]" in rendered
-    assert "Share of floc-covered length [%]" in rendered
-    assert "Cumulative floc-covered length [%]" in rendered
+    assert "Share of floc-\ncovered length [%]" in rendered
+    assert "Cumulative floc-\ncovered length [%]" in rendered
     assert "> +1 g/m\u00b2" in rendered
     assert "% of length" in rendered
     assert "floc = one continuous run beyond the threshold" in rendered

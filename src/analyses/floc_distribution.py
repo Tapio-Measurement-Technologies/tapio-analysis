@@ -53,16 +53,16 @@ analysis_types = ["MD", "CD"]
 
 # Warm for the excursions above the mean, cool for the ones below, and the
 # stronger limit of each pair darker than the weaker one. The two signs are
-# also drawn solid and dashed: normalised distributions of a roughly symmetric
-# sheet lie almost on top of each other, and colour alone would not separate
-# them where they cross.
+# also drawn solid and dashed, because a sheet whose flocs are symmetric puts
+# the two curves of a pair on top of each other and colour alone would then
+# hide one of them completely.
 LIMIT_STYLES = {
-    "Limit++": {"color": "#b2182b", "dashes": (), "width": 1.6},
-    "Limit+": {"color": "#ef8a62", "dashes": (), "width": 1.2},
-    "Limit-": {"color": "#67a9cf", "dashes": (5, 2), "width": 1.2},
-    "Limit--": {"color": "#2166ac", "dashes": (5, 2), "width": 1.6},
+    "Limit++": {"color": "#b2182b", "dashes": ()},
+    "Limit+": {"color": "#ef8a62", "dashes": ()},
+    "Limit-": {"color": "#67a9cf", "dashes": (5, 2)},
+    "Limit--": {"color": "#2166ac", "dashes": (5, 2)},
 }
-DEFAULT_STYLE = {"color": "black", "dashes": (), "width": 1.2}
+DEFAULT_STYLE = {"color": "black", "dashes": ()}
 
 
 def number(value):
@@ -259,28 +259,47 @@ class AnalysisController(AnalysisControllerBase):
     def bin_lengths_mm(self):
         return bin_lengths_mm(self.measurement.sample_step)
 
-    def configure_length_axis(self, ax, lengths, step_mm):
+    def visible_bin_count(self, results):
+        """How many bins are worth drawing: the occupied ones, plus one.
+
+        A floc cannot be longer than about half the longest wavelength the high
+        pass lets through, so on a coarse sample step most of the axis can
+        never hold anything. Drawing all thirty bins then squeezes the whole
+        distribution into the first centimetre of the panel and leaves the rest
+        blank. The bins are all still calculated - only the view is cut, and
+        only where every threshold is empty.
+        """
+        occupied = [int(np.max(np.nonzero(result.absolute_shares)[0]))
+                    for result in results if np.any(result.absolute_shares)]
+        if not occupied:
+            return settings.FLOC_BIN_COUNT
+        return min(settings.FLOC_BIN_COUNT, max(occupied) + 2)
+
+    def configure_length_axis(self, ax, lengths, step_mm, visible):
         """Put the ticks on real floc lengths, and mark the last bin open ended.
 
         A locator rather than a fixed list of ticks, so that the axis still
         labels itself when the toolbar zooms in. Its step is a whole number of
         sample steps, because those are the only floc lengths the data can
-        contain, and the tick on the last bin is written with a ">=" because
-        that bin is not one length but every floc at least that long. Saying so
-        on the tick is shorter than a sentence under the axis and cannot drift
-        away from the bin it describes.
+        contain. The tick on the last bin is written with a ">=" when that bin
+        is in view, because it is not one length but every floc at least that
+        long; saying so on the tick is shorter than a sentence under the axis
+        and cannot drift away from the bin it describes.
         """
-        stride = max(1, int(round(len(lengths) / 6)))
-        last = float(lengths[-1])
-        decimals = 0 if last >= 20 else 1
+        stride = max(1, int(round(visible / 6)))
+        tick_step = stride * step_mm
+        # Whole millimetres where the ticks fall on them, one decimal where a
+        # sample step does not divide into them - 12.8 mm must not read as 13.
+        decimals = 0 if abs(tick_step - round(tick_step)) < 0.05 else 1
+        open_bin = float(lengths[-1]) if visible == len(lengths) else None
 
         def format_length(value, _position):
             text = f"{value:.{decimals}f}"
-            if abs(value - last) < 0.25 * step_mm:
+            if open_bin is not None and abs(value - open_bin) < 0.25 * step_mm:
                 return f"\u2265{text}"
             return text
 
-        ax.xaxis.set_major_locator(MultipleLocator(stride * step_mm))
+        ax.xaxis.set_major_locator(MultipleLocator(tick_step))
         ax.xaxis.set_major_formatter(FuncFormatter(format_length))
 
     def analysed_length_label(self):
@@ -357,11 +376,10 @@ class AnalysisController(AnalysisControllerBase):
             # line between them would suggest floc lengths the sample step
             # cannot resolve.
             distribution_ax.plot(lengths, result.shares, drawstyle="steps-mid",
-                                 color=style["color"], lw=style["width"],
+                                 color=style["color"], lw=1.2,
                                  dashes=style["dashes"], label=label)
             cumulative_ax.plot(lengths, result.cumulative, color=style["color"],
-                               lw=style["width"], dashes=style["dashes"],
-                               label=label)
+                               lw=1.2, dashes=style["dashes"], label=label)
 
         # MD or CD in front of the name, unless the name already says it.
         name = self.measurement.measurement_label or ""
@@ -370,33 +388,30 @@ class AnalysisController(AnalysisControllerBase):
         heading = " ".join(part for part in (direction, name) if part)
         self.figure.suptitle(
             f"{heading} \u2014 Floc length distribution".strip(" \u2014"),
-            fontsize=11)
-        distribution_ax.set_title(self.metadata_line(channel_label),
-                                  fontsize=8, color="0.35")
+            fontsize=10)
+        distribution_ax.set_title(self.metadata_line(channel_label), fontsize=8)
 
         step_mm = 1000.0 * self.measurement.sample_step
-        # Everything from here rightwards is in the open ended last bin.
-        open_bin_edge = lengths[-1] - 0.5 * step_mm
+        visible = self.visible_bin_count(results)
 
         for ax in (distribution_ax, cumulative_ax):
-            ax.axvline(open_bin_edge, color="0.65", lw=0.8, ls=":", zorder=0)
-            ax.grid(True, alpha=0.25, lw=0.6)
+            ax.grid(True, alpha=0.4)
         distribution_ax.set_xlim(lengths[0] - 0.5 * step_mm,
-                                 lengths[-1] + 0.5 * step_mm)
+                                 lengths[visible - 1] + 0.5 * step_mm)
         # A shared x axis, so this reaches the distribution panel as well.
-        self.configure_length_axis(cumulative_ax, lengths, step_mm)
+        self.configure_length_axis(cumulative_ax, lengths, step_mm, visible)
 
-        distribution_ax.set_ylabel("Share of floc-covered length [%]")
+        distribution_ax.set_ylabel("Share of floc-\ncovered length [%]")
         distribution_ax.set_ylim(bottom=0)
-        distribution_ax.legend(fontsize=8, loc="upper right", framealpha=0.9)
+        distribution_ax.legend(fontsize=8)
         distribution_ax.tick_params(labelbottom=False)
 
         cumulative_ax.set_xlabel("Floc length [mm]")
-        cumulative_ax.set_ylabel("Cumulative floc-covered length [%]")
-        # The curves are normalised, so every threshold that found a floc ends
-        # on this line. Drawing it says so without an annotation.
-        cumulative_ax.axhline(100.0, color="0.65", lw=0.8, ls=":", zorder=0)
+        cumulative_ax.set_ylabel("Cumulative floc-\ncovered length [%]")
+        # Normalised curves, so every threshold that found a floc ends at 100.
+        # A tick there is enough to show it; a line across the panel is not.
         cumulative_ax.set_ylim(0, 105)
+        cumulative_ax.set_yticks([0, 20, 40, 60, 80, 100])
 
         self.draw_statistics_table(table_ax, results, unit)
 
@@ -417,8 +432,8 @@ class AnalysisController(AnalysisControllerBase):
         they were detected.
         """
         ax.axis('off')
-        columns = ["Threshold", "Length beyond threshold [%]",
-                   "Mean floc length [mm]", "Flocs / m", "Count"]
+        columns = ["Threshold", "Length beyond [%]", "Mean length [mm]",
+                   "Flocs / m", "Count"]
         cells = [[
             threshold_label(statistics['limit'], unit),
             number(statistics['exceeded_percent']),
@@ -450,8 +465,7 @@ class AnalysisController(AnalysisControllerBase):
         thresholds = [threshold_label(statistics["limit"], unit)
                       for statistics in self.floc_stats]
         return [
-            ["Threshold",
-             "Length beyond threshold [%]  Mean floc length [mm]  Flocs/m"],
+            ["Threshold", "Length beyond [%]  Mean length [mm]  Flocs/m"],
             [
                 column(thresholds),
                 column(
