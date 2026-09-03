@@ -3,22 +3,25 @@
 The formation index says how much small scale mass variation a sheet has. It
 does not say what that variation looks like. The floc distribution answers the
 second question: once the slow variation is filtered away, every contiguous
-run of samples beyond a limit counts as one floc, and the result is how the
-length those flocs cover divides between short flocs and long ones - with how
-much of the sheet they cover at all reported beside it.
+run of samples beyond a limit counts as one floc, and the result is how often
+flocs of each length occur - with how much of the sheet they cover at all
+reported beside it.
 
 The analysed signal is the one the Formation window uses - basis weight
 estimated from transmission by a least squares straight line fit - so a floc
 here is a floc there. Any measured channel can be selected instead when the
 question is about that channel's own structure (caliper bulges, for instance).
 
-Reading the figure: the distribution is normalised within the flocs that were
-found, so its bins add up to 100 % for every threshold that caught at least one
-floc, and the cumulative curve ends at 100 %. A value of 20 % at 25.6 mm means
-that a fifth of the length this threshold's flocs cover sits in flocs exactly
-25.6 mm long. How much of the sheet those flocs cover in the first place is a
-different number, and it is in the legend and in the table: the exceeded
-percentage is still measured against the whole analysed length.
+Reading the figure: both plots count flocs rather than the length they occupy,
+and each floc counts once whatever its length. 4.2 flocs/m at 25.6 mm in the
+upper plot means the sheet has, on average, 4.2 excursions per metre that are
+25.6 mm long; the bins add up to the flocs per metre in the table. 80 % at
+25.6 mm in the lower plot means four flocs in five are 25.6 mm or shorter.
+
+How much paper those flocs actually cover is a third number and stays a length:
+the exceeded percentage, in the legend and in the table, measured against the
+whole analysed length. Many short flocs and few long ones can cover the same
+paper, which is why the two are reported apart.
 
 Only the positive limit is entered. The other three follow it, as in the legacy
 tool: Limit++ = 2 x Limit+, Limit- = -Limit+, Limit-- = -2 x Limit+. Those names
@@ -26,15 +29,16 @@ are identifiers; the figure shows each limit as the condition it is, "> +2 g/m2"
 and the like, in the unit of the analysed channel.
 """
 
-from matplotlib.ticker import FuncFormatter, MultipleLocator
 from PyQt6.QtWidgets import (QVBoxLayout, QHBoxLayout, QGroupBox, QLabel,
                              QComboBox, QDoubleSpinBox, QMessageBox)
 from PyQt6.QtGui import QAction
 from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
 from utils.floc import (bin_lengths_mm, floc_distribution, high_pass,
-                        limit_set, threshold_label, usable_high_edge)
-from utils.plot_formatting import compact_number_label, unit_label
+                        length_axis_ticks, limit_set, threshold_label,
+                        usable_high_edge, visible_bin_count)
+from utils.plot_formatting import (compact_number_label,
+                                   open_ended_length_axis, unit_label)
 from utils.types import AnalysisType, PlotAnnotation
 from analyses.formation import fit_linear
 from gui.components import (
@@ -260,47 +264,14 @@ class AnalysisController(AnalysisControllerBase):
         return bin_lengths_mm(self.measurement.sample_step)
 
     def visible_bin_count(self, results):
-        """How many bins are worth drawing: the occupied ones, plus one.
+        """Where the length axis may stop, given what the limits actually found."""
+        return visible_bin_count([result.counts for result in results])
 
-        A floc cannot be longer than about half the longest wavelength the high
-        pass lets through, so on a coarse sample step most of the axis can
-        never hold anything. Drawing all thirty bins then squeezes the whole
-        distribution into the first centimetre of the panel and leaves the rest
-        blank. The bins are all still calculated - only the view is cut, and
-        only where every threshold is empty.
-        """
-        occupied = [int(np.max(np.nonzero(result.absolute_shares)[0]))
-                    for result in results if np.any(result.absolute_shares)]
-        if not occupied:
-            return settings.FLOC_BIN_COUNT
-        return min(settings.FLOC_BIN_COUNT, max(occupied) + 2)
-
-    def configure_length_axis(self, ax, lengths, step_mm, visible):
-        """Put the ticks on real floc lengths, and mark the last bin open ended.
-
-        A locator rather than a fixed list of ticks, so that the axis still
-        labels itself when the toolbar zooms in. Its step is a whole number of
-        sample steps, because those are the only floc lengths the data can
-        contain. The tick on the last bin is written with a ">=" when that bin
-        is in view, because it is not one length but every floc at least that
-        long; saying so on the tick is shorter than a sentence under the axis
-        and cannot drift away from the bin it describes.
-        """
-        stride = max(1, int(round(visible / 6)))
-        tick_step = stride * step_mm
-        # Whole millimetres where the ticks fall on them, one decimal where a
-        # sample step does not divide into them - 12.8 mm must not read as 13.
-        decimals = 0 if abs(tick_step - round(tick_step)) < 0.05 else 1
-        open_bin = float(lengths[-1]) if visible == len(lengths) else None
-
-        def format_length(value, _position):
-            text = f"{value:.{decimals}f}"
-            if open_bin is not None and abs(value - open_bin) < 0.25 * step_mm:
-                return f"\u2265{text}"
-            return text
-
-        ax.xaxis.set_major_locator(MultipleLocator(tick_step))
-        ax.xaxis.set_major_formatter(FuncFormatter(format_length))
+    def configure_length_axis(self, ax, lengths, visible):
+        """Ticks on real floc lengths, with the last bin marked when it is shown."""
+        ticks = length_axis_ticks(lengths, self.measurement.sample_step, visible)
+        open_ended_length_axis(ax, ticks.tick_step, ticks.decimals,
+                               ticks.open_bin)
 
     def analysed_length_label(self):
         """How much paper the percentages are measured against.
@@ -374,12 +345,14 @@ class AnalysisController(AnalysisControllerBase):
                      f"({number(statistics['exceeded_percent'])} % of length)")
             # Steps, not a smooth line: each point is one sample count, and a
             # line between them would suggest floc lengths the sample step
-            # cannot resolve.
-            distribution_ax.plot(lengths, result.shares, drawstyle="steps-mid",
-                                 color=style["color"], lw=1.2,
-                                 dashes=style["dashes"], label=label)
-            cumulative_ax.plot(lengths, result.cumulative, color=style["color"],
-                               lw=1.2, dashes=style["dashes"], label=label)
+            # cannot resolve. Bars would say the same thing, but four of these
+            # overlap and bars would hide each other where steps cross.
+            distribution_ax.plot(lengths, result.frequency_per_m,
+                                 drawstyle="steps-mid", color=style["color"],
+                                 lw=1.2, dashes=style["dashes"], label=label)
+            cumulative_ax.plot(lengths, result.cumulative_count_percent,
+                               color=style["color"], lw=1.2,
+                               dashes=style["dashes"], label=label)
 
         # MD or CD in front of the name, unless the name already says it.
         name = self.measurement.measurement_label or ""
@@ -399,16 +372,16 @@ class AnalysisController(AnalysisControllerBase):
         distribution_ax.set_xlim(lengths[0] - 0.5 * step_mm,
                                  lengths[visible - 1] + 0.5 * step_mm)
         # A shared x axis, so this reaches the distribution panel as well.
-        self.configure_length_axis(cumulative_ax, lengths, step_mm, visible)
+        self.configure_length_axis(cumulative_ax, lengths, visible)
 
-        distribution_ax.set_ylabel("Share of floc-\ncovered length [%]")
+        distribution_ax.set_ylabel("Floc frequency [1/m]")
         distribution_ax.set_ylim(bottom=0)
         distribution_ax.legend(fontsize=8)
         distribution_ax.tick_params(labelbottom=False)
 
         cumulative_ax.set_xlabel("Floc length [mm]")
-        cumulative_ax.set_ylabel("Cumulative floc-\ncovered length [%]")
-        # Normalised curves, so every threshold that found a floc ends at 100.
+        cumulative_ax.set_ylabel("Cumulative floc count [%]")
+        # A count share, so every threshold that found a floc ends at 100.
         # A tick there is enough to show it; a line across the panel is not.
         cumulative_ax.set_ylim(0, 105)
         cumulative_ax.set_yticks([0, 20, 40, 60, 80, 100])
@@ -440,7 +413,7 @@ class AnalysisController(AnalysisControllerBase):
             number(statistics['mean_size_mm']),
             number(statistics['flocs_per_m']),
             f"{statistics['count']}",
-        ] for _shares, _cumulative, statistics, _absolute in results]
+        ] for statistics in (result.statistics for result in results)]
 
         table = ax.table(cellText=cells, colLabels=columns,
                          cellLoc='center', loc='center')

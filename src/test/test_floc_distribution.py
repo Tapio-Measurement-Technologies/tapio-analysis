@@ -170,6 +170,76 @@ def test_cumulative_absolute_shares_end_at_the_exceeded_percentage():
 
 
 # --------------------------------------------------------------------------
+# Counting flocs: what the figure draws
+# --------------------------------------------------------------------------
+
+def test_each_floc_counts_once_in_the_bin_for_its_length():
+    counts = floc.floc_counts_by_length(np.array([1, 1, 1, 2, 2, 4]),
+                                        bin_count=4)
+    assert counts.tolist() == [3, 2, 0, 1]
+
+
+def test_frequency_is_the_counts_over_the_analysed_length():
+    frequency = floc.floc_frequency_per_m(np.array([1, 1, 1, 2, 2, 4]), 10.0,
+                                          bin_count=4)
+    assert frequency == pytest.approx([0.3, 0.2, 0.0, 0.1])
+
+
+def test_the_frequency_bins_add_up_to_the_flocs_per_metre():
+    """The height of the distribution and the table's total are one number."""
+    runs = np.array([1, 1, 2, 3, 3, 3, 7])
+    total_samples = 12500                      # 10 m at a 0.8 mm step
+    frequency = floc.floc_frequency_per_m(
+        runs, total_samples * SAMPLE_STEP, bin_count=30)
+    statistics = floc.floc_statistics(runs, total_samples, SAMPLE_STEP)
+    assert frequency.sum() == pytest.approx(statistics["flocs_per_m"])
+
+
+def test_the_count_shares_are_percentages_of_the_flocs_found():
+    shares = floc.normalized_count_shares(np.array([1, 1, 1, 2, 2, 4]),
+                                          bin_count=4)
+    assert shares == pytest.approx([50.0, 100 / 3, 0.0, 100 / 6])
+    assert np.cumsum(shares)[-1] == pytest.approx(100.0)
+
+
+def test_the_last_count_bin_holds_one_count_per_long_floc():
+    """A floc five times the last bin long is one floc, not five bins of length.
+
+    This is where a count parts company with the length weighted shares, which
+    would give the same three flocs 4 + 5 + 20 = 29 samples of weight.
+    """
+    counts = floc.floc_counts_by_length(np.array([4, 5, 20]), bin_count=4)
+    assert counts.tolist() == [0, 0, 0, 3]
+
+
+def test_an_empty_floc_set_counts_to_zero_without_nans():
+    empty = np.zeros(0, dtype=int)
+    counts = floc.floc_counts_by_length(empty, bin_count=10)
+    frequency = floc.floc_frequency_per_m(empty, 100.0, bin_count=10)
+    shares = floc.normalized_count_shares(empty, bin_count=10)
+    assert counts.tolist() == [0] * 10
+    assert np.all(frequency == 0.0)
+    assert np.all(shares == 0.0)
+    assert np.all(np.isfinite(np.cumsum(shares)))
+
+
+def test_frequency_without_an_analysed_length_is_zero_not_infinite():
+    frequency = floc.floc_frequency_per_m(np.array([1, 2]), 0.0, bin_count=4)
+    assert np.all(frequency == 0.0)
+
+
+def test_counting_flocs_is_not_the_same_as_weighing_their_length():
+    """One long floc and many short ones: the two families disagree, correctly."""
+    runs = np.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 10])
+    counts = floc.normalized_count_shares(runs, bin_count=10)
+    lengths = floc.normalized_size_shares(runs, 1000, bin_count=10)
+    # Ten flocs in eleven are one sample long, but they cover only half the
+    # floc covered length, because the eleventh is ten samples long.
+    assert counts[0] == pytest.approx(100 * 10 / 11)
+    assert lengths[0] == pytest.approx(50.0)
+
+
+# --------------------------------------------------------------------------
 # The floc length axis
 # --------------------------------------------------------------------------
 
@@ -296,8 +366,8 @@ def test_controller_counts_the_bumps_it_was_given(qt_app):
             < 0.25 * positive["exceeded_percent"])
 
 
-def test_the_absolute_shares_still_add_up_to_the_exceeded_percentage(qt_app):
-    """Normalising the plotted curve must not disturb the absolute statistic."""
+def test_the_length_shares_still_add_up_to_the_exceeded_percentage(qt_app):
+    """Counting flocs on the figure must not disturb the length statistic."""
     length, period, width, height = 40000, 100, 10, 5.0
     bumps, _count = square_bumps(length, period, width, height)
     measurement = md_measurement({"Transmission": 100.0 + bumps,
@@ -309,8 +379,12 @@ def test_the_absolute_shares_still_add_up_to_the_exceeded_percentage(qt_app):
     controller.high_pass_1m = 10.0
 
     for result in controller.calculate():
-        assert result.absolute_shares.sum() == pytest.approx(
+        assert result.length_shares.sum() == pytest.approx(
             result.statistics["exceeded_percent"])
+        # And the count family answers the other question over the same runs.
+        assert result.counts.sum() == result.statistics["count"]
+        assert result.frequency_per_m.sum() == pytest.approx(
+            result.statistics["flocs_per_m"])
 
 
 def test_every_threshold_that_found_a_floc_ends_its_curve_at_a_hundred(qt_app):
@@ -325,12 +399,11 @@ def test_every_threshold_that_found_a_floc_ends_its_curve_at_a_hundred(qt_app):
     controller.high_pass_1m = 10.0
 
     for result in controller.calculate():
-        assert np.all(np.isfinite(result.shares))
+        assert np.all(np.isfinite(result.frequency_per_m))
         if result.statistics["count"] > 0:
-            assert result.shares.sum() == pytest.approx(100.0)
-            assert result.cumulative[-1] == pytest.approx(100.0)
+            assert result.cumulative_count_percent[-1] == pytest.approx(100.0)
         else:
-            assert result.cumulative[-1] == 0.0
+            assert result.cumulative_count_percent[-1] == 0.0
 
 
 def test_a_limit_no_sample_reaches_draws_nothing_rather_than_failing(qt_app):
@@ -348,9 +421,10 @@ def test_a_limit_no_sample_reaches_draws_nothing_rather_than_failing(qt_app):
     for result in controller.calculate():
         assert result.statistics["count"] == 0
         assert result.statistics["exceeded_percent"] == pytest.approx(0.0)
-        assert np.all(result.shares == 0.0)
-        assert np.all(result.cumulative == 0.0)
-        assert np.all(result.absolute_shares == 0.0)
+        assert np.all(result.counts == 0)
+        assert np.all(result.frequency_per_m == 0.0)
+        assert np.all(result.cumulative_count_percent == 0.0)
+        assert np.all(result.length_shares == 0.0)
 
 
 def test_a_cd_sample_boundary_cannot_join_two_flocs(qt_app):
@@ -528,15 +602,15 @@ def test_the_axis_stops_where_the_flocs_do(qt_app):
     """
     controller = floc_controller(qt_app)
     results = controller.calculate()
-    occupied = max(int(np.max(np.nonzero(result.absolute_shares)[0]))
-                   for result in results if np.any(result.absolute_shares))
+    occupied = max(int(np.max(np.nonzero(result.counts)[0]))
+                   for result in results if np.any(result.counts))
 
     visible = controller.visible_bin_count(results)
     assert visible == occupied + 2
     assert visible < settings.FLOC_BIN_COUNT
     # Nothing is cut away: every bin beyond the view is empty for every limit.
     for result in results:
-        assert result.absolute_shares[visible:].sum() == 0.0
+        assert result.counts[visible:].sum() == 0
 
     controller.updatePlot()
     lengths = controller.bin_lengths_mm()
@@ -614,8 +688,8 @@ def test_the_figure_draws_without_complaint(qt_app):
                         for artist in figure.findobj(matplotlib.text.Text))
     assert "Floc length distribution" in rendered
     assert "Floc length [mm]" in rendered
-    assert "Share of floc-\ncovered length [%]" in rendered
-    assert "Cumulative floc-\ncovered length [%]" in rendered
+    assert "Floc frequency [1/m]" in rendered
+    assert "Cumulative floc count [%]" in rendered
     assert "> +1 g/m\u00b2" in rendered
     assert "% of length" in rendered
     assert "floc = one continuous run beyond the threshold" in rendered
@@ -623,3 +697,5 @@ def test_the_figure_draws_without_complaint(qt_app):
     assert "Floc size" not in rendered
     assert "Limit+" not in rendered
     assert "the last bin holds" not in rendered
+    # The plots count flocs now; nothing may still claim to weigh their length.
+    assert "floc-covered length" not in rendered

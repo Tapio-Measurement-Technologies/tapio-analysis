@@ -191,14 +191,34 @@ It is typical for rotating elements to cause peaks in the spectrum at integer mu
 
 ### Floc distribution
 - Answers what shape the small scale variation comes in, which the formation index cannot: two sheets with the same index can be built from many small flocs or from fewer large ones.
-- The signal is high pass filtered first, so that a floc is measured against the sheet around it and not against the mean of the whole roll. `High pass` sets the cutoff; the label under it gives the wavelengths that survive. The default of 10 1/m keeps 10 cm and shorter, the top of the 3...10 cm range the older Tapio tools used.
-- Every contiguous stretch that stays beyond a limit is one floc, and its size is its length along the sample.
-- **Only `Limit+` is entered.** The other three follow it, as in the older tools: `Limit++` is twice it, `Limit-` and `Limit--` are its negatives. Positive limits count stretches above the local level, negative ones stretches below it, so an asymmetric sheet - bumps against an even base, say - does not read as a symmetric one.
-- The limit is in the units of the analysed channel. The statistics strip above the plot gives the mean, σ and range of the *high pass filtered* signal, which is what the limits are compared against, so it is the number to pick a limit from.
-- The upper plot is how much of the measured length the flocs of each size take up, and the lower one is the same shares accumulated, ending at the share of the length that is beyond the limit at all. One bin is one sample count, because a floc is a whole number of samples long; the last bin collects every longer floc.
-- The table below the plots gives, for each limit, the share of the length beyond it, the mean floc size and the flocs per metre.
+
+#### How a floc is found
+- The signal is **high pass filtered** first, so that a floc is measured against the sheet around it and not against the mean of the whole roll. Without it a slow drift or a roll periodicity would push a whole stretch past the threshold and have it counted as one enormous floc. `High pass` sets the cutoff and the label under it gives the wavelengths that survive; the default of 10 1/m keeps 10 cm and shorter, the top of the 3...10 cm range the older Tapio tools used.
+- **A floc is one continuous run of samples beyond a threshold** in that filtered signal. It ends where the signal crosses back. Its length is the length of that run along the sample.
+- **You enter one number, `Threshold`, and the figure uses four**: plus and minus it, and plus and minus twice it. Positive thresholds count runs above the local level and negative ones runs below it, and the two signs are detected independently, so a sheet with dense lumps between evenly thin stretches does not read as a symmetric one.
+- The threshold is in the units of the analysed channel, and it is compared against the **high pass filtered** signal rather than the raw one, so it is a deviation from the local level and not a level. The default is 1 g/m², with the other three following from it.
 - `Channel` defaults to basis weight estimated from transmission - the same signal the Formation window uses, so a floc here is a floc there. Any measured channel can be selected instead, which is how to ask the question about caliper bumps rather than about mass.
-- The analysis needs a fine sample step. A floc is millimetres long, so a measurement whose step is coarser than that cannot resolve one.
+
+#### What the two plots show
+Both plots **count flocs**, and each floc counts once whatever its length.
+
+- Floc length is quantised by the sample step, because a floc is a whole number of samples long. Each bin on the x axis is therefore one sample count, drawn at its true length: with a 0.8 mm step the bins are 0.8 mm, 1.6 mm, 2.4 mm and so on. The last bin collects every longer floc rather than naming one length, and when it is in view its tick is marked `≥` to say so.
+- **Upper plot - floc frequency, in flocs per metre.** How often a floc of each length happens. A value of 4.2 at 25.6 mm means the sheet has, on average, 4.2 excursions per metre that are 25.6 mm long. The bins add up to the `Flocs / m` in the table, so the shape and the total are the same number read two ways.
+- **Lower plot - the same counts accumulated**, as a percentage of the flocs that threshold found, reaching 100 %. A value of 80 % at 25.6 mm means four flocs in five are 25.6 mm or shorter.
+- The **legend** carries the one thing the counts cannot: how much of the whole analysed length is beyond each threshold. Many short flocs and few long ones can cover the same paper, so "how many flocs" and "how much paper" are separate readings and the figure keeps them apart.
+- Only the bins that can hold a floc are drawn. Where the far bins are empty for every threshold the axis stops short of them, though all of them are still calculated.
+
+#### What the numbers in the table mean
+The table is the length side of the answer: every number is absolute, measured against the whole analysed length or over all the detected flocs, rather than distributed by length like the plots above it.
+
+- **Threshold** - the condition being counted, in the unit of the analysed channel. `> +1 g/m²` means runs more than 1 g/m² above the local level.
+- **Length beyond [%]** - the share of the whole analysed length that is beyond this threshold. This is the number the legend repeats.
+- **Mean length [mm]** - the arithmetic mean of the detected floc lengths.
+- **Flocs / m** - the number of flocs divided by the analysed length.
+- **Count** - how many flocs were detected.
+
+#### The measurement needs a fine sample step
+A floc is a few millimetres long, so a measurement whose step is coarser than that cannot resolve one. On the same reel measured both ways, a 0.8 mm step gives a mean floc length of 3.4 mm over a full distribution, while a 12.8 mm step gives 20.2 mm - which is not a floc size but 1.6 sample steps, because at that resolution nearly every floc is one or two samples long and only three or four bins are ever occupied. The coarse measurement also understates the coverage, since a 12.8 mm sensor spot averages away the short excursions the threshold is looking for. Use a high resolution measurement for this analysis, and the long ones for spectra and roll periodicity.
 
 ### Coherence
 - Investigate if different channels have the same spectral content.
@@ -262,6 +282,7 @@ The cepstrum resolves a constant step in *period* - one sampling interval. Expre
 
 ### CD Floc distribution
 - The MD floc distribution over CD profiles. Each selected sample is filtered and thresholded on its own, so that no floc is ever counted across a sample boundary, and the distribution is then taken over their pooled length.
+- The line under the heading says how many samples were pooled and how much paper that is, which is the length every percentage in the figure is a share of.
 - Use `View -> Select samples` to choose which samples are included.
 
 ### CD Coherence

@@ -8,11 +8,19 @@ of it.
 A floc, here, is one contiguous run of samples beyond a limit in the high pass
 filtered signal, and what is measured of it is its length along the sample.
 
-Two ways of counting that length live here and neither replaces the other.
-``size_shares`` measures the flocs against the whole analysed length, which
-answers how much of the sheet is floc. ``normalized_size_shares`` measures them
-against each other, which answers how the floc covered length divides between
-short and long flocs - the distribution the figure draws.
+Two families of number live here and neither answers for the other.
+
+**How much paper is floc** is length weighted: ``size_shares`` measures the
+flocs against the whole analysed length and its sum is ``exceeded_percent``,
+and ``normalized_size_shares`` measures them against each other. A long floc
+weighs more than a short one in both.
+
+**How many flocs there are** is a count: ``floc_counts_by_length`` puts one
+count per floc in the bin for its length however long it is,
+``floc_frequency_per_m`` divides those by the analysed length, and
+``normalized_count_shares`` turns them into percentages of the floc population.
+These are what the figure draws, because "how often does a floc this long
+happen" is the question a reader brings to a floc distribution.
 """
 
 from typing import NamedTuple
@@ -136,6 +144,53 @@ def normalized_size_shares(run_lengths, total_samples, bin_count=None):
     return normalize_shares(size_shares(run_lengths, total_samples, bin_count))
 
 
+def floc_counts_by_length(run_lengths, bin_count=None):
+    """How many flocs fall in each length bin.
+
+    Bin k holds the flocs of exactly k samples. The last bin holds every floc
+    at least that long, and this is where a count parts company with a length:
+    a floc ten times the last bin's length is still one floc, where
+    ``size_shares`` would give it ten times the weight.
+    """
+    bin_count = int(settings.FLOC_BIN_COUNT if bin_count is None else bin_count)
+    counts = np.zeros(max(bin_count, 0), dtype=int)
+    run_lengths = np.asarray(run_lengths, dtype=int).reshape(-1)
+    if bin_count < 1 or len(run_lengths) == 0:
+        return counts
+
+    bins = np.clip(run_lengths, 1, bin_count) - 1
+    return np.bincount(bins, minlength=bin_count)[:bin_count].astype(int)
+
+
+def floc_frequency_per_m(run_lengths, analysed_length_m, bin_count=None):
+    """How often a floc of each length happens, per metre of analysed paper.
+
+    The bins add up to ``flocs_per_m``, so the height of the distribution and
+    the total in the table are the same number read two ways, and a value can
+    be taken off the axis as it stands rather than as a share of something.
+    """
+    counts = floc_counts_by_length(run_lengths, bin_count)
+    analysed_length_m = float(analysed_length_m)
+    if not np.isfinite(analysed_length_m) or analysed_length_m <= 0.0:
+        return np.zeros(len(counts), dtype=float)
+    return counts.astype(float) / analysed_length_m
+
+
+def normalized_count_shares(run_lengths, bin_count=None):
+    """What percentage of the detected flocs each length bin holds.
+
+    Accumulated, this is the curve that answers "what fraction of the flocs are
+    this long or shorter", and it reaches 100 % whenever a floc was found. With
+    no flocs there is nothing to divide by, so the answer is zeros rather than
+    NaNs.
+    """
+    counts = floc_counts_by_length(run_lengths, bin_count)
+    total = float(counts.sum())
+    if total <= 0.0:
+        return np.zeros(len(counts), dtype=float)
+    return 100.0 * counts.astype(float) / total
+
+
 def bin_lengths_mm(sample_step, bin_count=None):
     """The floc length each bin stands for, in mm.
 
@@ -156,6 +211,55 @@ def bin_centres_mm(sample_step, bin_count=None):
     There is no centre to speak of: the bins are single lengths, not ranges.
     """
     return bin_lengths_mm(sample_step, bin_count)
+
+
+def visible_bin_count(occupancy_per_limit, bin_count=None):
+    """How many bins are worth drawing: the occupied ones, plus one.
+
+    A floc cannot outlast about half the longest wavelength the high pass lets
+    through, so on a coarse sample step most of the axis can never hold
+    anything at all, and drawing all of it squeezes the whole distribution into
+    the first centimetre of the panel. Every bin is still calculated - this
+    only says where a view may stop, and only where every limit is empty.
+
+    ``occupancy_per_limit`` is one array per limit - counts, frequencies or
+    length shares alike, since only which bins are non-zero matters.
+    """
+    bin_count = int(settings.FLOC_BIN_COUNT if bin_count is None else bin_count)
+    occupied = [int(np.max(np.nonzero(bins)[0]))
+                for bins in (np.asarray(one, dtype=float).reshape(-1)
+                             for one in occupancy_per_limit)
+                if np.any(bins)]
+    if not occupied:
+        return bin_count
+    return min(bin_count, max(occupied) + 2)
+
+
+class LengthAxis(NamedTuple):
+    """Where the ticks of a floc length axis go, and how they are written."""
+    tick_step: float
+    decimals: int
+    open_bin: float
+
+
+def length_axis_ticks(lengths, sample_step, visible=None):
+    """The tick step, the decimals, and the open ended bin if it is in view.
+
+    Ticks fall on whole numbers of sample steps, because those are the only
+    floc lengths the data can contain, and they carry a decimal where a sample
+    step does not divide into whole millimetres - a 12.8 mm bin must not read
+    as 13. ``open_bin`` is the length of the last bin, which stands for every
+    floc at least that long rather than for one length, and is None when the
+    view stops short of it.
+    """
+    lengths = np.asarray(lengths, dtype=float).reshape(-1)
+    step_mm = 1000.0 * float(sample_step)
+    visible = len(lengths) if visible is None else int(visible)
+    stride = max(1, int(round(visible / 6)))
+    tick_step = stride * step_mm
+    decimals = 0 if abs(tick_step - round(tick_step)) < 0.05 else 1
+    open_bin = float(lengths[-1]) if visible >= len(lengths) else None
+    return LengthAxis(tick_step, decimals, open_bin)
 
 
 def floc_statistics(run_lengths, total_samples, sample_step):
@@ -209,20 +313,29 @@ def limit_set(limit):
 
 
 class FlocResult(NamedTuple):
-    """One limit's answer: the distribution, its cumulative and the statistics.
+    """One limit's answer, with each field named for what it counts.
 
-    ``shares`` and ``cumulative`` are normalised within the detected flocs, so
-    the cumulative ends at 100 % whenever a floc was found; those are the
-    curves the figure draws. ``absolute_shares`` is the same length weighted
-    distribution measured against the whole analysed length, and its sum is
-    ``statistics["exceeded_percent"]``. The statistics dictionary carries the
-    limit itself, so a caller can label the result without being handed it
-    twice.
+    The first two are the curves the figure draws, and both are about the
+    population of flocs. ``frequency_per_m`` is how often a floc of each length
+    happens per metre, and sums to ``statistics["flocs_per_m"]``.
+    ``cumulative_count_percent`` accumulates the same counts as percentages of
+    the flocs found, and reaches 100 % whenever there was one.
+
+    ``counts`` is the raw floc count per bin behind both. ``length_shares`` is
+    the other family entirely - the share of the whole analysed length that
+    the flocs of each length occupy, summing to
+    ``statistics["exceeded_percent"]`` - kept because how much paper is
+    affected is a different question from how many flocs there are, and the
+    table answers it.
+
+    The statistics dictionary carries the limit itself, so a caller can label
+    the result without being handed it twice.
     """
-    shares: np.ndarray
-    cumulative: np.ndarray
+    frequency_per_m: np.ndarray
+    cumulative_count_percent: np.ndarray
     statistics: dict
-    absolute_shares: np.ndarray
+    counts: np.ndarray
+    length_shares: np.ndarray
 
 
 def floc_distribution(profiles, sample_step, limit, cutoff_1m,
@@ -244,8 +357,11 @@ def floc_distribution(profiles, sample_step, limit, cutoff_1m,
                             for profile in filtered]).astype(int)
             if filtered else np.zeros(0, dtype=int))
 
-    absolute_shares = size_shares(runs, total_samples, bin_count)
-    shares = normalize_shares(absolute_shares)
+    analysed_length_m = total_samples * sample_step
+    counts = floc_counts_by_length(runs, bin_count)
+    frequency = floc_frequency_per_m(runs, analysed_length_m, bin_count)
+    count_shares = normalized_count_shares(runs, bin_count)
     statistics = floc_statistics(runs, total_samples, sample_step)
     statistics["limit"] = float(limit)
-    return FlocResult(shares, np.cumsum(shares), statistics, absolute_shares)
+    return FlocResult(frequency, np.cumsum(count_shares), statistics, counts,
+                      size_shares(runs, total_samples, bin_count))

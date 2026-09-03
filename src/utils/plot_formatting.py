@@ -2,7 +2,7 @@ import math
 import re
 
 import numpy as np
-from matplotlib.ticker import Formatter
+from matplotlib.ticker import Formatter, FuncFormatter, MultipleLocator
 
 
 def _strip_trailing_zeroes(text):
@@ -229,3 +229,28 @@ def unit_label(unit):
     # raised and the rest would not.
     text = re.sub(r"\^(-?\d+)(?![\d.])", raise_digits, text)
     return re.sub(r"(?<=[A-Za-z])(-?\d+)(?![\w.])", raise_digits, text)
+
+
+def open_ended_length_axis(ax, tick_step, decimals=0, open_bin=None):
+    """Ticks every ``tick_step`` along x, one of which may be an open ended bin.
+
+    A locator rather than a fixed list of ticks, so that the axis still labels
+    itself when a reader zooms in.
+
+    ``open_bin`` is the position of a bin that stands for "this length and every
+    longer one" rather than for a length of its own. Its tick is written with a
+    "greater than or equal" sign, which says so in the one place that cannot
+    drift away from the bin it describes - a note under the axis can, and a
+    reader who zooms has to keep it in their head. Pass None when that bin is
+    not in view.
+    """
+    tolerance = 0.25 * float(tick_step)
+
+    def format_length(value, _position):
+        text = f"{value:.{decimals}f}"
+        if open_bin is not None and abs(value - open_bin) <= tolerance:
+            return f"\u2265{text}"
+        return text
+
+    ax.xaxis.set_major_locator(MultipleLocator(float(tick_step)))
+    ax.xaxis.set_major_formatter(FuncFormatter(format_length))
