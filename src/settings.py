@@ -503,6 +503,14 @@ CALCULATED_CHANNELS = []
 
 BASIS_WEIGHT_CHANNEL_CANDIDATES = ["BW", "Basis Weight", "Basis Weight 1", "Basis Weight 2"]
 CALIPER_CHANNEL_CANDIDATES = ["Caliper", "Dicke", "Paksuus"]
+# The absolute ash channel, whatever the measurement calls it. Files from the
+# same sensor come named "Ash", "Ash (abs)" or "Ash abs" depending on how the
+# header was written, and the relative ash channel was silently skipped for
+# every file that did not use the first of those.
+ASH_CHANNEL_CANDIDATES = [
+    "Ash", "Ash (abs)", "Ash abs", "Ash (absolute)", "Ash absolute",
+    "Tuhka", "Asche",
+]
 
 
 def find_channel(dataframe, candidates, channel_label):
@@ -533,6 +541,14 @@ def find_caliper_channel(dataframe):
     )
 
 
+def find_ash_channel(dataframe):
+    return find_channel(
+        dataframe,
+        ASH_CHANNEL_CANDIDATES,
+        "Ash"
+    )
+
+
 def calc_density(dataframe):
     """Apparent density in g/cm^3.
 
@@ -551,10 +567,15 @@ def calc_bulk(dataframe):
     return dataframe[caliper_name] / dataframe[bw_name]
 
 def calc_relative_ash(dataframe):
-    if 'Ash' not in dataframe.columns:
-        raise ValueError("Ash channel not found")
+    """Ash as a fraction of basis weight.
+
+    Both channels are found by name the way the density channels find theirs,
+    so a file that names its ash channel "Ash (abs)" gets a relative ash
+    channel like one that names it "Ash".
+    """
+    ash_name = find_ash_channel(dataframe)
     bw_name = find_basis_weight_channel(dataframe)
-    return dataframe['Ash'] / dataframe[bw_name]
+    return dataframe[ash_name] / dataframe[bw_name]
 
 # Original examples:
 # def calc_density(dataframe):

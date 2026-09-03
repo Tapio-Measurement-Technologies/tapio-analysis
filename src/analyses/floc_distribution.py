@@ -84,7 +84,9 @@ class AnalysisController(AnalysisControllerBase):
         # The base class has already put the first measured channel in
         # self.channel, so set_default would never fire. Open on the derived
         # basis weight instead, unless a saved analysis asked for a channel.
-        if 'channel' not in attributes:
+        # The main window passes None rather than an empty dict when there are
+        # no saved attributes.
+        if not attributes or 'channel' not in attributes:
             self.channel = (self.available_channels[0]
                             if self.available_channels else None)
 

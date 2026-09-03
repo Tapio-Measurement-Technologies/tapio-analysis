@@ -378,6 +378,27 @@ def test_density_and_bulk_units_and_values():
     assert declared["Bulk"] == "cm^3/g"
 
 
+@pytest.mark.parametrize("ash_column", ["Ash", "Ash (abs)", "ash abs",
+                                        "Ash (absolute)", "Tuhka"])
+def test_relative_ash_finds_the_ash_channel_whatever_it_is_called(ash_column):
+    """A file naming its ash channel anything conventional still gets relative ash.
+
+    Files from the same sensor arrive with the column named "Ash", "Ash (abs)"
+    or "Ash abs" depending on the header, and only the first of those used to
+    produce the channel; the rest were silently skipped at load.
+    """
+    frame = pd.DataFrame({"BW": [100.0, 200.0], ash_column: [9.0, 24.0]})
+    relative = settings.calc_relative_ash(frame)
+    assert relative.iloc[0] == pytest.approx(0.09)
+    assert relative.iloc[1] == pytest.approx(0.12)
+
+
+def test_relative_ash_reports_what_it_looked_for_when_there_is_no_ash():
+    frame = pd.DataFrame({"BW": [100.0], "Caliper": [200.0]})
+    with pytest.raises(ValueError, match="Ash channel not found"):
+        settings.calc_relative_ash(frame)
+
+
 # --------------------------------------------------------------------------
 # Non-finite handling
 # --------------------------------------------------------------------------
