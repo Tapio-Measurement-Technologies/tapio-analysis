@@ -42,6 +42,8 @@ ANALYSIS_SECTIONS = [
             MainWindowSectionModule(
                 module_name="formation",           type="MD"),
             MainWindowSectionModule(
+                module_name="floc_distribution",   type="MD"),
+            MainWindowSectionModule(
                 module_name="coherence",           type="MD"),
             MainWindowSectionModule(
                 module_name="cepstrum",            type="MD")
@@ -67,6 +69,8 @@ ANALYSIS_SECTIONS = [
                 module_name="vca",                  type="CD"),
             MainWindowSectionModule(
                 module_name="formation",            type="CD"),
+            MainWindowSectionModule(
+                module_name="floc_distribution",    type="CD"),
             MainWindowSectionModule(
                 module_name="coherence",            type="CD")
         ]
@@ -104,6 +108,26 @@ FORMATION_WINDOW_LENGTH = 400
 # basis weight unit.
 FORMATION_INDEX_UNIT = "(g/m^2)^0.5"
 FORMATION_WINDOW_SIZE = (1000, 600)
+
+# Floc distribution settings
+# The label of the pseudo channel that is basis weight estimated from
+# transmission, the same signal the formation index is calculated from.
+FLOC_DERIVED_BW_LABEL = "BW (from Transmission)"
+# Slow variation is filtered out before the limits are applied. 10 1/m keeps
+# wavelengths of 10 cm and shorter, the top of the 3...10 cm range the legacy
+# tool used.
+FLOC_HIGH_PASS_DEFAULT_1M = 10.0
+# Limit+, in the units of the analysed channel. The other three limits follow
+# from it: Limit++ = 2 x Limit+, Limit- = -Limit+, Limit-- = -2 x Limit+.
+FLOC_LIMIT_DEFAULT = 1.0
+FLOC_LIMIT_MAX = 1000.0
+FLOC_LIMIT_STEP = 0.1
+FLOC_LIMIT_DECIMALS = 3
+# One bin per sample count, so the bins are as fine as the sample step allows.
+# The last bin collects every floc longer than that.
+FLOC_BIN_COUNT = 30
+FLOC_WINDOW_SIZE = (1100, 800)
+FLOC_TITLE_SHOW = True
 
 SPECTROGRAM_COLORMAP = "viridis"
 
@@ -344,6 +368,12 @@ FORMATION_TITLE_SHOW = True
 
 CD_FORMATION_RANGE_LOW_DEFAULT = 0
 CD_FORMATION_RANGE_HIGH_DEFAULT = 1
+
+MD_FLOC_RANGE_LOW_DEFAULT = 0
+MD_FLOC_RANGE_HIGH_DEFAULT = 0.1
+
+CD_FLOC_RANGE_LOW_DEFAULT = 0
+CD_FLOC_RANGE_HIGH_DEFAULT = 1
 
 # These settings are for MD and CD spectral analysis, how many harmonics to consider in fundamental frequency estimation
 NLS_MODEL_ORDER = 1

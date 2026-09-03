@@ -189,6 +189,17 @@ It is typical for rotating elements to cause peaks in the spectrum at integer mu
 ### Formation
 - Obtain a formation profile, describing the formation index over the length of the sample. The formation index is calculated from 1 mm aperture Transmission sensor data automatically correlated to basis weight sensor data to estimate basis weight.
 
+### Floc distribution
+- Answers what shape the small scale variation comes in, which the formation index cannot: two sheets with the same index can be built from many small flocs or from fewer large ones.
+- The signal is high pass filtered first, so that a floc is measured against the sheet around it and not against the mean of the whole roll. `High pass` sets the cutoff; the label under it gives the wavelengths that survive. The default of 10 1/m keeps 10 cm and shorter, the top of the 3...10 cm range the older Tapio tools used.
+- Every contiguous stretch that stays beyond a limit is one floc, and its size is its length along the sample.
+- **Only `Limit+` is entered.** The other three follow it, as in the older tools: `Limit++` is twice it, `Limit-` and `Limit--` are its negatives. Positive limits count stretches above the local level, negative ones stretches below it, so an asymmetric sheet - bumps against an even base, say - does not read as a symmetric one.
+- The limit is in the units of the analysed channel. The statistics strip above the plot gives the mean, σ and range of the *high pass filtered* signal, which is what the limits are compared against, so it is the number to pick a limit from.
+- The upper plot is how much of the measured length the flocs of each size take up, and the lower one is the same shares accumulated, ending at the share of the length that is beyond the limit at all. One bin is one sample count, because a floc is a whole number of samples long; the last bin collects every longer floc.
+- The table below the plots gives, for each limit, the share of the length beyond it, the mean floc size and the flocs per metre.
+- `Channel` defaults to basis weight estimated from transmission - the same signal the Formation window uses, so a floc here is a floc there. Any measured channel can be selected instead, which is how to ask the question about caliper bumps rather than about mass.
+- The analysis needs a fine sample step. A floc is millimetres long, so a measurement whose step is coarser than that cannot resolve one.
+
 ### Coherence
 - Investigate if different channels have the same spectral content.
 
@@ -248,6 +259,10 @@ The cepstrum resolves a constant step in *period* - one sampling interval. Expre
 
 ### CD Formation
 - Investigate the mean formation index of the CD profiles in different CD locations.
+
+### CD Floc distribution
+- The MD floc distribution over CD profiles. Each selected sample is filtered and thresholded on its own, so that no floc is ever counted across a sample boundary, and the distribution is then taken over their pooled length.
+- Use `View -> Select samples` to choose which samples are included.
 
 ### CD Coherence
 - Investigate if different channels have the same spectral content.
