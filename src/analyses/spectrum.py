@@ -439,19 +439,19 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
                     if self.window_type == "CD":
                         label = f"{selected_freq:.2f} 1/m λ = {100 *
-                                                               1/selected_freq:.2f} cm A = {amplitude:.2f} {self.measurement.units[self.channel]}"
+                                                               1/selected_freq:.1f} cm A = {amplitude:.2f} {self.measurement.units[self.channel]}"
                         print(f"Spectral peak in {self.channel}: {label}")
                         legend_data.append([f"{amplitude:.2f}", f"{selected_freq:.2f}", f"{
-                                           100*(1/selected_freq):.2f}"])
+                                           100*(1/selected_freq):.1f}"])
                     elif self.window_type == "MD":
                         label = (f"{selected_freq:.2f} 1/m"
                                  f"{hz_suffix(selected_freq, self.machine_speed)}"
-                                 f" λ = {100 * 1/selected_freq:.2f} cm"
+                                 f" λ = {100 * 1/selected_freq:.1f} cm"
                                  f" A = {amplitude:.2f} {self.measurement.units[self.channel]}")
                         print(f"Spectral peak in {self.channel}: {label}")
 
                         row = [f"{amplitude:.3f}", f"{selected_freq:.2f}",
-                               f"{100*(1/selected_freq):.2f}"]
+                               f"{100*(1/selected_freq):.1f}"]
                         if speed_known:
                             row.append(f"{self.get_freq_in_hz(selected_freq):.2f}")
                         legend_data.append(row)
@@ -498,12 +498,12 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
                     if (i == 1):
                         if self.window_type == "CD":
-                            label = f"{selected_freq:.2f} 1/m λ = {100 * 1/selected_freq:.2f} cm A = {
+                            label = f"{selected_freq:.2f} 1/m λ = {100 * 1/selected_freq:.1f} cm A = {
                                 amplitude:.2f} {self.measurement.units[self.channel]}"
                             print(f"Spectral peak in {self.channel}: {label}")
                         elif self.window_type == "MD":
                             label = f"{selected_freq:.2f} 1/m ({self.get_freq_in_hz(selected_freq):.2f} Hz) λ = {
-                                100 * 1/selected_freq:.2f} cm A = {amplitude:.2f} {self.measurement.units[self.channel]}"
+                                100 * 1/selected_freq:.1f} cm A = {amplitude:.2f} {self.measurement.units[self.channel]}"
                             print(f"Spectral peak in {self.channel}: {label}")
                     else:
                         label = None
@@ -574,11 +574,11 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                     if self.window_type == "MD":
                         label = (f"{name}: {freq:.2f} 1/m"
                                  f"{hz_suffix(freq, self.machine_speed)}"
-                                 f" λ = {100*wavelength:.2f} cm")
+                                 f" λ = {100*wavelength:.1f} cm")
                         if amplitude is not None:
                             label += f" A = {amplitude:.2f} {self.measurement.units[self.channel]}"
                     else:
-                        label = f"{name}: {freq:.2f} 1/m λ = {100*wavelength:.2f} cm"
+                        label = f"{name}: {freq:.2f} 1/m λ = {100*wavelength:.1f} cm"
                         if amplitude is not None:
                             label += f" A = {amplitude:.2f} {self.measurement.units[self.channel]}"
                 color_index = index % len(colors)
@@ -1031,12 +1031,12 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
                 self.selectedFrequencyLabel.setText(
                     f"Selected frequency: {selected_freqs[-1]:.2f} 1/m"
                     f"{hz_suffix(selected_freqs[-1], machine_speed)}"
-                    f" λ = {100*wavelength:.2f} cm"
+                    f" λ = {100*wavelength:.1f} cm"
                 )
 
             elif self.window_type == "CD":
                 self.selectedFrequencyLabel.setText(
-                    f"Selected frequency: {selected_freqs[-1]:.2f} 1/m (λ = {100*wavelength:.2f} cm)")
+                    f"Selected frequency: {selected_freqs[-1]:.2f} 1/m (λ = {100*wavelength:.1f} cm)")
 
         if self.paperMachineDataWindow:
             self.paperMachineDataWindow.refresh_pm_data(

@@ -164,7 +164,7 @@ def apply_compact_tick_formatting(ax, max_chars=5, x_axis=True, y_axis=True):
     return formatters
 
 
-def wavelength_labels_cm_from_frequencies(frequencies_1m, decimals=2):
+def wavelength_labels_cm_from_frequencies(frequencies_1m, decimals=1):
     labels = []
     for frequency in np.asarray(frequencies_1m, dtype=float):
         if not math.isfinite(frequency) or frequency <= 0:

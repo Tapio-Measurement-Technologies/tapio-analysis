@@ -375,7 +375,8 @@ class ReportWindow(QWidget):
                                 "show_individual_profiles", "show_min_max", "show_legend",
                                 "show_wavelength_labels", "show_unfiltered_data",
                                 "machine_speed", "frequency_range_low", "frequency_range_high",
-                                "selected_frequencies", "nperseg", "peak_detection_range_min", "peak_detection_range_max"
+                                "selected_frequencies", "selected_freqs", "auto_detect_peaks",
+                                "show_wavelength", "nperseg", "peak_detection_range_min", "peak_detection_range_max"
                             ]:
                                 if attr in analysis:
                                     setattr(widget.controller,
