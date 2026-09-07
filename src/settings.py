@@ -607,7 +607,20 @@ DOUBLE_SLIDER_FINE_CONTROL_FACTOR = 0.1  # 10% of normal movement
 DOUBLE_SLIDER_HANDLE_RADIUS = 8  # px, adjust as needed
 
 SPECTRUM_TITLE_SHOW = True
-SPECTRUM_AUTO_DETECT_PEAKS = None
+
+# Peak detection in the Spectrum window ("Detect peaks" and the "Auto detect
+# peaks" button). A peak counts when it stands at least THRESHOLD times above
+# the broadband level around it, measured as a running median over FLOOR_BINS
+# spectrum bins: the highest points of a noisy spectrum are noise, and the
+# slope of the DC hump has local maxima that are not peaks. Wavelengths the
+# analysed length has seen fewer than MIN_CYCLES times are not searched, which
+# keeps the record's own drift out of the result. In multiple selection mode
+# the strongest AUTO_DETECT_PEAKS standing peaks are selected (None for all of
+# them); in single selection mode only the strongest.
+SPECTRUM_PEAK_DETECTION_THRESHOLD = 2.0
+SPECTRUM_PEAK_DETECTION_FLOOR_BINS = 81
+SPECTRUM_PEAK_DETECTION_MIN_CYCLES = 10
+SPECTRUM_AUTO_DETECT_PEAKS = 5
 
 CD_SPECTRUM_LOGARITHMIC_SCALE = False
 MD_SPECTRUM_LOGARITHMIC_SCALE = False

@@ -6,13 +6,14 @@ from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase, Analysis
 from utils.types import AnalysisType, PlotAnnotation
 from utils.signal_processing import (hs_units, safe_spectral_params,
-                                     interpolate_non_finite, frequency_refinement_range)
+                                     interpolate_non_finite, frequency_refinement_range,
+                                     significant_peaks)
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.ticker import AutoMinorLocator, LogLocator
 from utils.plot_formatting import (wavelength_labels_cm_from_frequencies,
                                    machine_speed_is_known, hz_suffix)
-from scipy.signal import welch, find_peaks
+from scipy.signal import welch
 from gui.components import (
     AnalysisRangeMixin,
     ChannelMixin,
@@ -381,7 +382,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         ax.figure.canvas.mpl_connect('resize_event', update_secax)
 
         if self.auto_detect_peaks:
-            self.detectPeaks(f, amplitude_spectrum, f_low_index, f_high_index)
+            self.detectPeaks()
 
         self.drawSelectedFrequencies(ax)
         self.drawPaperMachineElements(ax)
@@ -403,42 +404,62 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
         return self.canvas
 
-    def detectPeaks(self, f, amplitude_spectrum, f_low_index, f_high_index):
-        """Replace the selection with the strongest peaks of the spectrum."""
-        # First detect peaks in the full spectrum within peak detection range
-        pf_low_index = np.searchsorted(f, self.peak_detection_range_min)
-        pf_high_index = np.searchsorted(
-            f, self.peak_detection_range_max, side='right')
-
-        # Only proceed with peak detection if we have a valid range
-        if pf_high_index <= pf_low_index:
-            self.selected_freqs = []
-            return
-
-        # Slice the full amplitude spectrum for peak detection
-        amplitude_spectrum_for_peaks = amplitude_spectrum[pf_low_index:pf_high_index]
-
-        # Detect peaks in the peak detection range
-        peaks, properties = find_peaks(amplitude_spectrum_for_peaks)
-
-        # Map peaks back to global frequency indices
-        peaks_global = peaks + pf_low_index
-
-        # Sort peaks based on their amplitudes
-        sorted_peak_indices = peaks_global[np.argsort(
-            amplitude_spectrum[peaks_global])][::-1]
-
-        # Filter peaks to only include those within the visible range
-        visible_peaks = [idx for idx in sorted_peak_indices
-                         if f_low_index <= idx < f_high_index]
-
-        if self.multiple_select:
-            top_peaks = visible_peaks[:settings.SPECTRUM_AUTO_DETECT_PEAKS]
+    def analysed_length(self):
+        """The length of data the spectrum was computed from, in metres."""
+        if self.window_type == "CD":
+            distances = self.measurement.cd_distances
         else:
-            top_peaks = visible_peaks[:1]
+            distances = self.measurement.distances
+        low = max(0, min(self.low_index, len(distances) - 1))
+        high = max(low, min(self.high_index, len(distances)) - 1)
+        return float(distances[high] - distances[low])
 
-        # Convert peak indices to frequencies
-        self.selected_freqs = [f[peak] for peak in top_peaks]
+    def peak_search_floor(self):
+        """The lowest frequency worth searching for a peak.
+
+        A periodicity the analysed length has not repeated a handful of times
+        is the record's own drift rather than a peak, and the DC bin leaks into
+        its first neighbours whatever the window. Both are below this.
+        """
+        floor = float(self.peak_detection_range_min)
+        length = self.analysed_length()
+        if length > 0:
+            floor = max(floor, settings.SPECTRUM_PEAK_DETECTION_MIN_CYCLES / length)
+        if len(self.frequencies) > 1:
+            bin_width = float(self.frequencies[1] - self.frequencies[0])
+            floor = max(floor, 3 * bin_width)
+        return floor
+
+    def standing_peaks(self, view=None):
+        """The peaks of the plotted spectrum that stand clear of its floor.
+
+        Searched between the peak detection range and, when given, the
+        visible ``view`` (a zoomed-in axis narrows the search to what is on
+        screen). Strongest first; every one of them in multiple selection
+        mode, only the strongest otherwise.
+        """
+        if len(self.frequencies) == 0:
+            return []
+        low = self.peak_search_floor()
+        high = float(self.peak_detection_range_max)
+        if view is not None:
+            low = max(low, float(view[0]))
+            high = min(high, float(view[1]))
+        count = settings.SPECTRUM_AUTO_DETECT_PEAKS if self.multiple_select else 1
+        return significant_peaks(
+            self.frequencies, self.amplitudes, count=count,
+            min_freq=low, max_freq=high,
+            threshold=settings.SPECTRUM_PEAK_DETECTION_THRESHOLD,
+            floor_bins=settings.SPECTRUM_PEAK_DETECTION_FLOOR_BINS)
+
+    def detectPeaks(self, view=None):
+        """Replace the selection with the strongest peaks of the spectrum."""
+        peaks = self.standing_peaks(view)
+        if not peaks:
+            logging.info("No peak in %s stands clear of the spectral floor "
+                         "in the searched range.", self.channel)
+        self.selected_freqs = [frequency for frequency, _ in peaks]
+        return self.selected_freqs
 
     def harmonic_orders(self):
         """The multiples of a frequency to mark: 1..N, or the fundamental only."""
@@ -818,6 +839,15 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
 
         self.addAutoDetectPeaksCheckbox(displayOptionsLayout)
 
+        self.detectPeaksButton = QPushButton("Auto detect peaks")
+        self.detectPeaksButton.setToolTip(
+            "Select the strongest peak of the visible spectrum, or the "
+            "strongest few in multiple selection mode. Peaks that do not stand "
+            "clear of the surrounding level, and the low frequency hump, are "
+            "skipped.")
+        self.detectPeaksButton.clicked.connect(self.autoDetectPeaks)
+        displayOptionsLayout.addWidget(self.detectPeaksButton)
+
         self.refineButton = QPushButton("Refine Frequency Selection")
         self.refineButton.clicked.connect(self.refineFrequency)
         displayOptionsLayout.addWidget(self.refineButton)
@@ -853,6 +883,18 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         """
         if self.controller.auto_detect_peaks:
             self.controller.auto_detect_peaks = False
+
+    def autoDetectPeaks(self):
+        """One-off detection on what is on screen: the zoom is the search range."""
+        self.takeManualControl()
+        view = self.controller.ax.get_xlim() if self.controller.ax else None
+        if not self.controller.detectPeaks(view):
+            logging.warning("No peak stands clear of the spectral floor in the "
+                            "visible range. Zoom in on the peak, or select it "
+                            "with the middle mouse button.")
+        self.refresh(restore_lim=True)
+        if self.sosAnalysisWindow:
+            self.sosAnalysisWindow.refresh()
 
     def clearFrequency(self):
         self.takeManualControl()

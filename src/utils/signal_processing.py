@@ -3,6 +3,7 @@ import logging
 import numpy as np
 import scipy
 import scipy.signal
+from scipy.ndimage import median_filter
 import matplotlib.pyplot as plt
 import settings
 
@@ -417,6 +418,62 @@ def harmonic_fitting_units(x, Fs, w, n_points=None):
     theta = np.linspace(0.0, 2 * np.pi, n_points, endpoint=False)
     basis = np.exp(1j * np.outer(theta, harmonics))
     return (basis @ coefficients).real
+
+def spectral_floor(amplitude, window_bins=81):
+    """The broadband level under a spectrum, as a running median.
+
+    A median ignores the narrow peaks sitting on top of it, so what comes back
+    is the level the spectrum would have without them. The edges are padded by
+    hand so the first bins, the longest wavelengths, get a floor built from
+    real neighbours rather than from an uninitialised buffer.
+    """
+    amplitude = np.asarray(amplitude, dtype=float)
+    window_bins = max(3, int(window_bins) | 1)
+    if len(amplitude) < window_bins:
+        return np.full_like(amplitude, float(np.median(amplitude)))
+
+    half = window_bins // 2
+    padded = np.pad(amplitude, half, mode="edge")
+    return median_filter(padded, size=window_bins, mode="nearest")[half:-half]
+
+
+def significant_peaks(f, amplitude, count=None, min_freq=0.0, max_freq=None,
+                      threshold=2.0, floor_bins=81):
+    """The peaks that stand clear of the spectrum's broadband level.
+
+    Returns ``(frequency, amplitude)`` pairs, strongest first, at most
+    ``count`` of them. A local maximum is a peak when its amplitude is at
+    least ``threshold`` times the running median floor around it; the tallest
+    points of a noisy spectrum are noise otherwise, and the local maxima on
+    the slope of the DC hump never stand far above the slope itself. Bins
+    below ``min_freq`` and above ``max_freq`` are not searched at all, so the
+    hump can be excluded outright when the record length says how far it
+    reaches.
+    """
+    f = np.asarray(f, dtype=float)
+    amplitude = np.asarray(amplitude, dtype=float)
+    band = np.isfinite(amplitude) & (f >= min_freq)
+    if max_freq is not None:
+        band &= f <= max_freq
+    frequencies, values = f[band], amplitude[band]
+    if len(values) < 3:
+        return []
+
+    indices, _ = scipy.signal.find_peaks(values)
+    if len(indices) == 0:
+        return []
+
+    floor = spectral_floor(values, floor_bins)
+    ratio = values[indices] / np.maximum(floor[indices], 1e-12)
+    standing = indices[ratio >= threshold]
+    if len(standing) == 0:
+        return []
+
+    order = np.argsort(values[standing])[::-1]
+    if count is not None:
+        order = order[:max(0, int(count))]
+    return [(float(frequencies[i]), float(values[i])) for i in standing[order]]
+
 
 def get_n_peaks(data, n, threshold = 0):
     """
