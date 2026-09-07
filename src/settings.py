@@ -404,7 +404,14 @@ CD_PROFILE_RANGE_LOW_DEFAULT = 0
 CD_PROFILE_RANGE_HIGH_DEFAULT = 1
 
 
-CD_PROFILE_WATERFALL_OFFSET_DEFAULT = 10  # Relative offset in percent (e.g., 10 = 10% of mean profile value)
+# Spacing between the strips of the CD profile waterfall, as a percentage of
+# the mean profile value; 0 spaces them automatically from the variation of
+# the profiles themselves, CD_PROFILE_WATERFALL_AUTO_SPACING_SIGMAS standard
+# deviations of a strip apart. A percentage of the mean is far too much for a
+# channel whose variation is small beside its level (basis weight) and far too
+# little for one whose variation is large beside it (gloss).
+CD_PROFILE_WATERFALL_OFFSET_DEFAULT = 0
+CD_PROFILE_WATERFALL_AUTO_SPACING_SIGMAS = 5.0
 CD_PROFILE_WATERFALL_DEFAULT_CHANNEL_OFFSETS = None
 
 # Example for setting default offsets per channel, if desired

@@ -263,6 +263,7 @@ The cepstrum resolves a constant step in *period* - one sampling interval. Expre
 - View the mean CD profile with individual profiles or min/max profiles of the selected samples.
 
 ### CD Profile waterfall
+- The strips are drawn one above the other. The y-offset slider sets their spacing as a percentage of the mean profile value; at 0 the spacing is automatic, a few standard deviations of a typical strip (`CD_PROFILE_WATERFALL_AUTO_SPACING_SIGMAS`), so the strips clear each other whatever the level of the channel. The spacing used is printed above the plot.
 - View all CD profiles at once.
 - Set default offsets between profiles for each channel separately by specifying CD_PROFILE_WATERFALL_DEFAULT_CHANNEL_OFFSETS
 

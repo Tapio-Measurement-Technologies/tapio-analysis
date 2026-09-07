@@ -109,11 +109,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
         self.mean_profile = np.mean(filtered_data, axis=0)
 
-        # Calculate waterfall offset as relative to mean profile value (convert percent to fraction)
-        mean_profile_value = np.mean(self.mean_profile)
-        y_offset = mean_profile_value * (self.waterfall_offset / 100.0)
-        if y_offset == 0:
-            y_offset = 1.0
+        y_offset = self.sample_spacing(filtered_data)
 
         tableau_color_cycle = plt.get_cmap('tab10')
 
@@ -185,6 +181,26 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         self.updated.emit()
 
         return self.canvas
+
+    def sample_spacing(self, filtered_data):
+        """How far apart the strips are drawn, in the channel's unit.
+
+        A percentage of the mean profile value when the offset is set, else
+        automatic: a few standard deviations of a typical strip, so that
+        neighbouring strips clear each other whatever the level of the
+        channel. The median over the strips keeps one wild strip from
+        spreading all the others.
+        """
+        if self.waterfall_offset:
+            spacing = abs(float(np.mean(self.mean_profile))) * (self.waterfall_offset / 100.0)
+        else:
+            deviations = [float(np.std(profile)) for profile in filtered_data
+                          if len(profile) and np.all(np.isfinite(profile))]
+            spacing = (settings.CD_PROFILE_WATERFALL_AUTO_SPACING_SIGMAS
+                       * float(np.median(deviations))) if deviations else 0.0
+        if not np.isfinite(spacing) or spacing <= 0:
+            spacing = 1.0
+        return spacing
 
     def getStatsTableData(self):
         stats = []
