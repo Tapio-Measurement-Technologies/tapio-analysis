@@ -155,7 +155,7 @@ The old calculated channels from **WinTapio** do not work in **Tapio Analysis**.
 - **Logarithmic scale** draws the amplitude axis on a logarithmic scale, so weak peaks and the noise floor stay visible beside a strong peak. The `MD_SPECTRUM_LOGARITHMIC_SCALE` and `CD_SPECTRUM_LOGARITHMIC_SCALE` settings set the default.
 - Use the refine button to do fundamental frequency estimation (spectrum peak detection) in frequencies near the selected frequency. The refine button will adjust the selected frequency.
 - **Auto detect peaks** selects the strongest peak of the visible spectrum, or the strongest few in multiple selection mode. Only a peak that stands clear of the surrounding spectrum level counts, and the low frequency hump of the record's own drift is skipped, so zooming in first narrows the search. The **Detect peaks** checkbox runs the same detection again on every update, until a frequency is selected by hand. The `SPECTRUM_PEAK_DETECTION_*` and `SPECTRUM_AUTO_DETECT_PEAKS` settings tune it.
-- `View -> Paper machine data` can be used to open the paper machine file to visualize the components on top of the spectrum.
+- `View -> Paper machine data` can be used to open the paper machine file to visualize the components on top of the spectrum. A checked element is drawn as a thin dotted line named along the top of the plot, with its wavelength and, when the machine speed is known, its frequency in Hz; elements at the same spacing share one line. Its harmonics follow the **Show harmonics** controls.
 
 <br><img src="img/selected-frequency-spectrum.png" alt="Selection of frequency in the spectrum" width="40%"><br><small></small><br>
 

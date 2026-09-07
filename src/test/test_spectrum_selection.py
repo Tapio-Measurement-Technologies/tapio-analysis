@@ -106,15 +106,41 @@ def test_harmonics_can_be_switched_off(qt_app):
     assert drawn_frequencies(controller) == pytest.approx([F1])
 
 
+def element_labels(controller):
+    return [text.get_text().strip() for text in controller.ax.texts
+            if text.get_rotation() == 90]
+
+
 def test_harmonic_count_applies_to_paper_machine_elements(qt_app):
     element = {"name": "Press roll", "spatial_frequency": F2}
     controller = spectrum_controller(show_harmonics=True, harmonics_count=2,
                                      selected_elements=[element])
 
     assert drawn_frequencies(controller) == pytest.approx([F2, 2 * F2])
-    labels = [line.get_label() for line in controller.current_vlines]
-    assert labels[0].startswith("Press roll: ")
-    assert "Hz" not in labels[0]  # the machine speed is not known
+    assert element_labels(controller) == ["Press roll, λ = 64.0 cm"]
+
+
+def test_paper_machine_elements_are_drawn_as_named_reference_lines(qt_app):
+    """The report figures' style: a muted dotted line, the name along the top,
+    no legend entry, and coincident elements on one line."""
+    elements = [
+        {"name": "Press roll", "spatial_frequency": F2},
+        {"name": "Calender", "spatial_frequency": F2 * 1.01},
+        {"name": "Wire", "spatial_frequency": F1},
+    ]
+    controller = spectrum_controller(show_harmonics=False, machine_speed=600.0,
+                                     selected_elements=elements)
+
+    assert drawn_frequencies(controller) == pytest.approx([F1, F2])
+    line = controller.current_vlines[0]
+    assert line.get_color() == settings.SPECTRUM_ELEMENT_COLOR
+    assert line.get_linewidth() == pytest.approx(0.7)
+    assert line.get_linestyle() != "-"
+    assert line.get_label().startswith("_")  # nothing for the legend
+    assert element_labels(controller) == [
+        "Wire, λ = 160.0 cm, 6.25 Hz",
+        "Press roll / Calender, λ = 64.0 cm, 15.62 Hz",
+    ]
 
 
 def test_refined_selection_survives_the_redraw(qt_app):

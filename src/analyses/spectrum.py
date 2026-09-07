@@ -571,31 +571,77 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 if self.show_harmonics and settings.SPECTRUM_SHOW_HARMONICS_NUMBERS:
                     self.draw_harmonic_number(ax, harmonic, order)
 
+    def element_groups(self):
+        """The checked elements by frequency, coincident ones together.
+
+        A headbox slice and a calender roll can both be at 14.7 cm; drawing
+        two lines on top of each other says nothing more than one line with
+        both names on it. Returns ``(frequency, [names])`` pairs, ascending.
+        """
+        tolerance = settings.SPECTRUM_ELEMENT_GROUP_TOLERANCE
+        elements = sorted(
+            (element for element in self.selected_elements
+             if element.get("spatial_frequency")),
+            key=lambda element: element["spatial_frequency"])
+        groups = []
+        for element in elements:
+            freq = float(element["spatial_frequency"])
+            name = element.get("name", "Element")
+            if groups and abs(freq - groups[-1][0]) <= tolerance * freq:
+                groups[-1][1].append(name)
+            else:
+                groups.append((freq, [name]))
+        return groups
+
+    def element_label(self, freq, names):
+        """What the line of an element says: who it is, and where."""
+        text = f"{' / '.join(names)}, λ = {100 / freq:.1f} cm"
+        if self.window_type == "MD":
+            text += hz_suffix(freq, self.machine_speed, template=", {:.2f} Hz")
+        return text
+
     def drawPaperMachineElements(self, ax):
-        """Mark the elements checked in the Paper machine data window."""
-        if not self.selected_elements:
+        """Mark the elements checked in the Paper machine data window.
+
+        Drawn the way the report figures draw them: a thin dotted line in a
+        muted colour, named by a label standing along the top of the plot,
+        so the element reads as a reference the spectrum is checked against
+        rather than as a curve of its own. The harmonics follow the "Show
+        harmonics" controls and fade with their order, numbered at the top
+        so they do not collide with the numbers of the selection below.
+        """
+        groups = self.element_groups()
+        if not groups:
             return
 
-        colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+        color = settings.SPECTRUM_ELEMENT_COLOR
         xlim = ax.get_xlim()
-        for index, element in enumerate(self.selected_elements):
-            freq = element.get("spatial_frequency")
-            if not freq:
-                continue
-            color = colors[index % len(colors)]
-            label = self.describe_frequency(
-                freq, self.get_spectrum_amplitude_at(freq),
-                name=element.get("name", "Element"))
+        for freq, names in groups:
             for order in self.harmonic_orders():
                 harmonic = freq * order
                 if (harmonic > xlim[1]) or (harmonic < xlim[0]):
                     continue
-                vl = ax.axvline(x=harmonic,
-                                linestyle='--',
-                                alpha=self.harmonic_alpha(order),
-                                label=label if order == 1 else None,
-                                color=color)
+                alpha = self.harmonic_alpha(order)
+                vl = ax.axvline(x=harmonic, color=color, linewidth=0.7,
+                                linestyle=(0, (3, 3)), alpha=alpha, zorder=1)
                 self.current_vlines.append(vl)
+
+                if order == 1:
+                    txt = ax.text(harmonic, 1.0, f" {self.element_label(freq, names)}",
+                                  transform=ax.get_xaxis_transform(),
+                                  rotation=90, va='top', ha='left', fontsize=8,
+                                  color=color, clip_on=True, zorder=4)
+                elif self.show_harmonics and settings.SPECTRUM_SHOW_HARMONICS_NUMBERS:
+                    txt = ax.text(harmonic, 0.98, f"{order}",
+                                  transform=ax.get_xaxis_transform(),
+                                  ha='center', va='top', fontsize=8,
+                                  color=color, alpha=max(alpha, 0.6), clip_on=True)
+                else:
+                    continue
+                txt.set_path_effects([
+                    path_effects.Stroke(linewidth=2, foreground='white'),
+                    path_effects.Normal()
+                ])
 
     def get_freq_in_hz(self, freq_1m):
         """Frequency in Hz, or None when no machine speed has been set."""

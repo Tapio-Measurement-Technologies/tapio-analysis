@@ -244,6 +244,12 @@ COHERENCE_SIGNIFICANCE_LEVEL = 0.95
 # plot can be read directly.
 COHERENCE_SHOW_SIGNIFICANCE_LINE = False
 SPECTRUM_SHOW_LEGEND = True
+# Paper machine elements checked in the Paper machine data window are drawn
+# as thin dotted lines in this colour, named by a label along the top of the
+# plot. Elements within ELEMENT_GROUP_TOLERANCE of each other's frequency (a
+# fraction) share one line and one label.
+SPECTRUM_ELEMENT_COLOR = "#5B6672"
+SPECTRUM_ELEMENT_GROUP_TOLERANCE = 0.02
 SPECTRUM_LEGEND_OUTSIDE_PLOT = False
 SPECTRUM_MINOR_GRID = True
 
