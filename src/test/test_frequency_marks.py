@@ -1,9 +1,14 @@
 """The selection, harmonics, peak detection and element controls shared by the
-Cepstrum, Coherence and Spectrogram windows."""
+Cepstrum, Coherence and Spectrogram windows, and the keys that step a
+selection."""
+
+from types import SimpleNamespace
 
 import matplotlib.colors
 import numpy as np
 import pytest
+from PyQt6.QtCore import Qt
+from PyQt6.QtTest import QTest
 
 import settings
 from analyses import cepstrum, coherence, spectrogram, spectrum
@@ -200,3 +205,50 @@ def test_spectrogram_log_scale_switches_the_colour_norm(qt_app):
     assert isinstance(norm, matplotlib.colors.LogNorm)
     assert 0 < norm.vmin < norm.vmax
     assert controller.export_attributes()["log_scale"] is True
+
+
+# --------------------------------------------------------------------------
+# Stepping the selection with the wheel and the arrow keys
+# --------------------------------------------------------------------------
+
+def test_arrow_keys_step_the_selection_one_bin(qt_app):
+    controller = spectrum_controller(selected_freqs=[F1], auto_detect_peaks=True)
+    window = spectrum.AnalysisWindow(controller, "MD")
+    bin_width = FS / NPERSEG
+
+    QTest.keyClick(window, Qt.Key.Key_Right)
+    assert not controller.auto_detect_peaks  # a step is a manual choice
+    assert controller.selected_freqs[-1] == pytest.approx(F1 + bin_width)
+
+    QTest.keyClick(window, Qt.Key.Key_Left)
+    QTest.keyClick(window, Qt.Key.Key_Left)
+    assert controller.selected_freqs[-1] == pytest.approx(F1 - bin_width)
+
+    # The same keys reach the window through the canvas once it has the focus.
+    window.on_canvas_key(SimpleNamespace(key="right"))
+    assert controller.selected_freqs[-1] == pytest.approx(F1)
+
+    # The wheel steps the same way.
+    window.on_scroll(SimpleNamespace(inaxes=controller.ax, button="up", step=1))
+    assert controller.selected_freqs[-1] == pytest.approx(F1 + bin_width)
+
+
+@pytest.mark.parametrize("module, build, axis_limits", [
+    (cepstrum, lambda: cepstrum_controller(harmonic_series_measurement(period=2.0),
+                                           selected_freqs=[0.5]), None),
+    (coherence, lambda: plotted(coherence, two_peak_measurement(), nperseg=2000,
+                                channel="BW", channel2="Ash", selected_freqs=[F1]), None),
+    (spectrogram, lambda: plotted(spectrogram, two_peak_measurement(), nperseg=2000,
+                                  selected_freqs=[F1]), None),
+])
+def test_arrow_keys_work_in_every_window(qt_app, module, build, axis_limits):
+    controller = build()
+    window = module.AnalysisWindow(controller, "MD")
+    before = controller.selected_freqs[-1]
+    index = controller.get_nearest_frequency_bin_index(before)
+
+    QTest.keyClick(window, Qt.Key.Key_Right)
+
+    assert controller.selected_freqs[-1] == pytest.approx(controller.frequencies[index + 1])
+    QTest.keyClick(window, Qt.Key.Key_Left)
+    assert controller.selected_freqs[-1] == pytest.approx(controller.frequencies[index])

@@ -812,10 +812,16 @@ class FrequencyMarksControlsMixin(MultipleSelectMixin, HarmonicsMixin,
         self.refresh(restore_lim=True)
         self.refresh_dependent_windows()
 
-    # ---- stepping the selection: the mouse wheel ---------------------------
+    # ---- stepping the selection: mouse wheel and arrow keys ----------------
     def connect_selection_stepping(self):
-        """Call once the canvas exists."""
+        """Call once the canvas exists.
+
+        Key presses reach the window only while it has the focus; after the
+        plot has been clicked the canvas has it and keeps the keys to itself,
+        so the arrows are listened for there as well.
+        """
         self.controller.canvas.mpl_connect('scroll_event', self.on_scroll)
+        self.controller.canvas.mpl_connect('key_press_event', self.on_canvas_key)
 
     def is_navigation_mode_active(self):
         return bool(
@@ -837,6 +843,23 @@ class FrequencyMarksControlsMixin(MultipleSelectMixin, HarmonicsMixin,
         if event.inaxes is None or event.button not in ("up", "down"):
             return
         self.step_selected_frequency(event.step)
+
+    def on_canvas_key(self, event):
+        if self.is_navigation_mode_active():
+            return
+        if event.key == "left":
+            self.step_selected_frequency(-1)
+        elif event.key == "right":
+            self.step_selected_frequency(1)
+
+    def keyPressEvent(self, event):
+        if (event.modifiers() == Qt.KeyboardModifier.NoModifier
+                and event.key() in (Qt.Key.Key_Left, Qt.Key.Key_Right)):
+            self.step_selected_frequency(1 if event.key() == Qt.Key.Key_Right else -1)
+            return
+        parent = super(FrequencyMarksControlsMixin, self)
+        if hasattr(parent, 'keyPressEvent'):
+            parent.keyPressEvent(event)
 
 
 class ShowProfilesMixin:
