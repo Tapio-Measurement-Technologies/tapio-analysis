@@ -183,6 +183,10 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         self.set_default('log_scale', config["log_scale"])
 
     def plot(self):
+        if self.ax is not None and self.ax.get_yscale() == "log":
+            # Clearing a log axis resets its limits to (0, 1) and warns about
+            # the zero every time; a linear axis clears silently.
+            self.ax.set_yscale("linear")
         self.figure.clear()
         # This to avoid crash due to a too long spectrum calculation on too short data
 
@@ -508,12 +512,16 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             row.append(f"{self.get_freq_in_hz(freq):.2f}")
         return row
 
-    def describe_frequency(self, freq, amplitude, name=None):
-        """One selected or element frequency in every unit the window shows."""
+    def describe_frequency(self, freq, amplitude, name=None, symbols=True):
+        """One selected or element frequency in every unit the window shows.
+
+        ``symbols=False`` spells the wavelength out, for a console that is not
+        UTF-8 and would refuse the Greek letter.
+        """
         text = f"{freq:.2f} 1/m"
         if self.window_type == "MD":
             text += hz_suffix(freq, self.machine_speed)
-        text += f" λ = {100 / freq:.1f} cm"
+        text += f" {'λ' if symbols else 'lambda'} = {100 / freq:.1f} cm"
         if amplitude is not None:
             text += f" A = {amplitude:.2f} {self.measurement.units[self.channel]}"
         return f"{name}: {text}" if name else text
@@ -547,7 +555,8 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 continue
 
             label = self.describe_frequency(selected_freq, amplitude)
-            print(f"Spectral peak in {self.channel}: {label}")
+            logging.info("Spectral peak in %s: %s", self.channel,
+                         self.describe_frequency(selected_freq, amplitude, symbols=False))
             self.legend_data.append(self.legend_row(selected_freq, amplitude))
 
             for order in self.harmonic_orders():
