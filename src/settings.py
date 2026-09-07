@@ -154,7 +154,11 @@ SPECTROGRAM_FIXED_CLIM = {}
 # not mistaken for an absolute one.
 SPECTROGRAM_SHOW_COLOR_SCALE_RANGE = True
 
+# Harmonics of a selected frequency or of a paper machine element are drawn
+# as fading lines, this many at most. The Spectrum window has a "Show harmonics"
+# toggle and a count spinner that start from these two values.
 MAX_HARMONICS_DISPLAY = 10
+SPECTRUM_SHOW_HARMONICS_DEFAULT = True
 MAX_HARMONICS_FREQUENCY_ESTIMATOR = 1
 
 # "Refine frequency selection" search window. The window is the smaller of a
@@ -483,6 +487,9 @@ ANALYSIS_EXPORT_ATTRIBUTES = [
     "remove_md_variations",
     "remove_cd_variations",
     "auto_detect_peaks",
+    "multiple_select",
+    "show_harmonics",
+    "harmonics_count",
     "nperseg",
     "overlap",
     "machine_speed",
@@ -591,6 +598,9 @@ CALCULATED_CHANNELS = [
 ]
 
 
+# Whether a frequency selection in the spectral windows adds to the previous
+# selections (True) or replaces them (False). The Spectrum window has a
+# "Multiple selection" toggle that starts from this value.
 MULTIPLE_SELECT_MODE = False
 
 DOUBLE_SLIDER_FINE_CONTROL_FACTOR = 0.1  # 10% of normal movement

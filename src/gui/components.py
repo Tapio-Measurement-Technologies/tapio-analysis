@@ -4,7 +4,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QImage, QMouseEvent
 from PyQt6.QtWidgets import QVBoxLayout, QWidget
-from PyQt6.QtWidgets import QComboBox, QLabel, QDoubleSpinBox, QFileDialog, QCheckBox, QHBoxLayout, QMessageBox, QGridLayout, QPushButton, QScrollArea, QProgressDialog
+from PyQt6.QtWidgets import QComboBox, QLabel, QDoubleSpinBox, QSpinBox, QFileDialog, QCheckBox, QHBoxLayout, QMessageBox, QGridLayout, QPushButton, QScrollArea, QProgressDialog
 from PyQt6.QtGui import QAction, QIcon, QCursor
 from qtpy.QtCore import Qt, Signal
 from superqt import QLabeledDoubleRangeSlider, QLabeledSlider, QLabeledDoubleSlider
@@ -657,6 +657,74 @@ class AutoDetectPeaksMixin:
         state = self.autodetectCheckbox.isChecked()
         self.controller.auto_detect_peaks = state
         self.refresh()
+
+
+class MultipleSelectMixin:
+    """"Multiple selection": whether a new frequency selection adds to the
+    previous ones or replaces them."""
+
+    def initMultipleSelectCheckbox(self, block_signals=False):
+        self.multipleSelectCheckbox.blockSignals(block_signals)
+        self.multipleSelectCheckbox.setChecked(self.controller.multiple_select)
+        self.multipleSelectCheckbox.blockSignals(False)
+
+    def addMultipleSelectCheckbox(self, layout):
+        self.multipleSelectCheckbox = QCheckBox("Multiple selection", self)
+        self.multipleSelectCheckbox.setToolTip(
+            "Keep every selected frequency instead of only the latest one")
+        self.initMultipleSelectCheckbox()
+        self.multipleSelectCheckbox.stateChanged.connect(
+            self.update_multiple_select)
+        layout.addWidget(self.multipleSelectCheckbox)
+
+    def update_multiple_select(self):
+        self.controller.multiple_select = self.multipleSelectCheckbox.isChecked()
+        self.refresh(restore_lim=True)
+
+
+class HarmonicsMixin:
+    """"Show harmonics" and how many: one row with a checkbox and a spinner.
+
+    The count spinner is only enabled while harmonics are shown, so the row
+    reads as one control rather than two unrelated ones.
+    """
+
+    def initHarmonicsControls(self, block_signals=False):
+        self.harmonicsCheckbox.blockSignals(block_signals)
+        self.harmonicsCountSpinner.blockSignals(block_signals)
+        self.harmonicsCheckbox.setChecked(self.controller.show_harmonics)
+        self.harmonicsCountSpinner.setValue(int(self.controller.harmonics_count))
+        self.harmonicsCountSpinner.setEnabled(self.controller.show_harmonics)
+        self.harmonicsCheckbox.blockSignals(False)
+        self.harmonicsCountSpinner.blockSignals(False)
+
+    def addHarmonicsControls(self, layout):
+        row = QHBoxLayout()
+        self.harmonicsCheckbox = QCheckBox("Show harmonics", self)
+        self.harmonicsCheckbox.setToolTip(
+            "Mark the integer multiples of every selected frequency and "
+            "paper machine element")
+        self.harmonicsCountSpinner = QSpinBox(self)
+        self.harmonicsCountSpinner.setRange(1, 100)
+        self.harmonicsCountSpinner.setToolTip(
+            "How many harmonics to mark, the fundamental included")
+        self.initHarmonicsControls()
+        self.harmonicsCheckbox.stateChanged.connect(self.update_show_harmonics)
+        self.harmonicsCountSpinner.valueChanged.connect(
+            self.update_harmonics_count)
+        row.addWidget(self.harmonicsCheckbox)
+        row.addStretch()
+        row.addWidget(self.harmonicsCountSpinner)
+        layout.addLayout(row)
+
+    def update_show_harmonics(self):
+        self.controller.show_harmonics = self.harmonicsCheckbox.isChecked()
+        self.harmonicsCountSpinner.setEnabled(self.controller.show_harmonics)
+        self.refresh(restore_lim=True)
+
+    def update_harmonics_count(self):
+        self.controller.harmonics_count = int(self.harmonicsCountSpinner.value())
+        self.refresh(restore_lim=True)
 
 
 class ShowProfilesMixin:

@@ -151,6 +151,7 @@ The old calculated channels from **WinTapio** do not work in **Tapio Analysis**.
 ### Spectrum
 - Identify frequencies and amplitudes of periodic components in the data, visualize the known rotating frequencies of components in the production line.
 - **Use the middle mouse button to select a frequency**.
+- By default a new selection replaces the previous one. Tick **Multiple selection** to keep every selected frequency, each in its own colour; the legend lists all of them. The default comes from the `MULTIPLE_SELECT_MODE` setting.
 - Use the refine button to do fundamental frequency estimation (spectrum peak detection) in frequencies near the selected frequency. The refine button will adjust the selected frequency.
 - `View -> Paper machine data` can be used to open the paper machine file to visualize the components on top of the spectrum.
 
@@ -169,8 +170,8 @@ By default, all spectra are amplitude spectra where the amplitudes are shown as 
 <br><img src="img/sine_wave.png" alt="Amplitude display" width="40%"><br><small></small><br>
 
 
-# Visualization of harmonics
-It is typical for rotating elements to cause peaks in the spectrum at integer multiples (harmonics) of their rotating frequency. The software provides tools to visualize these harmonics.  You can control how many harmonic frequencies are displayed by adjusting the setting MAX_HARMONICS_DISPLAY in the local_settings.py file.
+#### Visualization of harmonics
+It is typical for rotating elements to cause peaks in the spectrum at integer multiples (harmonics) of their rotating frequency. The software provides tools to visualize these harmonics. **Show harmonics** marks the multiples of every selected frequency and of every checked paper machine element, in single and multiple selection alike, and the spinner next to it sets how many are marked (the fundamental included). The defaults come from the `SPECTRUM_SHOW_HARMONICS_DEFAULT` and `MAX_HARMONICS_DISPLAY` settings in the local_settings.py file.
 
 
 
@@ -262,6 +263,7 @@ The cepstrum resolves a constant step in *period* - one sampling interval. Expre
 ### CD Spectrum
 - Identify wavelengths and amplitudes of periodic components in the CD data, visualize the known actuator spacings of the production line.
 - **Use the middle mouse button to select a frequency**.
+- The selection, harmonics and peak detection controls work as in the MD spectrum.
 - Use the refine button to do fundamental frequency estimation (spectrum peak detection) in frequencies near the selected frequency. The refine button will adjust the selected frequency.
 - `View -> Paper machine data` can be used to open the paper machine file to visualize the components on top of the spectrum.
 
