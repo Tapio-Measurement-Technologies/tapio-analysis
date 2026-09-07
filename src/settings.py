@@ -628,11 +628,22 @@ SPECTRUM_PEAK_DETECTION_THRESHOLD = 2.0
 SPECTRUM_PEAK_DETECTION_FLOOR_BINS = 81
 SPECTRUM_PEAK_DETECTION_MIN_CYCLES = 10
 SPECTRUM_AUTO_DETECT_PEAKS = 5
+# Peak detection in the Coherence window also demands this much coherence: the
+# significance level only says the coherence is not zero, and a peak that
+# shares a twentieth of the variance is not one a mill acts on.
+COHERENCE_PEAK_DETECTION_MIN = 0.3
+# Peak detection in the Cepstrum window keeps the rahmonic peaks that reach
+# this fraction of the strongest one; the rest is the ripple between them.
+CEPSTRUM_PEAK_RELATIVE_MIN = 0.1
 
 # Whether the Spectrum window opens with a logarithmic amplitude axis. The
 # window has a "Logarithmic scale" checkbox that starts from these.
 CD_SPECTRUM_LOGARITHMIC_SCALE = False
 MD_SPECTRUM_LOGARITHMIC_SCALE = False
+# The same for the spectrogram's colour scale, which then spans this many
+# decades below its top.
+SPECTROGRAM_LOGARITHMIC_SCALE = False
+SPECTROGRAM_LOG_SCALE_DECADES = 3
 
 MD_SPECTRUM_SECONDARY_X_LABEL_EXPR = "f'Frequency [Hz] at machine speed {self.machine_speed:.1f} m/min'"
 

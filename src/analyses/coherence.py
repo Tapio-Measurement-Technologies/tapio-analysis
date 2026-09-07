@@ -22,18 +22,17 @@ from gui.components import (
     SpectrumLengthMixin,
     ShowWavelengthMixin,
     CopyPlotMixin,
-    AutoDetectPeaksMixin,
+    FrequencyMarksControlsMixin,
     ChildWindowCloseMixin,
     ExportMixin,
     ControlsPanelWidget
 )
 from gui.paper_machine_data import PaperMachineDataWindow
-import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-from matplotlib.ticker import AutoMinorLocator, LogLocator
+from matplotlib.ticker import AutoMinorLocator
 from scipy.signal import coherence
-from scipy.signal import find_peaks
 import settings
+from utils.frequency_marks import FrequencyMarksMixin
 import numpy as np
 import pandas as pd
 
@@ -106,7 +105,9 @@ def tabular_legend(ax, col_labels, data, *args, **kwargs):
     return legend
 
 
-class AnalysisController(AnalysisControllerBase, ExportMixin):
+class AnalysisController(AnalysisControllerBase, FrequencyMarksMixin, ExportMixin):
+    #: Magnitude-squared coherence is dimensionless, and written with a C.
+    amplitude_symbol = "C"
     channel: str
     channel2: str
     nperseg: float
@@ -160,7 +161,6 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         }
         config = spectrum_defaults[self.window_type]
         self.channels = self.measurement.channels
-        self.current_vlines = []
         self.spectral_window = settings.SPECTRUM_WELCH_WINDOW
 
         self.set_default('channel', self.channels[0])
@@ -176,11 +176,9 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         self.set_default('analysis_range_low', config["analysis_range_low"] * self.max_dist)
         self.set_default('analysis_range_high', config["analysis_range_high"] * self.max_dist)
         self.set_default('machine_speed', settings.PAPER_MACHINE_SPEED_DEFAULT)
-        self.set_default('selected_elements', [])
         self.set_default('selected_samples', self.measurement.selected_samples.copy())
-        self.set_default('selected_freqs', [])
         self.set_default('show_wavelength', settings.SHOW_WAVELENGTH_DEFAULT)
-        self.set_default('auto_detect_peaks', settings.AUTO_DETECT_PEAKS_DEFAULT)
+        self.set_mark_defaults()
 
     def plot(self):
         self.figure.clear()
@@ -190,6 +188,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         ax = self.ax
         self.frequencies = np.array([])
         self.amplitudes = np.array([])
+        self.reset_marks()
         self.n_segments = 0
         self.effective_segments = 0.0
         self.significance_level = None
@@ -396,159 +395,17 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         ax.figure.canvas.mpl_connect('resize_event', update_secax)
 
         if self.auto_detect_peaks:
+            self.detectPeaks()
 
-            # First detect peaks in the full spectrum within peak detection range
-            pf_low_index = np.searchsorted(f, self.peak_detection_range_min)
-            pf_high_index = np.searchsorted(f, self.peak_detection_range_max, side='right')
+        self.drawSelectedFrequencies(ax)
+        self.drawPaperMachineElements(ax)
 
-            # Only proceed with peak detection if we have a valid range
-            if pf_high_index > pf_low_index:
-                # Slice the full amplitude spectrum for peak detection
-                amplitude_spectrum_for_peaks = amplitude_spectrum[pf_low_index:pf_high_index]
-
-                # Detect peaks in the peak detection range
-                peaks, properties = find_peaks(amplitude_spectrum_for_peaks)
-
-                # Map peaks back to global frequency indices
-                peaks_global = peaks + pf_low_index
-
-                # Sort peaks based on their amplitudes
-                sorted_peak_indices = peaks_global[np.argsort(amplitude_spectrum[peaks_global])][::-1]
-
-                # Filter peaks to only include those within the visible range
-                visible_peaks = [idx for idx in sorted_peak_indices
-                               if f_low_index <= idx < f_high_index]
-
-                if settings.MULTIPLE_SELECT_MODE:
-                    top_peaks = visible_peaks[:settings.SPECTRUM_AUTO_DETECT_PEAKS]
-                else:
-                    top_peaks = visible_peaks[:1]
-
-                # Convert peak indices to frequencies
-                self.selected_freqs = [f[peak] for peak in top_peaks]
-            else:
-                self.selected_freqs = []
-
-        # Draw new lines and update frequency label
-        legend_data = []
-        legend_columns = ["C", "F [1/m]", "Wavelength [cm]"] + (
-            ["F [Hz]"]
-            if self.window_type == "MD" and machine_speed_is_known(self.machine_speed)
-            else []
-        )
-
-        if len(self.selected_freqs) > 0:
-
-            # legend_columns = [f"Amplitude [{self.measurement.units[self.channel]}]",
-            #                   "Frequency [1/m]", "Wavelength [cm]", "Frequency [Hz]"]
-            if self.window_type == "MD" and machine_speed_is_known(self.machine_speed):
-                legend_columns = [f"C",
-                                  "F [1/m]", "λ [cm]", "F [Hz]"]
-            elif self.window_type == "MD":
-                legend_columns = [f"C", "F [1/m]", "λ [cm]"]
-            if self.window_type == "CD":
-                legend_columns = [f"C",
-                                  "F [1/m]", "λ [cm]"]
-
-            legend_data = []
-
-            xlim = ax.get_xlim()
-            if settings.MULTIPLE_SELECT_MODE:
-
-                for i, selected_freq in enumerate(self.selected_freqs):
-
-                    if (selected_freq > xlim[1]) or (selected_freq < xlim[0]):
-                        continue
-
-                    amplitude = self.amplitudes[np.searchsorted(
-                        self.frequencies, selected_freq)]
-
-                    if self.window_type == "CD":
-                        label = f"{selected_freq:.2f} 1/m λ = {100 *
-                                                               1/selected_freq:.2f} cm C = {amplitude:.2f}"
-                        print(f"Spectral peak in {self.channel}: {label}")
-                        legend_data.append([f"{amplitude:.2f}", f"{selected_freq:.2f}", f"{
-                                           100*(1/selected_freq):.2f}"])
-                    elif self.window_type == "MD":
-                        label = f"{selected_freq:.2f} 1/m{hz_suffix(selected_freq, self.machine_speed)} λ = {
-                            100 * 1/selected_freq:.2f} cm C = {amplitude:.2f}"
-                        print(f"Spectral peak in {self.channel}: {label}")
-
-                        legend_data.append([f"{amplitude:.3f}", f"{selected_freq:.2f}", f"{
-                                           100*(1/selected_freq):.2f}", f"{self.get_freq_in_hz(selected_freq):.2f}"])
-                        print(f"Spectral peak in {self.channel}: {label}")
-
-                    def get_color_cycler(num_colors):
-                        # You can change 'tab10' to any colormap you prefer
-                        cmap = plt.get_cmap('tab10')
-                        colors = [cmap(i) for i in range(num_colors)]
-                        return colors
-
-                    num_lines = len(self.selected_freqs)
-                    color_cycle = get_color_cycler(num_lines)
-
-                    vl = ax.axvline(x=selected_freq,
-                                    linestyle='--',
-                                    alpha=0.5,
-                                    color=color_cycle[i % num_lines],
-                                    label=label)
-                    self.current_vlines.append(vl)
-
-            else:
-                for i in range(1, settings.MAX_HARMONICS_DISPLAY):
-                    if (self.selected_freqs[-1] * i > xlim[1]) or (self.selected_freqs[-1] * i < xlim[0]):
-                        # Skip drawing the line if it is out of bounds
-                        continue
-
-                    # TODO: DRY, fix this and refactor
-                    selected_freq = self.selected_freqs[-1]
-                    amplitude = self.amplitudes[np.searchsorted(
-                        self.frequencies, selected_freq)]
-
-                    if (i == 1):
-                        if self.window_type == "CD":
-                            label = f"{selected_freq:.2f} 1/m λ = {100 * 1/selected_freq:.2f} cm A = {
-                                amplitude:.2f} {self.measurement.units[self.channel]}"
-                            print(f"Spectral peak in {self.channel}: {label}")
-                        elif self.window_type == "MD":
-                            label = f"{selected_freq:.2f} 1/m{hz_suffix(selected_freq, self.machine_speed)} λ = {
-                                100 * 1/selected_freq:.2f} cm A = {amplitude:.2f} {self.measurement.units[self.channel]}"
-                            print(f"Spectral peak in {self.channel}: {label}")
-                    else:
-                        label = None
-
-                    vl = ax.axvline(x=self.selected_freqs[-1] * i,
-                                    color='r',
-                                    linestyle='--',
-                                    alpha=1 - (1 / settings.MAX_HARMONICS_DISPLAY) * i,
-                                    label=label)
-                    self.current_vlines.append(vl)
-
-        colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
-
-        for index, element in enumerate(self.selected_elements):
-            xlim = ax.get_xlim()
-            for i in range(1, settings.MAX_HARMONICS_DISPLAY):
-                f = element["spatial_frequency"]
-                if (f * i > xlim[1]) or (f * i < xlim[0]):
-                    # Skip drawing the line if it is out of bounds
-                    continue
-                label = element["name"] if (i == 1) else None
-                color_index = index % len(colors)
-                current_color = colors[color_index]
-
-                vl = ax.axvline(x=f * i,
-                                linestyle='--',
-                                alpha=1 - (1 / settings.MAX_HARMONICS_DISPLAY) * i,
-                                label=label,
-                                color=current_color)
-                self.current_vlines.append(vl)
         handles, labels = ax.get_legend_handles_labels()
 
         if settings.SPECTRUM_SHOW_LEGEND:
             if labels:  # This list will be non-empty if there are items to include in the legend
                 if settings.SPECTRUM_LEGEND_OUTSIDE_PLOT:
-                    leg = tabular_legend(ax, legend_columns, legend_data, loc="upper left", bbox_to_anchor=(
+                    leg = tabular_legend(ax, self.legend_columns(), self.legend_data, loc="upper left", bbox_to_anchor=(
                         1.05, 1), borderaxespad=0.)
 
                     leg.get_frame().set_alpha(0)
@@ -611,11 +468,25 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             minimum, self.n_segments)
         return False
 
-    def get_freq_in_hz(self, freq_1m):
-        """Frequency in Hz, or None when no machine speed has been set."""
-        if not machine_speed_is_known(self.machine_speed):
+    def amplitude_unit(self):
+        return ""
+
+    def mark_amplitude_at(self, freq):
+        if freq is None or len(self.frequencies) == 0:
             return None
-        return freq_1m * self.machine_speed / 60
+        if freq < self.frequencies[0] or freq > self.frequencies[-1]:
+            return None
+        return float(np.interp(freq, self.frequencies, self.amplitudes))
+
+    def standing_peaks(self, view=None):
+        """Coherence peaks below the significance level are the estimator's
+        own bias, not a shared frequency, and ones below the configured
+        minimum share too little variance to act on; neither is selected."""
+        peaks = super().standing_peaks(view)
+        minimum = settings.COHERENCE_PEAK_DETECTION_MIN
+        if self.significance_level is not None:
+            minimum = max(minimum, self.significance_level)
+        return [(freq, value) for freq, value in peaks if value >= minimum]
 
     def getStatsTableData(self):
         return None
@@ -663,8 +534,8 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
 
 class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin, DoubleChannelMixin, FrequencyRangeMixin, MachineSpeedMixin,
-                      SampleSelectMixin, SpectrumLengthMixin, ShowWavelengthMixin, CopyPlotMixin, AutoDetectPeaksMixin,
-                      ChildWindowCloseMixin):
+                      SampleSelectMixin, SpectrumLengthMixin, ShowWavelengthMixin, CopyPlotMixin,
+                      FrequencyMarksControlsMixin, ChildWindowCloseMixin):
 
     def __init__(self, controller: AnalysisController, window_type: AnalysisType = "MD"):
         super().__init__(controller, window_type)
@@ -758,6 +629,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.controlsPanel.addWidget(displayOptionsGroup)
         if self.controller.window_type == "MD":
             self.addShowWavelengthCheckbox(displayOptionsLayout)
+        self.addFrequencyMarkControls(displayOptionsLayout)
 
         self.clearButton = QPushButton("Clear Frequency Selection")
         self.clearButton.clicked.connect(self.clearFrequency)
@@ -778,12 +650,14 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         # Matplotlib figure and canvas
         self.controller.addPlot(plotStatsLayout)
         self.controller.canvas.mpl_connect('button_press_event', self.onclick)
+        self.connect_selection_stepping()
 
         self.refresh()
 
     def clearFrequency(self):
+        self.takeManualControl()
         self.controller.selected_freqs = []
-        self.selectedFrequencyLabel.setText(f"Selected frequency:")
+        self.selectedFrequencyLabel.setText("Selected frequency: None")
 
         self.refresh()
 
@@ -792,6 +666,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         if not selected_freqs:
             print("No selected frequency")
             return
+        self.takeManualControl()
 
         print("Original frequency: ", selected_freqs[-1])
         active_channel_for_data = self.controller.channel
@@ -824,36 +699,61 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
                 selected_freqs[-1])
             return
         self.controller.selected_freqs[-1] = refined
-        self.refresh()
+        self.refresh(restore_lim=True)
+
+    def select_frequency_at(self, ax, xdata):
+        if ax is None or xdata is None:
+            return False
+        xlim = ax.get_xlim()
+        # Reject zero as well as negative: a wavelength of 1/0 is undefined.
+        if not (xlim[0] <= xdata <= xlim[1]) or xdata <= 0:
+            return False
+        self.record_selection(float(xdata))
+        self.refresh(restore_lim=True)
+        return True
 
     def onclick(self, event):
         if event.inaxes is not None and event.button == settings.FREQUENCY_SELECTOR_MOUSE_BUTTON:
-            ax = event.inaxes
-            xlim = ax.get_xlim()
-            # Reject zero as well as negative: a wavelength of 1/0 is undefined.
-            if not (xlim[0] <= event.xdata <= xlim[1]) or event.xdata <= 0:
-                return
-            if not self.controller.selected_freqs:
-                self.controller.selected_freqs = []
-            self.controller.selected_freqs.append(event.xdata)
-            self.refresh(restore_lim=True)
+            self.select_frequency_at(event.inaxes, event.xdata)
+
+    def get_current_view_limits(self):
+        if not self.controller.figure.axes:
+            return None
+
+        ax = self.controller.figure.axes[0]
+        return ax.get_xlim(), ax.get_ylim()
+
+    def restore_view_limits(self, view_limits):
+        if view_limits is None or not self.controller.figure.axes:
+            return
+
+        ax = self.controller.figure.axes[0]
+        x_limits, y_limits = view_limits
+        ax.set_xlim(x_limits)
+        ax.set_ylim(y_limits)
+        self.controller.canvas.draw_idle()
 
     def refresh_widgets(self):
         self.initAnalysisRangeSlider(block_signals=True)
         self.initChannelSelectors(block_signals=True)
         self.initFrequencyRangeSlider(block_signals=True)
         self.initSpectrumLengthSlider(block_signals=True)
+        self.initFrequencyMarkControls(block_signals=True)
         if self.window_type == "MD":
             self.initShowWavelengthCheckbox(block_signals=True)
             self.initMachineSpeedSpinner(block_signals=True)
 
     def refresh(self, restore_lim=False):
+        view_limits = self.get_current_view_limits() if restore_lim else None
         self.controller.updatePlot()
+        self.restore_view_limits(view_limits)
         self.refresh_widgets()
         selected_freqs = self.controller.selected_freqs
 
         machine_speed = self.controller.machine_speed
-        if selected_freqs and selected_freqs[-1] and np.isfinite(selected_freqs[-1]):
+        if not selected_freqs:
+            self.selectedFrequencyLabel.setText("Selected frequency: None")
+        elif selected_freqs[-1] and np.isfinite(selected_freqs[-1]):
             wavelength = 1 / selected_freqs[-1]
 
             if self.window_type == "MD":

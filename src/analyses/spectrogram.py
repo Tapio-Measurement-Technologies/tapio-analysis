@@ -8,7 +8,6 @@ from utils.analysis import AnalysisControllerBase, AnalysisWindowBase, Analysis
 from utils.types import AnalysisType, PlotAnnotation
 from utils.signal_processing import (hs_units, safe_spectral_params,
                                      interpolate_non_finite, frequency_refinement_range)
-import matplotlib.pyplot as plt
 import matplotlib
 from gui.components import (
     AnalysisRangeMixin,
@@ -19,6 +18,8 @@ from gui.components import (
     SpectrumLengthMixin,
     ShowWavelengthMixin,
     CopyPlotMixin,
+    FrequencyMarksControlsMixin,
+    LogScaleMixin,
     ChildWindowCloseMixin,
     ControlsPanelWidget,
 )
@@ -27,6 +28,7 @@ from utils import store
 from utils.plot_formatting import (wavelength_labels_cm_from_frequencies,
                                    machine_speed_is_known, hz_suffix)
 import settings
+from utils.frequency_marks import FrequencyMarksMixin
 import numpy as np
 from scipy.signal import spectrogram
 
@@ -34,7 +36,11 @@ analysis_name = "Spectrogram"
 analysis_types = ["MD", "CD"]
 
 
-class AnalysisController(AnalysisControllerBase):
+class AnalysisController(AnalysisControllerBase, FrequencyMarksMixin):
+    #: Frequency runs up the image, and a mark over an image needs an opaque
+    #: underlay to be seen against every colour of it.
+    marks_axis = "y"
+    mark_underlay = True
     nperseg: float
     overlap: float
     frequency_range_low: float
@@ -48,6 +54,7 @@ class AnalysisController(AnalysisControllerBase):
     selected_samples: list[int]
     selected_freqs: list[float]
     show_wavelength: bool
+    log_scale: bool
 
     def __init__(self, measurement: Measurement, window_type: AnalysisType = "MD", annotations: list[PlotAnnotation] = [], attributes: dict = {}):
         super().__init__(measurement, window_type, annotations, attributes)
@@ -78,7 +85,6 @@ class AnalysisController(AnalysisControllerBase):
             }
         }
         config = spectrum_defaults[self.window_type]
-        self.current_hlines = []
 
         self.set_default('nperseg', config["nperseg"])
         self.set_default('overlap', config["overlap"])
@@ -95,11 +101,11 @@ class AnalysisController(AnalysisControllerBase):
         self.set_default('analysis_range_high',
                          config["analysis_range_high"] * self.max_dist)
         self.set_default('machine_speed', settings.PAPER_MACHINE_SPEED_DEFAULT)
-        self.set_default('selected_elements', [])
         self.set_default('selected_samples',
                          self.measurement.selected_samples.copy())
-        self.set_default('selected_freqs', [])
         self.set_default('show_wavelength', False)
+        self.set_default('log_scale', settings.SPECTROGRAM_LOGARITHMIC_SCALE)
+        self.set_mark_defaults()
 
     def plot(self):
         self.figure.clear()
@@ -109,6 +115,7 @@ class AnalysisController(AnalysisControllerBase):
         ax = self.ax
         self.frequencies = np.array([])
         self.amplitudes = np.empty((0, 0))
+        self.reset_marks()
         ax.set_title(f"{self.measurement.measurement_label} ({self.channel})")
         ax.set_xlabel("Distance [m]")
         ax.set_ylabel("Frequency [1/m]")
@@ -253,7 +260,8 @@ class AnalysisController(AnalysisControllerBase):
 
         im = ax.imshow(amplitudes_cut, aspect='auto', origin='lower',
                        extent=[bins[0], bins[-1], freqs_cut[0], freqs_cut[-1]],
-                       norm=matplotlib.colors.Normalize(vmin=vmin, vmax=vmax), cmap=settings.SPECTROGRAM_COLORMAP)
+                       norm=self.color_norm(amplitudes_cut, vmin, vmax),
+                       cmap=settings.SPECTROGRAM_COLORMAP)
 
         cbar = self.figure.colorbar(im, ax=ax, pad=0.2)
         unit = self.measurement.units[self.channel]
@@ -266,7 +274,10 @@ class AnalysisController(AnalysisControllerBase):
 
         secax = ax.twinx()
 
-        if self.window_type == "CD" or self.show_wavelength:
+        # With no machine speed to convert by, the Hz axis would read zero at
+        # every tick, so the wavelength axis is shown instead.
+        if (self.window_type == "CD" or self.show_wavelength
+                or not machine_speed_is_known(self.machine_speed)):
             def update_secax(*args):
                 primary_ticks = ax.get_yticks()
                 secax.set_yticks(primary_ticks)
@@ -275,7 +286,7 @@ class AnalysisController(AnalysisControllerBase):
                     wavelength_labels_cm_from_frequencies(secax.get_yticks()))
             secax.set_ylabel(f"Wavelength [cm]")
 
-        elif self.window_type == "MD" and machine_speed_is_known(self.machine_speed):
+        else:
             def update_secax(*args):
                 primary_ticks = ax.get_yticks()
                 secax.set_yticks(primary_ticks)
@@ -293,85 +304,12 @@ class AnalysisController(AnalysisControllerBase):
         ax.callbacks.connect('xlim_changed', update_secax)
         ax.figure.canvas.mpl_connect('resize_event', update_secax)
 
-        # Draw new lines and update frequency label
-        if self.selected_freqs:
-            ylim = ax.get_ylim()
+        if self.auto_detect_peaks:
+            self.detectPeaks()
 
-            if settings.MULTIPLE_SELECT_MODE:
-                cmap = plt.get_cmap('tab10')
-                color_cycle = [cmap(i) for i in range(max(len(self.selected_freqs), 1))]
+        self.drawSelectedFrequencies(ax)
+        self.drawPaperMachineElements(ax)
 
-                for i, selected_freq in enumerate(self.selected_freqs):
-                    selected_freq = self.snap_frequency_to_bin(selected_freq)
-                    if selected_freq is None:
-                        continue
-                    if (selected_freq > ylim[1]) or (selected_freq < ylim[0]):
-                        continue
-
-                    amplitude = self.get_frequency_amplitude(selected_freq)
-                    if amplitude is None:
-                        continue
-
-                    if self.window_type == "MD":
-                        label = f"{selected_freq:.2f} 1/m{hz_suffix(selected_freq, self.machine_speed)} λ = {100 * 1/selected_freq:.2f} cm A = {amplitude:.2f} {self.measurement.units[self.channel]}"
-                    else:
-                        label = f"{selected_freq:.2f} 1/m λ = {100 * 1/selected_freq:.2f} cm A = {amplitude:.2f} {self.measurement.units[self.channel]}"
-
-                    hl = ax.axhline(
-                        y=selected_freq,
-                        linestyle='--',
-                        alpha=0.6,
-                        color=color_cycle[i % len(color_cycle)],
-                        label=label,
-                    )
-                    self.current_hlines.append(hl)
-            else:
-                selected_freq = self.snap_frequency_to_bin(self.selected_freqs[-1])
-                if selected_freq is not None:
-                    self.selected_freqs[-1] = selected_freq
-
-                for i in range(1, settings.MAX_HARMONICS_DISPLAY):
-                    harmonic_freq = self.selected_freqs[-1] * i
-                    if (harmonic_freq > ylim[1]) or (harmonic_freq < ylim[0]):
-                        # Skip drawing the line if it is out of bounds
-                        continue
-
-                    amplitude = self.get_frequency_amplitude(self.selected_freqs[-1])
-                    if amplitude is None:
-                        continue
-
-                    if i == 1:
-                        if self.window_type == "MD":
-                            label = f"{self.selected_freqs[-1]:.2f} 1/m{hz_suffix(self.selected_freqs[-1], self.machine_speed)} λ = {100 * 1/self.selected_freqs[-1]:.2f} cm A = {amplitude:.2f} {self.measurement.units[self.channel]}"
-                        else:
-                            label = f"{self.selected_freqs[-1]:.2f} 1/m λ = {100 * 1/self.selected_freqs[-1]:.2f} cm A = {amplitude:.2f} {self.measurement.units[self.channel]}"
-                    else:
-                        label = None
-
-                    hl = ax.axhline(y=harmonic_freq,
-                                    color='r', linestyle='--', alpha=1 - (1/settings.MAX_HARMONICS_DISPLAY) * i, label=label)
-                    self.current_hlines.append(hl)
-
-        colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
-
-        for index, element in enumerate(self.selected_elements):
-            ylim = ax.get_ylim()
-            for i in range(1, settings.MAX_HARMONICS_DISPLAY):
-                f = element["spatial_frequency"]
-                if (f * i > ylim[1]) or (f * i < ylim[0]):
-                    # Skip drawing the line if it is out of bounds
-                    continue
-                label = element["name"] if (i == 1) else None
-                color_index = index % len(colors)
-                current_color = colors[color_index]
-
-                hlw = ax.axhline(y=f * i, color='white', linestyle='-',
-                                 alpha=0.8*(1-i*1/settings.MAX_HARMONICS_DISPLAY))
-                self.current_hlines.append(hlw)
-
-                hl = ax.axhline(y=f * i, linestyle='--', alpha=1 -
-                                (1/settings.MAX_HARMONICS_DISPLAY) * i, label=label, color=current_color)
-                self.current_hlines.append(hl)
         handles, labels = ax.get_legend_handles_labels()
         if labels:  # This list will be non-empty if there are items to include in the legend
             ax.legend(handles, labels, loc="upper right",
@@ -381,6 +319,20 @@ class AnalysisController(AnalysisControllerBase):
         self.updated.emit()
 
         return self.canvas
+
+    def color_norm(self, amplitudes, vmin, vmax):
+        """Linear by default; on the logarithmic scale the colours span a
+        fixed number of decades below the top of the scale, so the weak
+        periodic content and the noise floor stay visible beside a strong
+        peak. A spectrogram with no positive amplitude stays linear."""
+        if not self.log_scale or not vmax > 0:
+            return matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
+        positive = amplitudes[np.isfinite(amplitudes) & (amplitudes > 0)]
+        if positive.size == 0:
+            return matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
+        floor = max(float(positive.min()),
+                    vmax / 10 ** settings.SPECTROGRAM_LOG_SCALE_DECADES)
+        return matplotlib.colors.LogNorm(vmin=min(floor, vmax / 10), vmax=vmax)
 
     def get_color_limits(self, amplitudes):
         """Colour scale limits for the spectrogram image.
@@ -451,18 +403,21 @@ class AnalysisController(AnalysisControllerBase):
 
         return snapped
 
-    def get_freq_in_hz(self, freq_1m):
-        """Frequency in Hz, or None when no machine speed has been set."""
-        if not machine_speed_is_known(self.machine_speed):
-            return None
-        return freq_1m * self.machine_speed / 60
-
     def get_frequency_amplitude(self, freq):
         bin_index = self.get_nearest_frequency_bin_index(freq)
         if bin_index is None or not hasattr(self, "amplitudes") or len(self.amplitudes) == 0:
             return None
 
         return float(np.mean(self.amplitudes[bin_index, :]))
+
+    def mark_amplitude_at(self, freq):
+        return self.get_frequency_amplitude(freq)
+
+    def peak_amplitudes(self):
+        """Peaks are searched on the spectrum averaged along the sample."""
+        if self.amplitudes.size == 0:
+            return np.array([])
+        return np.mean(self.amplitudes, axis=1)
 
     def move_selected_frequency_by_bins(self, bin_step):
         if not self.selected_freqs:
@@ -477,7 +432,9 @@ class AnalysisController(AnalysisControllerBase):
         return True
 
 
-class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin, ChannelMixin, FrequencyRangeMixin, MachineSpeedMixin, SampleSelectMixin, SpectrumLengthMixin, ShowWavelengthMixin, CopyPlotMixin, ChildWindowCloseMixin):
+class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin, ChannelMixin, FrequencyRangeMixin, MachineSpeedMixin,
+                     SampleSelectMixin, SpectrumLengthMixin, ShowWavelengthMixin, CopyPlotMixin,
+                     FrequencyMarksControlsMixin, LogScaleMixin, ChildWindowCloseMixin):
 
     def __init__(self, controller: AnalysisController, window_type: AnalysisType = "MD"):
         super().__init__(controller, window_type)
@@ -609,7 +566,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.controlsPanel.addWidget(displayOptionsGroup)
         if self.controller.window_type == "MD":
             self.addShowWavelengthCheckbox(displayOptionsLayout)
-
+        self.addLogScaleCheckbox(displayOptionsLayout)
+        self.addFrequencyMarkControls(displayOptionsLayout)
 
         self.refineButton = QPushButton("Refine Frequency Selection")
         self.refineButton.clicked.connect(self.refineFrequency)
@@ -632,22 +590,23 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         # Matplotlib figure and canvas
         self.controller.addPlot(plotStatsLayout)
         self.controller.canvas.mpl_connect('button_press_event', self.onclick)
-        self.controller.canvas.mpl_connect('scroll_event', self.on_scroll)
+        self.connect_selection_stepping()
         self.controller.canvas.set_context_menu_actions_provider(
             self.contextMenuActions)
 
         self.refresh()
 
     def clearFrequency(self):
+        self.takeManualControl()
         self.controller.selected_freqs = []
-        self.selectedFrequencyLabel.setText(
-            f"Selected frequency:")
+        self.selectedFrequencyLabel.setText("Selected frequency: None")
         self.refresh()
 
     def refineFrequency(self):
         if not self.controller.selected_freqs:
             print("No selected frequency")
             return
+        self.takeManualControl()
 
         print("Original frequency: ", self.controller.selected_freqs[-1])
         d = self.measurement.channel_df[self.controller.channel][self.controller.low_index:self.controller.high_index]
@@ -683,7 +642,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
                 self.controller.selected_freqs[-1])
             return
         self.controller.selected_freqs[-1] = refined
-        self.refresh()
+        self.refresh(restore_lim=True)
 
     def select_frequency_at(self, ax, ydata):
         """Select the spectrogram row nearest to a position on the frequency axis.
@@ -706,7 +665,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         if snapped_frequency is None:
             return False
 
-        self.controller.selected_freqs.append(snapped_frequency)
+        self.record_selection(snapped_frequency)
         self.refresh(restore_lim=True)
         if self.sosAnalysisWindow:
             self.sosAnalysisWindow.refresh()
@@ -736,25 +695,6 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         if event.button == settings.FREQUENCY_SELECTOR_MOUSE_BUTTON:
             self.select_frequency_at(event.inaxes, event.ydata)
 
-    def on_scroll(self, event):
-        if self.is_navigation_mode_active():
-            return
-
-        if event.inaxes is None or event.button not in ("up", "down"):
-            return
-
-        if not self.controller.move_selected_frequency_by_bins(event.step):
-            return
-
-        self.refresh(restore_lim=True)
-        if self.sosAnalysisWindow:
-            self.sosAnalysisWindow.refresh()
-
-    def is_navigation_mode_active(self):
-        return bool(
-            self.controller.canvas.toolbar and self.controller.canvas.toolbar.mode
-        )
-
     def get_current_view_limits(self):
         if not self.controller.figure.axes:
             return None
@@ -777,6 +717,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.initChannelSelector(block_signals=True)
         self.initFrequencyRangeSlider(block_signals=True)
         self.initSpectrumLengthSlider(block_signals=True)
+        self.initLogScaleCheckbox(block_signals=True)
+        self.initFrequencyMarkControls(block_signals=True)
         if self.window_type == "MD":
             self.initShowWavelengthCheckbox(block_signals=True)
             self.initMachineSpeedSpinner(block_signals=True)
@@ -788,7 +730,9 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.refresh_widgets()
         machine_speed = self.controller.machine_speed
         selected_freqs = self.controller.selected_freqs
-        if selected_freqs and selected_freqs[-1] and np.isfinite(selected_freqs[-1]):
+        if not selected_freqs:
+            self.selectedFrequencyLabel.setText("Selected frequency: None")
+        elif selected_freqs[-1] and np.isfinite(selected_freqs[-1]):
             wavelength = 1 / selected_freqs[-1]
             if self.window_type == "MD":
                 self.selectedFrequencyLabel.setText(

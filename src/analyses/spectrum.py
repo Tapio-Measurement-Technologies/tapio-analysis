@@ -6,9 +6,8 @@ from utils.measurement import Measurement
 from utils.analysis import AnalysisControllerBase, AnalysisWindowBase, Analysis
 from utils.types import AnalysisType, PlotAnnotation
 from utils.signal_processing import (hs_units, safe_spectral_params,
-                                     interpolate_non_finite, frequency_refinement_range,
-                                     significant_peaks)
-import matplotlib.pyplot as plt
+                                     interpolate_non_finite, frequency_refinement_range)
+from utils.frequency_marks import FrequencyMarksMixin
 import matplotlib.patches as mpatches
 from matplotlib.ticker import AutoMinorLocator, LogLocator
 from utils.plot_formatting import (wavelength_labels_cm_from_frequencies,
@@ -23,9 +22,7 @@ from gui.components import (
     SpectrumLengthMixin,
     ShowWavelengthMixin,
     CopyPlotMixin,
-    AutoDetectPeaksMixin,
-    MultipleSelectMixin,
-    HarmonicsMixin,
+    FrequencyMarksControlsMixin,
     LogScaleMixin,
     ChildWindowCloseMixin,
     ExportMixin,
@@ -35,7 +32,6 @@ from gui.paper_machine_data import PaperMachineDataWindow
 import numpy as np
 import pandas as pd
 import settings
-import matplotlib.patheffects as path_effects
 from utils import store
 analysis_name = "Spectrum"
 analysis_types = ["MD", "CD"]
@@ -90,7 +86,7 @@ def tabular_legend(ax, col_labels, data, *args, **kwargs):
     return legend
 
 
-class AnalysisController(AnalysisControllerBase, ExportMixin):
+class AnalysisController(AnalysisControllerBase, FrequencyMarksMixin, ExportMixin):
     nperseg: float
     overlap: float
     frequency_range_low: float
@@ -147,7 +143,6 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         }
         config = spectrum_defaults[self.window_type]
         self.data = None
-        self.current_vlines = []
         self.spectral_window = settings.SPECTRUM_WELCH_WINDOW
 
         self.set_default('nperseg', config["nperseg"])
@@ -169,18 +164,11 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         self.set_default('analysis_range_high',
                          config["analysis_range_high"] * self.max_dist)
         self.set_default('machine_speed', settings.PAPER_MACHINE_SPEED_DEFAULT)
-        self.set_default('selected_elements', [])
         self.set_default('selected_samples',
                          self.measurement.selected_samples.copy())
-        self.set_default('selected_freqs', [])
         self.set_default('show_wavelength', settings.SHOW_WAVELENGTH_DEFAULT)
-        self.set_default('auto_detect_peaks',
-                         settings.AUTO_DETECT_PEAKS_DEFAULT)
-        self.set_default('multiple_select', settings.MULTIPLE_SELECT_MODE)
-        self.set_default('show_harmonics',
-                         settings.SPECTRUM_SHOW_HARMONICS_DEFAULT)
-        self.set_default('harmonics_count', settings.MAX_HARMONICS_DISPLAY)
         self.set_default('log_scale', config["log_scale"])
+        self.set_mark_defaults()
 
     def plot(self):
         if self.ax is not None and self.ax.get_yscale() == "log":
@@ -195,8 +183,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         self.frequencies = np.array([])
         self.amplitudes = np.array([])
         self.data = np.array([])
-        self.current_vlines = []
-        self.legend_data = []
+        self.reset_marks()
         ax.figure.set_constrained_layout(True)
         ax.set_xlabel("Frequency [1/m]")
         ax.set_ylabel(f"Amplitude [{self.measurement.units[self.channel]}]")
@@ -408,256 +395,6 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
         return self.canvas
 
-    def analysed_length(self):
-        """The length of data the spectrum was computed from, in metres."""
-        if self.window_type == "CD":
-            distances = self.measurement.cd_distances
-        else:
-            distances = self.measurement.distances
-        low = max(0, min(self.low_index, len(distances) - 1))
-        high = max(low, min(self.high_index, len(distances)) - 1)
-        return float(distances[high] - distances[low])
-
-    def peak_search_floor(self):
-        """The lowest frequency worth searching for a peak.
-
-        A periodicity the analysed length has not repeated a handful of times
-        is the record's own drift rather than a peak, and the DC bin leaks into
-        its first neighbours whatever the window. Both are below this.
-        """
-        floor = float(self.peak_detection_range_min)
-        length = self.analysed_length()
-        if length > 0:
-            floor = max(floor, settings.SPECTRUM_PEAK_DETECTION_MIN_CYCLES / length)
-        if len(self.frequencies) > 1:
-            bin_width = float(self.frequencies[1] - self.frequencies[0])
-            floor = max(floor, 3 * bin_width)
-        return floor
-
-    def standing_peaks(self, view=None):
-        """The peaks of the plotted spectrum that stand clear of its floor.
-
-        Searched between the peak detection range and, when given, the
-        visible ``view`` (a zoomed-in axis narrows the search to what is on
-        screen). Strongest first; every one of them in multiple selection
-        mode, only the strongest otherwise.
-        """
-        if len(self.frequencies) == 0:
-            return []
-        low = self.peak_search_floor()
-        high = float(self.peak_detection_range_max)
-        if view is not None:
-            low = max(low, float(view[0]))
-            high = min(high, float(view[1]))
-        count = settings.SPECTRUM_AUTO_DETECT_PEAKS if self.multiple_select else 1
-        return significant_peaks(
-            self.frequencies, self.amplitudes, count=count,
-            min_freq=low, max_freq=high,
-            threshold=settings.SPECTRUM_PEAK_DETECTION_THRESHOLD,
-            floor_bins=settings.SPECTRUM_PEAK_DETECTION_FLOOR_BINS)
-
-    def detectPeaks(self, view=None):
-        """Replace the selection with the strongest peaks of the spectrum."""
-        peaks = self.standing_peaks(view)
-        if not peaks:
-            logging.info("No peak in %s stands clear of the spectral floor "
-                         "in the searched range.", self.channel)
-        self.selected_freqs = [frequency for frequency, _ in peaks]
-        return self.selected_freqs
-
-    def harmonic_orders(self):
-        """The multiples of a frequency to mark: 1..N, or the fundamental only."""
-        if not self.show_harmonics:
-            return [1]
-        return list(range(1, 1 + max(1, int(self.harmonics_count))))
-
-    def harmonic_alpha(self, order):
-        """Harmonic lines fade with their order so the fundamental stands out.
-
-        Never fully transparent: the last harmonic of a long series is still a
-        line the user asked for.
-        """
-        count = len(self.harmonic_orders())
-        if count <= 1:
-            return 1.0
-        return max(0.25, 1 - (order - 1) / count)
-
-    def draw_harmonic_number(self, ax, frequency, order):
-        """The order of a harmonic, written just above the bottom of the axes.
-
-        Placed in axes coordinates so it sits at the same height whatever the
-        amplitude scale, and clipped so that a harmonic the user zooms past is
-        not drawn out in the figure margins.
-        """
-        txt = ax.text(frequency, 0.02, f"{order}",
-                      transform=ax.get_xaxis_transform(),
-                      ha='center', va='bottom', fontsize=8,
-                      color="tab:gray", alpha=0.8, clip_on=True)
-        txt.set_path_effects([
-            path_effects.Stroke(linewidth=2, foreground='white'),
-            path_effects.Normal()
-        ])
-        return txt
-
-    def legend_columns(self):
-        unit = self.measurement.units[self.channel]
-        columns = [f"A [{unit}]", "F [1/m]", "λ [cm]"]
-        if self.window_type == "MD" and machine_speed_is_known(self.machine_speed):
-            columns.append("F [Hz]")
-        return columns
-
-    def legend_row(self, freq, amplitude):
-        row = [f"{amplitude:.3f}", f"{freq:.2f}", f"{100 / freq:.1f}"]
-        if self.window_type == "MD" and machine_speed_is_known(self.machine_speed):
-            row.append(f"{self.get_freq_in_hz(freq):.2f}")
-        return row
-
-    def describe_frequency(self, freq, amplitude, name=None, symbols=True):
-        """One selected or element frequency in every unit the window shows.
-
-        ``symbols=False`` spells the wavelength out, for a console that is not
-        UTF-8 and would refuse the Greek letter.
-        """
-        text = f"{freq:.2f} 1/m"
-        if self.window_type == "MD":
-            text += hz_suffix(freq, self.machine_speed)
-        text += f" {'λ' if symbols else 'lambda'} = {100 / freq:.1f} cm"
-        if amplitude is not None:
-            text += f" A = {amplitude:.2f} {self.measurement.units[self.channel]}"
-        return f"{name}: {text}" if name else text
-
-    def drawn_selected_freqs(self):
-        """Every selection in multiple selection mode, else the latest one."""
-        freqs = [freq for freq in self.selected_freqs
-                 if freq is not None and np.isfinite(freq) and freq > 0]
-        if not freqs:
-            return []
-        return freqs if self.multiple_select else freqs[-1:]
-
-    def drawSelectedFrequencies(self, ax):
-        """Mark the selected frequencies, each with its harmonics.
-
-        Single and multiple selection draw the same thing per frequency; they
-        differ only in how many frequencies are drawn and in their colours. A
-        selection is not snapped here: snapping happens on the click, so the
-        sub-bin value produced by Refine survives the redraw.
-        """
-        freqs = self.drawn_selected_freqs()
-        if not freqs:
-            return
-
-        xlim = ax.get_xlim()
-        palette = plt.get_cmap('tab10')
-        for index, selected_freq in enumerate(freqs):
-            color = palette(index % 10) if self.multiple_select else 'r'
-            amplitude = self.get_spectrum_amplitude_at(selected_freq)
-            if amplitude is None:
-                continue
-
-            label = self.describe_frequency(selected_freq, amplitude)
-            logging.info("Spectral peak in %s: %s", self.channel,
-                         self.describe_frequency(selected_freq, amplitude, symbols=False))
-            self.legend_data.append(self.legend_row(selected_freq, amplitude))
-
-            for order in self.harmonic_orders():
-                harmonic = selected_freq * order
-                if (harmonic > xlim[1]) or (harmonic < xlim[0]):
-                    continue
-
-                alpha = self.harmonic_alpha(order)
-                vl = ax.axvline(x=harmonic,
-                                color=color,
-                                linestyle='--',
-                                alpha=alpha,
-                                label=label if order == 1 else None)
-                self.current_vlines.append(vl)
-
-                harmonic_amp = self.get_spectrum_amplitude_at(harmonic)
-                if harmonic_amp is not None:
-                    ax.scatter([harmonic], [harmonic_amp], s=12, color=color,
-                               alpha=alpha, zorder=5)
-
-                if self.show_harmonics and settings.SPECTRUM_SHOW_HARMONICS_NUMBERS:
-                    self.draw_harmonic_number(ax, harmonic, order)
-
-    def element_groups(self):
-        """The checked elements by frequency, coincident ones together.
-
-        A headbox slice and a calender roll can both be at 14.7 cm; drawing
-        two lines on top of each other says nothing more than one line with
-        both names on it. Returns ``(frequency, [names])`` pairs, ascending.
-        """
-        tolerance = settings.SPECTRUM_ELEMENT_GROUP_TOLERANCE
-        elements = sorted(
-            (element for element in self.selected_elements
-             if element.get("spatial_frequency")),
-            key=lambda element: element["spatial_frequency"])
-        groups = []
-        for element in elements:
-            freq = float(element["spatial_frequency"])
-            name = element.get("name", "Element")
-            if groups and abs(freq - groups[-1][0]) <= tolerance * freq:
-                groups[-1][1].append(name)
-            else:
-                groups.append((freq, [name]))
-        return groups
-
-    def element_label(self, freq, names):
-        """What the line of an element says: who it is, and where."""
-        text = f"{' / '.join(names)}, λ = {100 / freq:.1f} cm"
-        if self.window_type == "MD":
-            text += hz_suffix(freq, self.machine_speed, template=", {:.2f} Hz")
-        return text
-
-    def drawPaperMachineElements(self, ax):
-        """Mark the elements checked in the Paper machine data window.
-
-        Drawn the way the report figures draw them: a thin dotted line in a
-        muted colour, named by a label standing along the top of the plot,
-        so the element reads as a reference the spectrum is checked against
-        rather than as a curve of its own. The harmonics follow the "Show
-        harmonics" controls and fade with their order, numbered at the top
-        so they do not collide with the numbers of the selection below.
-        """
-        groups = self.element_groups()
-        if not groups:
-            return
-
-        color = settings.SPECTRUM_ELEMENT_COLOR
-        xlim = ax.get_xlim()
-        for freq, names in groups:
-            for order in self.harmonic_orders():
-                harmonic = freq * order
-                if (harmonic > xlim[1]) or (harmonic < xlim[0]):
-                    continue
-                alpha = self.harmonic_alpha(order)
-                vl = ax.axvline(x=harmonic, color=color, linewidth=0.7,
-                                linestyle=(0, (3, 3)), alpha=alpha, zorder=1)
-                self.current_vlines.append(vl)
-
-                if order == 1:
-                    txt = ax.text(harmonic, 1.0, f" {self.element_label(freq, names)}",
-                                  transform=ax.get_xaxis_transform(),
-                                  rotation=90, va='top', ha='left', fontsize=8,
-                                  color=color, clip_on=True, zorder=4)
-                elif self.show_harmonics and settings.SPECTRUM_SHOW_HARMONICS_NUMBERS:
-                    txt = ax.text(harmonic, 0.98, f"{order}",
-                                  transform=ax.get_xaxis_transform(),
-                                  ha='center', va='top', fontsize=8,
-                                  color=color, alpha=max(alpha, 0.6), clip_on=True)
-                else:
-                    continue
-                txt.set_path_effects([
-                    path_effects.Stroke(linewidth=2, foreground='white'),
-                    path_effects.Normal()
-                ])
-
-    def get_freq_in_hz(self, freq_1m):
-        """Frequency in Hz, or None when no machine speed has been set."""
-        if not machine_speed_is_known(self.machine_speed):
-            return None
-        return freq_1m * self.machine_speed / 60
-
     def get_nearest_frequency_bin_index(self, freq):
         if freq is None or not hasattr(self, "frequencies") or len(self.frequencies) == 0:
             return None
@@ -692,6 +429,9 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             return None
 
         return float(np.interp(freq, self.frequencies, self.amplitudes))
+
+    def mark_amplitude_at(self, freq):
+        return self.get_spectrum_amplitude_at(freq)
 
     def move_selected_frequency_by_bins(self, bin_step):
         if not self.selected_freqs:
@@ -756,8 +496,8 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
 
 class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin, ChannelMixin, FrequencyRangeMixin, MachineSpeedMixin,
-                     SampleSelectMixin, SpectrumLengthMixin, ShowWavelengthMixin, CopyPlotMixin, AutoDetectPeaksMixin,
-                     MultipleSelectMixin, HarmonicsMixin, LogScaleMixin, ChildWindowCloseMixin):
+                     SampleSelectMixin, SpectrumLengthMixin, ShowWavelengthMixin, CopyPlotMixin,
+                     FrequencyMarksControlsMixin, LogScaleMixin, ChildWindowCloseMixin):
 
     def __init__(self, controller: AnalysisController, window_type: AnalysisType = "MD"):
         super().__init__(controller, window_type)
@@ -890,19 +630,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         if self.controller.window_type == "MD":
             self.addShowWavelengthCheckbox(displayOptionsLayout)
         self.addLogScaleCheckbox(displayOptionsLayout)
-        self.addMultipleSelectCheckbox(displayOptionsLayout)
-        self.addHarmonicsControls(displayOptionsLayout)
-
-        self.addAutoDetectPeaksCheckbox(displayOptionsLayout)
-
-        self.detectPeaksButton = QPushButton("Auto detect peaks")
-        self.detectPeaksButton.setToolTip(
-            "Select the strongest peak of the visible spectrum, or the "
-            "strongest few in multiple selection mode. Peaks that do not stand "
-            "clear of the surrounding level, and the low frequency hump, are "
-            "skipped.")
-        self.detectPeaksButton.clicked.connect(self.autoDetectPeaks)
-        displayOptionsLayout.addWidget(self.detectPeaksButton)
+        self.addFrequencyMarkControls(displayOptionsLayout)
 
         self.refineButton = QPushButton("Refine Frequency Selection")
         self.refineButton.clicked.connect(self.refineFrequency)
@@ -924,33 +652,11 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         # Matplotlib figure and canvas
         self.controller.addPlot(plotStatsLayout)
         self.controller.canvas.mpl_connect('button_press_event', self.onclick)
-        self.controller.canvas.mpl_connect('scroll_event', self.on_scroll)
+        self.connect_selection_stepping()
         self.controller.canvas.set_context_menu_actions_provider(
             self.contextMenuActions)
 
         self.refresh()
-
-    def takeManualControl(self):
-        """Stop re-detecting peaks once the user has picked a frequency.
-
-        Detection runs on every recompute, so without this a click, a scroll or
-        a refinement would be overwritten by the next redraw. Unticking the box
-        rather than silently ignoring it keeps the reason visible on screen.
-        """
-        if self.controller.auto_detect_peaks:
-            self.controller.auto_detect_peaks = False
-
-    def autoDetectPeaks(self):
-        """One-off detection on what is on screen: the zoom is the search range."""
-        self.takeManualControl()
-        view = self.controller.ax.get_xlim() if self.controller.ax else None
-        if not self.controller.detectPeaks(view):
-            logging.warning("No peak stands clear of the spectral floor in the "
-                            "visible range. Zoom in on the peak, or select it "
-                            "with the middle mouse button.")
-        self.refresh(restore_lim=True)
-        if self.sosAnalysisWindow:
-            self.sosAnalysisWindow.refresh()
 
     def clearFrequency(self):
         self.takeManualControl()
@@ -1022,11 +728,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         if snapped_frequency is None:
             return False
 
-        self.takeManualControl()
-        if self.controller.multiple_select:
-            self.controller.selected_freqs.append(snapped_frequency)
-        else:
-            self.controller.selected_freqs = [snapped_frequency]
+        self.record_selection(snapped_frequency)
         self.refresh(restore_lim=True)
         if self.sosAnalysisWindow:
             self.sosAnalysisWindow.refresh()
@@ -1056,26 +758,6 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
             # remains active.
             self.select_frequency_at(event.inaxes, event.xdata)
 
-    def on_scroll(self, event):
-        if self.is_navigation_mode_active():
-            return
-
-        if event.inaxes is None or event.button not in ("up", "down"):
-            return
-
-        if not self.controller.move_selected_frequency_by_bins(event.step):
-            return
-
-        self.takeManualControl()
-        self.refresh(restore_lim=True)
-        if self.sosAnalysisWindow:
-            self.sosAnalysisWindow.refresh()
-
-    def is_navigation_mode_active(self):
-        return bool(
-            self.controller.canvas.toolbar and self.controller.canvas.toolbar.mode
-        )
-
     def get_current_view_limits(self):
         if not self.controller.figure.axes:
             return None
@@ -1098,10 +780,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.initChannelSelector(block_signals=True)
         self.initFrequencyRangeSlider(block_signals=True)
         self.initSpectrumLengthSlider(block_signals=True)
-        self.initAutoDetectPeaksCheckbox(block_signals=True)
         self.initLogScaleCheckbox(block_signals=True)
-        self.initMultipleSelectCheckbox(block_signals=True)
-        self.initHarmonicsControls(block_signals=True)
+        self.initFrequencyMarkControls(block_signals=True)
         if self.window_type == "MD":
             self.initShowWavelengthCheckbox(block_signals=True)
             self.initMachineSpeedSpinner(block_signals=True)

@@ -150,7 +150,7 @@ The old calculated channels from **WinTapio** do not work in **Tapio Analysis**.
 
 ### Spectrum
 - Identify frequencies and amplitudes of periodic components in the data, visualize the known rotating frequencies of components in the production line.
-- **Use the middle mouse button to select a frequency**.
+- **Use the middle mouse button to select a frequency**. The mouse wheel over the plot steps the selected frequency one bin at a time.
 - By default a new selection replaces the previous one. Tick **Multiple selection** to keep every selected frequency, each in its own colour; the legend lists all of them. The default comes from the `MULTIPLE_SELECT_MODE` setting.
 - **Logarithmic scale** draws the amplitude axis on a logarithmic scale, so weak peaks and the noise floor stay visible beside a strong peak. The `MD_SPECTRUM_LOGARITHMIC_SCALE` and `CD_SPECTRUM_LOGARITHMIC_SCALE` settings set the default.
 - Use the refine button to do fundamental frequency estimation (spectrum peak detection) in frequencies near the selected frequency. The refine button will adjust the selected frequency.
@@ -178,6 +178,8 @@ It is typical for rotating elements to cause peaks in the spectrum at integer mu
 
 
 ### Spectrogram
+- The frequency selection (middle mouse button, mouse wheel), **Multiple selection**, **Show harmonics**, **Auto detect peaks** and the paper machine elements work as in the spectrum.
+- **Logarithmic scale** puts the colour scale on a logarithmic scale spanning a few decades below its top (the `SPECTROGRAM_LOGARITHMIC_SCALE` and `SPECTROGRAM_LOG_SCALE_DECADES` settings), so weak periodic content and the noise floor stay visible beside a strong peak.
 - Investigate the frequencies and amplitudes of periodic components in the data over time or the length of the sample.
 - Visualize the known rotating frequencies of components (rolls, wires, felts, pumps, etc.) in the production line.
 - Use the refine button to do fundamental frequency estimation (spectrum peak detection) in frequencies near the selected frequency. The refine button will adjust the selected frequency.
@@ -224,9 +226,11 @@ The table is the length side of the answer: every number is absolute, measured a
 A floc is a few millimetres long, so a measurement whose step is coarser than that cannot resolve one. On the same reel measured both ways, a 0.8 mm step gives a mean floc length of 3.4 mm over a full distribution, while a 12.8 mm step gives 20.2 mm - which is not a floc size but 1.6 sample steps, because at that resolution nearly every floc is one or two samples long and only three or four bins are ever occupied. The coarse measurement also understates the coverage, since a 12.8 mm sensor spot averages away the short excursions the threshold is looking for. Use a high resolution measurement for this analysis, and the long ones for spectra and roll periodicity.
 
 ### Coherence
+- The frequency selection (middle mouse button, mouse wheel), **Multiple selection**, **Show harmonics**, **Auto detect peaks** and the paper machine elements work as in the spectrum.
 - Investigate if different channels have the same spectral content.
 
 ### Cepstrum
+- The frequency selection (middle mouse button, mouse wheel), **Multiple selection**, **Show harmonics**, **Auto detect peaks** and the paper machine elements work as in the spectrum.
 - Find the *period* of a whole harmonic family at once. Where the spectrum shows a rotating element as a fundamental plus a row of harmonics, the cepstrum collapses that row into a single peak, which makes a weak but clearly harmonic element easier to spot than it is in the spectrum.
 - The cepstrum is the inverse transform of the log of the (Welch averaged) spectrum. What it natively produces is a **quefrency**: a length, the period of the harmonic family. It is plotted against the frequency that period corresponds to, so **a cepstrum peak sits on the same x position as the fundamental it explains in the spectrum** and the two plots can be read against each other directly.
 - The axes therefore work exactly as in the spectrum: frequency in 1/m along the bottom, and Hz at the current machine speed along the top, switchable to wavelength in cm with the `Wavelength labels` checkbox. The selection label, legend, statistics table and export all give the family base as 1/m, Hz, cm and m.
@@ -270,6 +274,7 @@ The cepstrum resolves a constant step in *period* - one sampling interval. Expre
 - `View -> Paper machine data` can be used to open the paper machine file to visualize the components on top of the spectrum.
 
 ### CD Spectrogram
+- The frequency selection (middle mouse button, mouse wheel), **Multiple selection**, **Show harmonics**, **Auto detect peaks** and the paper machine elements work as in the spectrum.
 - Investigate the wavelengths and amplitudes of periodic components in the CD data over the length of the samples.
 - **Use the middle mouse button to select a frequency**.
 - Use the refine button to do fundamental frequency estimation (spectrum peak detection) in frequencies near the selected frequency. The refine button will adjust the selected frequency.
@@ -290,6 +295,7 @@ The cepstrum resolves a constant step in *period* - one sampling interval. Expre
 - Use `View -> Select samples` to choose which samples are included.
 
 ### CD Coherence
+- The frequency selection (middle mouse button, mouse wheel), **Multiple selection**, **Show harmonics**, **Auto detect peaks** and the paper machine elements work as in the spectrum.
 - Investigate if different channels have the same spectral content.
 
 

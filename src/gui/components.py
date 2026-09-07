@@ -750,6 +750,95 @@ class HarmonicsMixin:
         self.refresh(restore_lim=True)
 
 
+class FrequencyMarksControlsMixin(MultipleSelectMixin, HarmonicsMixin,
+                                  AutoDetectPeaksMixin):
+    """The selection controls every spectral window shares.
+
+    Pairs with ``utils.frequency_marks.FrequencyMarksMixin`` on the controller:
+    the checkboxes here set the attributes that mixin draws from, and the
+    selection helpers here keep the four windows behaving the same way.
+    """
+
+    def addFrequencyMarkControls(self, layout):
+        self.addMultipleSelectCheckbox(layout)
+        self.addHarmonicsControls(layout)
+        self.addAutoDetectPeaksCheckbox(layout)
+
+        self.detectPeaksButton = QPushButton("Auto detect peaks")
+        self.detectPeaksButton.setToolTip(
+            "Select the strongest peak on screen, or the strongest few in "
+            "multiple selection mode. Peaks that do not stand clear of the "
+            "surrounding level, and the low frequency hump, are skipped.")
+        self.detectPeaksButton.clicked.connect(self.autoDetectPeaks)
+        layout.addWidget(self.detectPeaksButton)
+
+    def initFrequencyMarkControls(self, block_signals=True):
+        self.initAutoDetectPeaksCheckbox(block_signals=block_signals)
+        self.initMultipleSelectCheckbox(block_signals=block_signals)
+        self.initHarmonicsControls(block_signals=block_signals)
+
+    def takeManualControl(self):
+        """Stop re-detecting peaks once the user has picked a frequency.
+
+        Detection runs on every recompute, so without this a click, a scroll or
+        a refinement would be overwritten by the next redraw. Unticking the box
+        rather than silently ignoring it keeps the reason visible on screen.
+        """
+        if self.controller.auto_detect_peaks:
+            self.controller.auto_detect_peaks = False
+
+    def record_selection(self, frequency):
+        """A new selection adds to the others or replaces them, by mode."""
+        self.takeManualControl()
+        if self.controller.multiple_select:
+            self.controller.selected_freqs.append(frequency)
+        else:
+            self.controller.selected_freqs = [frequency]
+
+    def refresh_dependent_windows(self):
+        sos_window = getattr(self, "sosAnalysisWindow", None)
+        if sos_window:
+            sos_window.refresh()
+
+    def autoDetectPeaks(self):
+        """One-off detection on what is on screen: the zoom is the search range."""
+        self.takeManualControl()
+        ax = self.controller.ax
+        view = self.controller.selection_view(ax) if ax is not None else None
+        if not self.controller.detectPeaks(view):
+            logging.warning("No peak stands clear of the floor in the visible "
+                            "range. Zoom in on the peak, or select it with the "
+                            "middle mouse button.")
+        self.refresh(restore_lim=True)
+        self.refresh_dependent_windows()
+
+    # ---- stepping the selection: the mouse wheel ---------------------------
+    def connect_selection_stepping(self):
+        """Call once the canvas exists."""
+        self.controller.canvas.mpl_connect('scroll_event', self.on_scroll)
+
+    def is_navigation_mode_active(self):
+        return bool(
+            self.controller.canvas.toolbar and self.controller.canvas.toolbar.mode
+        )
+
+    def step_selected_frequency(self, step):
+        """Move the latest selection ``step`` bins; positive is up in frequency."""
+        if not self.controller.move_selected_frequency_by_bins(step):
+            return False
+        self.takeManualControl()
+        self.refresh(restore_lim=True)
+        self.refresh_dependent_windows()
+        return True
+
+    def on_scroll(self, event):
+        if self.is_navigation_mode_active():
+            return
+        if event.inaxes is None or event.button not in ("up", "down"):
+            return
+        self.step_selected_frequency(event.step)
+
+
 class ShowProfilesMixin:
 
     def initShowProfilesCheckbox(self, block_signals=False):
