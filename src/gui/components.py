@@ -659,6 +659,29 @@ class AutoDetectPeaksMixin:
         self.refresh()
 
 
+class LogScaleMixin:
+    """"Logarithmic scale": the amplitude axis of a spectrum."""
+
+    def initLogScaleCheckbox(self, block_signals=False):
+        self.logScaleCheckbox.blockSignals(block_signals)
+        self.logScaleCheckbox.setChecked(self.controller.log_scale)
+        self.logScaleCheckbox.blockSignals(False)
+
+    def addLogScaleCheckbox(self, layout):
+        self.logScaleCheckbox = QCheckBox("Logarithmic scale", self)
+        self.logScaleCheckbox.setToolTip(
+            "Draw the amplitude axis on a logarithmic scale, so weak peaks "
+            "and the noise floor stay visible beside a strong one")
+        self.initLogScaleCheckbox()
+        self.logScaleCheckbox.stateChanged.connect(self.update_log_scale)
+        layout.addWidget(self.logScaleCheckbox)
+
+    def update_log_scale(self):
+        self.controller.log_scale = self.logScaleCheckbox.isChecked()
+        # The y limits of the other scale are meaningless on this one.
+        self.refresh()
+
+
 class MultipleSelectMixin:
     """"Multiple selection": whether a new frequency selection adds to the
     previous ones or replaces them."""

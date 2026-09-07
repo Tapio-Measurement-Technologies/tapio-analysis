@@ -182,3 +182,39 @@ def test_selection_settings_are_saved_with_the_analysis(qt_app):
     assert attributes["multiple_select"] is True
     assert attributes["show_harmonics"] is False
     assert attributes["harmonics_count"] == 4
+
+
+def test_log_scale_default_comes_from_the_window_type_setting(qt_app, monkeypatch):
+    monkeypatch.setattr(settings, "MD_SPECTRUM_LOGARITHMIC_SCALE", True)
+    controller = spectrum_controller()
+
+    assert controller.log_scale is True
+    assert controller.ax.get_yscale() == "log"
+
+
+def test_log_scale_checkbox_switches_the_amplitude_axis(qt_app):
+    controller = spectrum_controller(log_scale=False, selected_freqs=[F1])
+    window = spectrum.AnalysisWindow(controller, "MD")
+    assert controller.ax.get_yscale() == "linear"
+
+    window.logScaleCheckbox.setChecked(True)
+
+    assert controller.log_scale is True
+    assert controller.ax.get_yscale() == "log"
+    assert controller.export_attributes()["log_scale"] is True
+    # The selection and its harmonics are still drawn on the new scale.
+    assert drawn_frequencies(controller)[0] == pytest.approx(F1)
+
+    window.logScaleCheckbox.setChecked(False)
+    assert controller.ax.get_yscale() == "linear"
+
+
+def test_log_scale_falls_back_to_linear_for_a_flat_channel(qt_app):
+    measurement = md_measurement({"BW": np.full(100000, 100.0)})
+    controller = spectrum.AnalysisController(measurement, "MD")
+    controller.nperseg = NPERSEG
+    controller.auto_detect_peaks = False
+    controller.log_scale = True
+    controller.plot()
+
+    assert controller.ax.get_yscale() == "linear"

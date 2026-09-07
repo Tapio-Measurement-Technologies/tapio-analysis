@@ -26,6 +26,7 @@ from gui.components import (
     AutoDetectPeaksMixin,
     MultipleSelectMixin,
     HarmonicsMixin,
+    LogScaleMixin,
     ChildWindowCloseMixin,
     ExportMixin,
     ControlsPanelWidget
@@ -109,6 +110,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
     multiple_select: bool
     show_harmonics: bool
     harmonics_count: int
+    log_scale: bool
 
     def __init__(self, measurement: Measurement, window_type: AnalysisType = "MD", annotations: list[PlotAnnotation] = [], attributes: dict = {}):
         super().__init__(measurement, window_type, annotations, attributes)
@@ -126,7 +128,8 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 "analysis_range_high": settings.MD_SPECTRUM_ANALYSIS_RANGE_HIGH_DEFAULT,
                 "overlap": settings.MD_SPECTRUM_OVERLAP,
                 "spectrum_length_slider_min": settings.MD_SPECTRUM_LENGTH_SLIDER_MIN,
-                "spectrum_length_slider_max": settings.MD_SPECTRUM_LENGTH_SLIDER_MAX
+                "spectrum_length_slider_max": settings.MD_SPECTRUM_LENGTH_SLIDER_MAX,
+                "log_scale": settings.MD_SPECTRUM_LOGARITHMIC_SCALE
             },
             "CD": {
                 "nperseg": settings.CD_SPECTRUM_DEFAULT_LENGTH,
@@ -138,7 +141,8 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                 "analysis_range_high": settings.CD_SPECTRUM_ANALYSIS_RANGE_HIGH_DEFAULT,
                 "overlap": settings.CD_SPECTRUM_OVERLAP,
                 "spectrum_length_slider_min": settings.CD_SPECTRUM_LENGTH_SLIDER_MIN,
-                "spectrum_length_slider_max": settings.CD_SPECTRUM_LENGTH_SLIDER_MAX
+                "spectrum_length_slider_max": settings.CD_SPECTRUM_LENGTH_SLIDER_MAX,
+                "log_scale": settings.CD_SPECTRUM_LOGARITHMIC_SCALE
             }
         }
         config = spectrum_defaults[self.window_type]
@@ -176,6 +180,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         self.set_default('show_harmonics',
                          settings.SPECTRUM_SHOW_HARMONICS_DEFAULT)
         self.set_default('harmonics_count', settings.MAX_HARMONICS_DISPLAY)
+        self.set_default('log_scale', config["log_scale"])
 
     def plot(self):
         self.figure.clear()
@@ -330,14 +335,9 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
         ax.plot(self.frequencies, self.amplitudes)
 
-        # Window-type log scale settings
-        log_scale = False
-        if self.window_type == "MD":
-            log_scale = settings.MD_SPECTRUM_LOGARITHMIC_SCALE
-        elif self.window_type == "CD":
-            log_scale = settings.CD_SPECTRUM_LOGARITHMIC_SCALE
-
-        if log_scale:
+        # A flat channel has no positive amplitude anywhere, and a log axis
+        # cannot show it. The linear axis at least shows that it is flat.
+        if self.log_scale and np.any(self.amplitudes > 0):
             ax.set_yscale("log")
             ax.yaxis.set_major_locator(LogLocator(
                 base=10.0, subs=np.arange(1.0, 10.0) * 0.1, numticks=10))
@@ -702,7 +702,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
 
 class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin, ChannelMixin, FrequencyRangeMixin, MachineSpeedMixin,
                      SampleSelectMixin, SpectrumLengthMixin, ShowWavelengthMixin, CopyPlotMixin, AutoDetectPeaksMixin,
-                     MultipleSelectMixin, HarmonicsMixin, ChildWindowCloseMixin):
+                     MultipleSelectMixin, HarmonicsMixin, LogScaleMixin, ChildWindowCloseMixin):
 
     def __init__(self, controller: AnalysisController, window_type: AnalysisType = "MD"):
         super().__init__(controller, window_type)
@@ -834,6 +834,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
 
         if self.controller.window_type == "MD":
             self.addShowWavelengthCheckbox(displayOptionsLayout)
+        self.addLogScaleCheckbox(displayOptionsLayout)
         self.addMultipleSelectCheckbox(displayOptionsLayout)
         self.addHarmonicsControls(displayOptionsLayout)
 
@@ -1043,6 +1044,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.initFrequencyRangeSlider(block_signals=True)
         self.initSpectrumLengthSlider(block_signals=True)
         self.initAutoDetectPeaksCheckbox(block_signals=True)
+        self.initLogScaleCheckbox(block_signals=True)
         self.initMultipleSelectCheckbox(block_signals=True)
         self.initHarmonicsControls(block_signals=True)
         if self.window_type == "MD":

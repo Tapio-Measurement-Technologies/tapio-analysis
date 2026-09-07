@@ -490,6 +490,7 @@ ANALYSIS_EXPORT_ATTRIBUTES = [
     "multiple_select",
     "show_harmonics",
     "harmonics_count",
+    "log_scale",
     "nperseg",
     "overlap",
     "machine_speed",
@@ -622,6 +623,8 @@ SPECTRUM_PEAK_DETECTION_FLOOR_BINS = 81
 SPECTRUM_PEAK_DETECTION_MIN_CYCLES = 10
 SPECTRUM_AUTO_DETECT_PEAKS = 5
 
+# Whether the Spectrum window opens with a logarithmic amplitude axis. The
+# window has a "Logarithmic scale" checkbox that starts from these.
 CD_SPECTRUM_LOGARITHMIC_SCALE = False
 MD_SPECTRUM_LOGARITHMIC_SCALE = False
 
