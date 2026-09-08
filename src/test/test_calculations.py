@@ -685,7 +685,8 @@ def test_cepstrum_reports_the_family_in_every_unit(qt_app):
     """The harmonic series base has to be readable as 1/m, Hz, cm and m."""
     measurement = harmonic_series_measurement()
 
-    controller = cepstrum_controller(measurement, machine_speed=600.0)
+    controller = cepstrum_controller(measurement, machine_speed=600.0,
+                                     show_frequency_in_hz=True)
     controller.plot()
 
     frequency = 0.5
@@ -705,6 +706,7 @@ def test_cepstrum_stats_table_lists_the_selection(qt_app):
     measurement = harmonic_series_measurement()
 
     controller = cepstrum_controller(measurement, machine_speed=600.0,
+                                     show_frequency_in_hz=True,
                                      auto_detect_peaks=True)
     controller.plot()
 

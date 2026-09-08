@@ -9,6 +9,8 @@ blank, so the Hz reading is left out entirely instead.
 import numpy as np
 import pytest
 
+from PyQt6.QtWidgets import QLabel
+
 from gui.paper_machine_data import PaperMachineDataWindow
 from utils.measurement import Measurement
 from utils.plot_formatting import (frequency_in_hz, hz_suffix,
@@ -93,3 +95,19 @@ def test_pm_window_renders_with_a_zero_speed(qt_app):
     labels = [box.text() for box in window.checkboxes]
     assert labels == ["Roll"]
     assert not any("Hz" in box.text() for box in window.checkboxes)
+def _pm_labels(window):
+    return [label.text() for label in window.findChildren(QLabel)]
+
+
+@pytest.mark.parametrize("show_frequency_in_hz", [False, True])
+def test_pm_window_writes_hz_only_when_the_option_is_on(qt_app, show_frequency_in_hz):
+    """The element list follows the spectral window's "Show frequencies in Hz",
+    so the element and the line it draws on the plot read the same way."""
+    window = _pm_window(qt_app, [{"name": "Fan pump", "frequency": 24.0}])
+
+    window.refresh_pm_data(1600, None, show_frequency_in_hz)
+
+    labels = _pm_labels(window)
+    assert labels  # the element is placeable at this speed
+    assert any("24.00 Hz" in text for text in labels) is show_frequency_in_hz
+    assert all("1/m" in text and "λ" in text for text in labels)

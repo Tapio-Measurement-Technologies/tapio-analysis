@@ -40,6 +40,8 @@ class FrequencyMarksMixin:
         self.set_default('selected_elements', [])
         self.set_default('selected_freqs', [])
         self.set_default('auto_detect_peaks', settings.AUTO_DETECT_PEAKS_DEFAULT)
+        self.set_default('show_frequency_in_hz',
+                         settings.SHOW_FREQUENCY_IN_HZ_DEFAULT)
         self.set_default('multiple_select', settings.MULTIPLE_SELECT_MODE)
         self.set_default('show_harmonics',
                          settings.SPECTRUM_SHOW_HARMONICS_DEFAULT)
@@ -74,6 +76,27 @@ class FrequencyMarksMixin:
         if not machine_speed_is_known(self.machine_speed):
             return None
         return freq_1m * self.machine_speed / 60
+
+    def hz_readings_shown(self):
+        """Whether the window writes its frequencies in Hz as well as in 1/m.
+
+        A spatial frequency becomes a machine frequency only through the speed
+        the sample ran at, so the reading needs an MD window and a known speed -
+        and, on top of both, the reader asking for it with "Show frequencies in
+        Hz". The speed spinner starts from a configured default rather than
+        from the measurement, so a sample measured off the machine, or one whose
+        reel speed was never entered, would otherwise carry a confident looking
+        Hz figure it never had.
+        """
+        return (self.window_type == "MD"
+                and bool(self.show_frequency_in_hz)
+                and machine_speed_is_known(self.machine_speed))
+
+    def hz_suffix_for(self, freq, template=" ({:.2f} Hz)"):
+        """The Hz reading to append to a label, or "" where it is not shown."""
+        if not self.hz_readings_shown():
+            return ""
+        return hz_suffix(freq, self.machine_speed, template)
 
     def analysed_length(self):
         """The length of data the plot was computed from, in metres."""
@@ -169,8 +192,7 @@ class FrequencyMarksMixin:
         UTF-8 and would refuse the Greek letter.
         """
         text = f"{freq:.2f} 1/m"
-        if self.window_type == "MD":
-            text += hz_suffix(freq, self.machine_speed)
+        text += self.hz_suffix_for(freq)
         text += f" {'λ' if symbols else 'lambda'} = {100 / freq:.1f} cm"
         if amplitude is not None:
             unit = self.amplitude_unit()
@@ -183,13 +205,13 @@ class FrequencyMarksMixin:
         unit = self.amplitude_unit()
         amplitude = f"{self.amplitude_symbol} [{unit}]" if unit else self.amplitude_symbol
         columns = [amplitude, "F [1/m]", "λ [cm]"]
-        if self.window_type == "MD" and machine_speed_is_known(self.machine_speed):
+        if self.hz_readings_shown():
             columns.append("F [Hz]")
         return columns
 
     def legend_row(self, freq, amplitude):
         row = [f"{amplitude:.3f}", f"{freq:.2f}", f"{100 / freq:.1f}"]
-        if self.window_type == "MD" and machine_speed_is_known(self.machine_speed):
+        if self.hz_readings_shown():
             row.append(f"{self.get_freq_in_hz(freq):.2f}")
         return row
 
@@ -270,8 +292,7 @@ class FrequencyMarksMixin:
     def element_label(self, freq, names):
         """What the line of an element says: who it is, and where."""
         text = f"{' / '.join(names)}, λ = {100 / freq:.1f} cm"
-        if self.window_type == "MD":
-            text += hz_suffix(freq, self.machine_speed, template=", {:.2f} Hz")
+        text += self.hz_suffix_for(freq, template=", {:.2f} Hz")
         return text
 
     def _draw_element_label(self, ax, freq, text):

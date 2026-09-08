@@ -9,6 +9,7 @@ import numpy as np
 import pytest
 from PyQt6.QtCore import Qt
 from PyQt6.QtTest import QTest
+from PyQt6.QtWidgets import QGroupBox
 
 import settings
 from analyses import cepstrum, coherence, spectrogram, spectrum
@@ -54,6 +55,16 @@ def text_labels(controller, rotation):
 # --------------------------------------------------------------------------
 # Every window offers the same controls
 # --------------------------------------------------------------------------
+
+#: Every spectral window, with a controller ready to open one on.
+SPECTRAL_WINDOWS = [
+    (spectrum, lambda: plotted(spectrum, two_peak_measurement(), nperseg=2000)),
+    (cepstrum, lambda: cepstrum_controller(harmonic_series_measurement())),
+    (coherence, lambda: plotted(coherence, two_peak_measurement(), nperseg=2000,
+                                channel="BW", channel2="Ash")),
+    (spectrogram, lambda: plotted(spectrogram, two_peak_measurement(), nperseg=2000)),
+]
+
 
 @pytest.mark.parametrize("module, build", [
     (cepstrum, lambda: cepstrum_controller(harmonic_series_measurement())),
@@ -252,3 +263,109 @@ def test_arrow_keys_work_in_every_window(qt_app, module, build, axis_limits):
     assert controller.selected_freqs[-1] == pytest.approx(controller.frequencies[index + 1])
     QTest.keyClick(window, Qt.Key.Key_Left)
     assert controller.selected_freqs[-1] == pytest.approx(controller.frequencies[index])
+# --------------------------------------------------------------------------
+# Frequencies in Hz
+# --------------------------------------------------------------------------
+
+#: 600 m/min is 10 m/s, so F1 = 0.625 1/m runs past the reel at 6.25 Hz.
+MACHINE_SPEED = 600.0
+
+
+def twin_axis_labels(controller):
+    """The labels of every axis but the main one: where a second unit goes."""
+    labels = []
+    for ax in controller.figure.axes:
+        if ax is controller.ax:
+            continue
+        labels.extend([ax.get_xlabel(), ax.get_ylabel()])
+    return [label for label in labels if label]
+
+
+def hz_spectrum(machine_speed=MACHINE_SPEED, **attributes):
+    """An MD spectrum carrying a selection and an element, both at F1."""
+    return spectrum_controller(
+        machine_speed=machine_speed, show_harmonics=False, selected_freqs=[F1],
+        selected_elements=[{"name": "Wire", "spatial_frequency": F1}],
+        **attributes)
+
+
+def test_hz_readings_wait_to_be_asked_for(qt_app):
+    """A machine speed is not consent: the spinner starts from a setting, so a
+    sample measured off the machine would otherwise carry a Hz reading it never
+    had. The wavelength takes the top axis instead."""
+    controller = hz_spectrum(show_frequency_in_hz=False)
+
+    assert not controller.hz_readings_shown()
+    assert "Hz" not in controller.describe_frequency(F1, 1.0)
+    assert "F [Hz]" not in controller.legend_columns()
+    assert len(controller.legend_data[0]) == len(controller.legend_columns())
+    assert text_labels(controller, 90) == ["Wire, λ = 160.0 cm"]
+    assert "Wavelength [cm]" in twin_axis_labels(controller)
+
+
+def test_hz_readings_follow_the_option(qt_app):
+    controller = hz_spectrum(show_frequency_in_hz=True)
+
+    assert controller.hz_readings_shown()
+    assert "(6.25 Hz)" in controller.describe_frequency(F1, 1.0)
+    assert controller.legend_columns()[-1] == "F [Hz]"
+    assert controller.legend_data[0][-1] == "6.25"
+    assert text_labels(controller, 90) == ["Wire, λ = 160.0 cm, 6.25 Hz"]
+    assert any(label.startswith("Frequency [Hz]")
+               for label in twin_axis_labels(controller))
+
+
+def test_hz_readings_still_need_a_machine_speed(qt_app):
+    """The option asks for the reading; the speed is what makes it possible."""
+    controller = hz_spectrum(machine_speed=0.0, show_frequency_in_hz=True)
+
+    assert not controller.hz_readings_shown()
+    assert "Hz" not in controller.describe_frequency(F1, 1.0)
+    assert "Wavelength [cm]" in twin_axis_labels(controller)
+
+
+def test_cd_windows_have_no_machine_frequency(qt_app):
+    """A CD strip is measured across the web, so nothing on it runs past the
+    reel at the machine speed, whatever the option says."""
+    controller = spectrum.AnalysisController(two_peak_measurement(), "CD")
+    controller.machine_speed = MACHINE_SPEED
+    controller.show_frequency_in_hz = True
+
+    assert not controller.hz_readings_shown()
+    assert "Hz" not in controller.describe_frequency(F1, 1.0)
+
+
+@pytest.mark.parametrize("module, build", [
+    (spectrum, lambda: plotted(spectrum, two_peak_measurement(), nperseg=2000)),
+    (cepstrum, lambda: cepstrum_controller(harmonic_series_measurement())),
+    (coherence, lambda: plotted(coherence, two_peak_measurement(), nperseg=2000,
+                                channel="BW", channel2="Ash")),
+    (spectrogram, lambda: plotted(spectrogram, two_peak_measurement(), nperseg=2000)),
+])
+def test_every_spectral_window_offers_the_hz_checkbox(qt_app, module, build):
+    controller = build()
+    assert controller.show_frequency_in_hz == settings.SHOW_FREQUENCY_IN_HZ_DEFAULT
+
+    window = module.AnalysisWindow(controller, "MD")
+
+    assert window.frequencyInHzCheckbox.text() == "Show frequencies in Hz"
+    window.frequencyInHzCheckbox.setChecked(True)
+    assert controller.show_frequency_in_hz
+    window.frequencyInHzCheckbox.setChecked(False)
+    assert not controller.show_frequency_in_hz
+@pytest.mark.parametrize("module, build", SPECTRAL_WINDOWS)
+def test_the_selection_buttons_lead_the_display_options(qt_app, module, build):
+    """The buttons come before the checkboxes, Refine first: the panel scrolls,
+    and a button at the bottom of a long group can be off screen."""
+    window = module.AnalysisWindow(build(), "MD")
+
+    group = next(box for box in window.findChildren(QGroupBox)
+                 if "Display" in box.title())
+    layout = group.layout()
+    leading = [layout.itemAt(index).widget() for index in range(3)]
+
+    assert leading == [window.refineButton, window.clearButton,
+                       window.detectPeaksButton]
+    assert [button.text() for button in leading] == [
+        "Refine Frequency Selection", "Clear Frequency Selection",
+        "Auto detect peaks"]

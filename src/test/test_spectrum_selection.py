@@ -129,6 +129,7 @@ def test_paper_machine_elements_are_drawn_as_named_reference_lines(qt_app):
         {"name": "Wire", "spatial_frequency": F1},
     ]
     controller = spectrum_controller(show_harmonics=False, machine_speed=600.0,
+                                     show_frequency_in_hz=True,
                                      selected_elements=elements)
 
     assert drawn_frequencies(controller) == pytest.approx([F1, F2])

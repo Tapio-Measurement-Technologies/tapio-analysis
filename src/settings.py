@@ -512,6 +512,7 @@ ANALYSIS_EXPORT_ATTRIBUTES = [
     "show_min_max",
     "show_legend",
     "show_wavelength",
+    "show_frequency_in_hz",
     "show_unfiltered_data",
     "show_time_labels",
     "remove_md_variations",
@@ -709,6 +710,17 @@ PLOT_COPY_FORMAT = "png"
 PLOT_COPY_DPI = 300
 
 SHOW_WAVELENGTH_DEFAULT = False
+
+# Whether the spectral windows also write every frequency in Hz: on the top
+# axis, in the legend, in the selection label, in the statistics table and on
+# the paper machine elements. A spatial frequency only becomes a machine
+# frequency through the speed the sample ran at, and the machine speed spinner
+# starts from PAPER_MACHINE_SPEED_DEFAULT rather than from the measurement, so
+# a sample measured off the machine would otherwise carry a confident looking
+# Hz figure it never had. Each window has a "Show frequencies in Hz" checkbox
+# that starts from this.
+SHOW_FREQUENCY_IN_HZ_DEFAULT = False
+
 AUTO_DETECT_PEAKS_DEFAULT = False
 
 REPORT_GENERATE_PDF = False

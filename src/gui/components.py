@@ -637,6 +637,37 @@ class ShowWavelengthMixin:
         self.refresh()
 
 
+class ShowFrequencyInHzMixin:
+    """"Show frequencies in Hz": the machine frequency beside every 1/m reading.
+
+    Off unless asked for, because the reading is the spatial frequency carried
+    past the reel at the machine speed above, and that speed starts from a
+    setting rather than from the measurement.
+    """
+
+    def initShowFrequencyInHzCheckbox(self, block_signals=False):
+        # Prevent recursive refresh calls when updating values elsewhere
+        self.frequencyInHzCheckbox.blockSignals(block_signals)
+        self.frequencyInHzCheckbox.setChecked(
+            self.controller.show_frequency_in_hz)
+        self.frequencyInHzCheckbox.blockSignals(False)
+
+    def addShowFrequencyInHzCheckbox(self, layout):
+        self.frequencyInHzCheckbox = QCheckBox("Show frequencies in Hz", self)
+        self.frequencyInHzCheckbox.setToolTip(
+            "Also write every frequency as the machine frequency it runs at, "
+            "converted with the machine speed")
+        self.initShowFrequencyInHzCheckbox()
+        self.frequencyInHzCheckbox.stateChanged.connect(
+            self.update_show_frequency_in_hz)
+        layout.addWidget(self.frequencyInHzCheckbox)
+
+    def update_show_frequency_in_hz(self):
+        state = self.frequencyInHzCheckbox.isChecked()
+        self.controller.show_frequency_in_hz = state
+        self.refresh()
+
+
 class AutoDetectPeaksMixin:
 
     def initAutoDetectPeaksCheckbox(self, block_signals=False):
@@ -759,10 +790,24 @@ class FrequencyMarksControlsMixin(MultipleSelectMixin, HarmonicsMixin,
     selection helpers here keep the four windows behaving the same way.
     """
 
-    def addFrequencyMarkControls(self, layout):
-        self.addMultipleSelectCheckbox(layout)
-        self.addHarmonicsControls(layout)
-        self.addAutoDetectPeaksCheckbox(layout)
+    def addSelectionButtons(self, layout):
+        """The three things a window does to a selection, in one block.
+
+        At the top of the display options, above the checkboxes: these are what
+        the user reaches for while reading a plot, and the controls panel
+        scrolls, so a button at the bottom of a long group can be off screen.
+        Refine leads, as the one used most often on a selected peak.
+        """
+        self.refineButton = QPushButton("Refine Frequency Selection")
+        self.refineButton.setToolTip(
+            "Estimate the selected frequency more precisely than the bin "
+            "spacing allows")
+        self.refineButton.clicked.connect(self.refineFrequency)
+        layout.addWidget(self.refineButton)
+
+        self.clearButton = QPushButton("Clear Frequency Selection")
+        self.clearButton.clicked.connect(self.clearFrequency)
+        layout.addWidget(self.clearButton)
 
         self.detectPeaksButton = QPushButton("Auto detect peaks")
         self.detectPeaksButton.setToolTip(
@@ -771,6 +816,11 @@ class FrequencyMarksControlsMixin(MultipleSelectMixin, HarmonicsMixin,
             "surrounding level, and the low frequency hump, are skipped.")
         self.detectPeaksButton.clicked.connect(self.autoDetectPeaks)
         layout.addWidget(self.detectPeaksButton)
+
+    def addFrequencyMarkControls(self, layout):
+        self.addMultipleSelectCheckbox(layout)
+        self.addHarmonicsControls(layout)
+        self.addAutoDetectPeaksCheckbox(layout)
 
     def initFrequencyMarkControls(self, block_signals=True):
         self.initAutoDetectPeaksCheckbox(block_signals=block_signals)

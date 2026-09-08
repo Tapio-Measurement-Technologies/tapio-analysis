@@ -166,7 +166,8 @@ class PaperMachineDataWindow(QWidget):
                     element['frequency_hz'] = frequency_in_hz(
                         element['spatial_frequency'], machine_speed_at_element)
 
-    def refresh_pm_data(self, machine_speed, selected_frequency):
+    def refresh_pm_data(self, machine_speed, selected_frequency,
+                        show_frequency_in_hz=True):
         self.clearLayout(self.mainLayout)
         self.checkboxes.clear()
         self.group_checkboxes.clear()
@@ -208,7 +209,8 @@ class PaperMachineDataWindow(QWidget):
 
                     elementName = element.get('name', 'Unnamed Element')
                     hz = element.get('frequency_hz')
-                    hz_text = "" if hz is None else f" {hz:.2f} Hz"
+                    hz_text = ("" if hz is None or not show_frequency_in_hz
+                               else f" {hz:.2f} Hz")
                     checkbox = QCheckBox(f"{elementName}")
                     if self.window_type == "MD":
                         label = QLabel(f"{element['spatial_frequency']:.2f} 1/m"

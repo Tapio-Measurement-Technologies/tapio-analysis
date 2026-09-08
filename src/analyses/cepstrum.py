@@ -1,6 +1,5 @@
 import logging
-from PyQt6.QtWidgets import (QVBoxLayout, QLabel, QPushButton, QHBoxLayout,
-                             QGroupBox)
+from PyQt6.QtWidgets import QVBoxLayout, QLabel, QHBoxLayout, QGroupBox
 from PyQt6.QtGui import QAction
 from gui.components import (
     AnalysisRangeMixin,
@@ -9,6 +8,7 @@ from gui.components import (
     MachineSpeedMixin,
     SpectrumLengthMixin,
     ShowWavelengthMixin,
+    ShowFrequencyInHzMixin,
     CopyPlotMixin,
     FrequencyMarksControlsMixin,
     ChildWindowCloseMixin,
@@ -21,8 +21,7 @@ from utils.analysis import AnalysisControllerBase, AnalysisWindowBase
 from utils.types import AnalysisType, PlotAnnotation
 from utils.signal_processing import safe_spectral_params, interpolate_non_finite
 from utils.frequency_marks import FrequencyMarksMixin
-from utils.plot_formatting import (wavelength_labels_cm_from_frequencies,
-                                   machine_speed_is_known, hz_suffix)
+from utils.plot_formatting import wavelength_labels_cm_from_frequencies
 from scipy.signal import welch, find_peaks
 import numpy as np
 import pandas as pd
@@ -45,6 +44,8 @@ class AnalysisController(AnalysisControllerBase, FrequencyMarksMixin, ExportMixi
     analysis_range_low: float
     analysis_range_high: float
     machine_speed: float
+    show_wavelength: bool
+    show_frequency_in_hz: bool
     selected_elements: list[str]
     selected_freqs: list[float]
 
@@ -254,9 +255,9 @@ class AnalysisController(AnalysisControllerBase, FrequencyMarksMixin, ExportMixi
         """Wavelength or Hz on the top axis, the same pair the spectrum offers."""
         secax = ax.twiny()
 
-        # With no machine speed to convert by, the Hz axis would read zero at
-        # every tick, so the wavelength axis is shown instead.
-        if self.show_wavelength or not machine_speed_is_known(self.machine_speed):
+        # The Hz axis is only drawn where the Hz reading is shown at all: with
+        # no machine speed to convert by it would read zero at every tick.
+        if self.show_wavelength or not self.hz_readings_shown():
             def update_secax(*args):
                 primary_ticks = ax.get_xticks()
                 secax.set_xticks(primary_ticks)
@@ -363,7 +364,7 @@ class AnalysisController(AnalysisControllerBase, FrequencyMarksMixin, ExportMixi
 
         wavelength = "λ" if symbols else "wavelength"
         text = (f"{frequency:.3f} 1/m"
-                f"{hz_suffix(frequency, self.machine_speed, ' ({:.2f} Hz)')}  "
+                f"{self.hz_suffix_for(frequency)}  "
                 f"{wavelength} = {100 * quefrency:.2f} cm")
         if amplitude is not None:
             text += f"  A = {amplitude:.4g}"
@@ -460,9 +461,9 @@ class AnalysisController(AnalysisControllerBase, FrequencyMarksMixin, ExportMixi
         return 1.0 / refined_quefrency
 
     def getStatsTableData(self):
-        speed_known = machine_speed_is_known(self.machine_speed)
+        show_hz = self.hz_readings_shown()
         headers = ["Frequency [1/m]"]
-        if speed_known:
+        if show_hz:
             headers.append("Frequency [Hz]")
         headers += ["Wavelength [cm]", "Quefrency [m]", "Amplitude"]
         stats = [headers]
@@ -474,7 +475,7 @@ class AnalysisController(AnalysisControllerBase, FrequencyMarksMixin, ExportMixi
 
             amplitude = self.get_cepstrum_amplitude_at(frequency)
             row = [f"{frequency:.3f}"]
-            if speed_known:
+            if show_hz:
                 row.append(f"{self.get_freq_in_hz(frequency):.2f}")
             row += [
                 f"{100 * quefrency:.2f}",
@@ -500,7 +501,8 @@ class AnalysisController(AnalysisControllerBase, FrequencyMarksMixin, ExportMixi
 
 
 class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin, ChannelMixin, FrequencyRangeMixin,
-                     MachineSpeedMixin, SpectrumLengthMixin, ShowWavelengthMixin, CopyPlotMixin,
+                     MachineSpeedMixin, SpectrumLengthMixin, ShowWavelengthMixin,
+                     ShowFrequencyInHzMixin, CopyPlotMixin,
                      FrequencyMarksControlsMixin, ChildWindowCloseMixin):
 
     def __init__(self, controller: AnalysisController, window_type: AnalysisType = "MD"):
@@ -532,7 +534,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
                 self.updateElements, self.window_type, self.checked_elements, self.measurement)
             self.paperMachineDataWindow.show()
             self.paperMachineDataWindow.refresh_pm_data(
-                self.controller.machine_speed, self.selectedFrequency())
+                self.controller.machine_speed, self.selectedFrequency(),
+                self.controller.hz_readings_shown())
             self.paperMachineDataWindow.closed.connect(
                 self.onPaperMachineDataClosed)
             self.paperMachineDataAction.setChecked(True)
@@ -585,16 +588,10 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         displayOptionsGroup.setLayout(displayOptionsLayout)
         self.controlsPanel.addWidget(displayOptionsGroup)
 
+        self.addSelectionButtons(displayOptionsLayout)
         self.addShowWavelengthCheckbox(displayOptionsLayout)
+        self.addShowFrequencyInHzCheckbox(displayOptionsLayout)
         self.addFrequencyMarkControls(displayOptionsLayout)
-
-        self.refineButton = QPushButton("Refine Frequency Selection")
-        self.refineButton.clicked.connect(self.refineFrequency)
-        displayOptionsLayout.addWidget(self.refineButton)
-
-        self.clearButton = QPushButton("Clear Frequency Selection")
-        self.clearButton.clicked.connect(self.clearFrequency)
-        displayOptionsLayout.addWidget(self.clearButton)
 
         # Right panel for plot
         plotLayout = QVBoxLayout()
@@ -708,6 +705,7 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.initSpectrumLengthSlider(block_signals=True)
         self.initFrequencyMarkControls(block_signals=True)
         self.initShowWavelengthCheckbox(block_signals=True)
+        self.initShowFrequencyInHzCheckbox(block_signals=True)
         self.initMachineSpeedSpinner(block_signals=True)
 
     def refresh(self, restore_lim=False):
@@ -726,4 +724,5 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
 
         if self.paperMachineDataWindow:
             self.paperMachineDataWindow.refresh_pm_data(
-                self.controller.machine_speed, self.selectedFrequency())
+                self.controller.machine_speed, self.selectedFrequency(),
+                self.controller.hz_readings_shown())
