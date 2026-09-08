@@ -147,6 +147,8 @@ The old calculated channels from **WinTapio** do not work in **Tapio Analysis**.
 
 ### Time domain
 - Visualize and filter the raw data, view statistics.
+- The filtered signal is drawn in a darker shade over the unfiltered data (**Show unfiltered data**), thin and faint in the same colour, and the legend names the filter and the mean and standard deviation of both. The `TIME_DOMAIN_*` settings set the colour and weights.
+- A report template may set `fixed_ylim` on a time domain analysis: the y limits are then fitted to the whole record rather than to the shown range, so a 10 m detail and the whole roll of the same channel are drawn on one scale (`TIME_DOMAIN_FIXED_YLIM_ALL_DATA` is the default).
 
 ### Spectrum
 - Identify frequencies and amplitudes of periodic components in the data, visualize the known rotating frequencies of components in the production line.

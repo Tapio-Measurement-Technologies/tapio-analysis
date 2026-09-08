@@ -377,6 +377,7 @@ class ReportWindow(QWidget):
                                 "machine_speed", "frequency_range_low", "frequency_range_high",
                                 "selected_frequencies", "selected_freqs", "auto_detect_peaks",
                                 "multiple_select", "show_harmonics", "harmonics_count", "log_scale",
+                                "fixed_ylim",
                                 "show_wavelength", "nperseg", "peak_detection_range_min", "peak_detection_range_max"
                             ]:
                                 if attr in analysis:

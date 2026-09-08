@@ -5,6 +5,7 @@ from utils.filters import bandpass_filter
 from utils.statistics import normalized_least_squares_slope
 from utils.types import PlotAnnotation
 from matplotlib.ticker import AutoMinorLocator
+from matplotlib.colors import to_rgb
 from gui.components import (
     AnalysisRangeMixin,
     ChannelMixin,
@@ -45,6 +46,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         self.set_default('band_pass_high', settings.TIME_DOMAIN_BAND_PASS_HIGH_DEFAULT_1M)
         self.set_default('machine_speed', settings.PAPER_MACHINE_SPEED_DEFAULT)
         self.set_default('show_unfiltered_data', settings.TIME_DOMAIN_SHOW_UNFILTERED_DATA_DEFAULT)
+        self.set_default('fixed_ylim', settings.TIME_DOMAIN_FIXED_YLIM_ALL_DATA)
         self.set_default('show_time_labels', settings.TIME_DOMAIN_SHOW_TIME_LABELS_DEFAULT)
 
     def constrain_values(self):
@@ -111,23 +113,36 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             unfiltered_data = unfiltered_data[:common_length]
         self.constrain_values()
 
+        color = settings.TIME_DOMAIN_COLOR
+        shade = settings.TIME_DOMAIN_FILTERED_SHADE
+        filtered_color = tuple(component * shade for component in to_rgb(color))
+        unit = self.measurement.units[self.channel]
+        x = self.distances * settings.TIME_DOMAIN_ANALYSIS_DISPLAY_UNIT_MULTIPLIER
         if self.show_unfiltered_data and len(self.distances):
-            ax.plot(self.distances * settings.TIME_DOMAIN_ANALYSIS_DISPLAY_UNIT_MULTIPLIER,
-                    unfiltered_data,
-                    alpha=0.5,
-                    color="gray")
+            ax.plot(x, unfiltered_data,
+                    color=color,
+                    linewidth=settings.TIME_DOMAIN_UNFILTERED_LINEWIDTH,
+                    alpha=settings.TIME_DOMAIN_UNFILTERED_ALPHA,
+                    label=f"unfiltered, σ {np.std(unfiltered_data):.3g} {unit}")
         if len(self.distances):
-            ax.plot(self.distances *
-                    settings.TIME_DOMAIN_ANALYSIS_DISPLAY_UNIT_MULTIPLIER, self.data)
+            ax.plot(x, self.data,
+                    color=filtered_color,
+                    linewidth=settings.TIME_DOMAIN_FILTERED_LINEWIDTH,
+                    label=(f"{self.filter_label()}, mean {np.mean(self.data):.4g} {unit}, "
+                           f"σ {np.std(self.data):.3g} {unit}"))
+        if settings.TIME_DOMAIN_SHOW_LEGEND and ax.get_legend_handles_labels()[0]:
+            ax.legend(loc="upper right", fontsize=8, framealpha=0.85)
 
-        if settings.TIME_DOMAIN_FIXED_YLIM_ALL_DATA:
-            # fixed y limits based on full unfiltered dataset
-            full_data = self.measurement.channel_df[self.channel]
-            y_min, y_max = full_data.min(), full_data.max()  # Get min and max values
-            margin = 0.1 * (y_max - y_min)
-            y_min -= margin
-            y_max += margin
-            ax.set_ylim(y_min, y_max)
+        if self.fixed_ylim:
+            # The limits of the whole unfiltered record, so that every range
+            # of this channel is drawn on the same scale. Percentiles rather
+            # than the extremes, so one dropout does not flatten the trace.
+            full_data = np.asarray(self.measurement.channel_df[self.channel], dtype=float)
+            full_data = full_data[np.isfinite(full_data)]
+            if len(full_data):
+                y_min, y_max = np.percentile(full_data, [0.1, 99.9])
+                margin = 0.1 * (y_max - y_min) or 1.0
+                ax.set_ylim(y_min - margin, y_max + margin)
 
         # A machine speed of zero means the speed is not known, and distance
         # cannot be turned into time without it. The axis is left off rather
@@ -150,6 +165,19 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         self.updated.emit()
 
         return self.canvas
+
+    def filter_label(self):
+        """The band the filtered signal is, as the band pass controls write it."""
+        low, high = float(self.band_pass_low), float(self.band_pass_high)
+        if low > 0 and np.isfinite(high) and high > 0:
+            return f"band-pass {low:g} - {high:g} 1/m"
+        if np.isfinite(high) and high > 0:
+            wavelength = 1.0 / high
+            text = f"{wavelength:.3g} m" if wavelength >= 1.0 else f"{100 * wavelength:.3g} cm"
+            return f"low-pass {high:g} 1/m (λ ≥ {text})"
+        if low > 0:
+            return f"high-pass {low:g} 1/m"
+        return "unfiltered"
 
     def getStatsTableData(self):
         stats = []

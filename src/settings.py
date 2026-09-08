@@ -198,6 +198,10 @@ BAND_PASS_FILTER_SINGLESTEP = 0.01
 # Time domain default values
 TIME_DOMAIN_TITLE_SHOW = True
 TIME_DOMAIN_WINDOW_SIZE = (1200, 500)
+# Time domain y limits fitted to the whole record rather than to the shown
+# range, so that a 10 m detail and the full roll of the same channel share
+# their limits and follow each other. The default of the window's
+# "fixed_ylim" attribute, which a report template may set per analysis.
 TIME_DOMAIN_FIXED_YLIM_ALL_DATA = False
 TIME_DOMAIN_MINOR_GRID = True
 
@@ -207,6 +211,17 @@ TIME_DOMAIN_FIXED_XTICKS = None
 
 TIME_DOMAIN_BAND_PASS_LOW_DEFAULT_1M = 0.00
 TIME_DOMAIN_BAND_PASS_HIGH_DEFAULT_1M = 30.00
+
+# How the two signals of the time domain plot are drawn: the unfiltered data
+# thin and faint in the channel's colour, the filtered signal over it in a
+# darker shade of the same colour. One colour, two weights, so the pair reads
+# as one signal and its trend rather than as two curves.
+TIME_DOMAIN_COLOR = "tab:blue"
+TIME_DOMAIN_UNFILTERED_LINEWIDTH = 0.5
+TIME_DOMAIN_UNFILTERED_ALPHA = 0.45
+TIME_DOMAIN_FILTERED_LINEWIDTH = 1.3
+TIME_DOMAIN_FILTERED_SHADE = 0.6  # 1 keeps the colour, 0 is black
+TIME_DOMAIN_SHOW_LEGEND = True
 
 TIME_DOMAIN_ANALYSIS_RANGE_LOW_DEFAULT = 0.00
 TIME_DOMAIN_ANALYSIS_RANGE_HIGH_DEFAULT = 0.10
@@ -504,6 +519,7 @@ ANALYSIS_EXPORT_ATTRIBUTES = [
     "show_harmonics",
     "harmonics_count",
     "log_scale",
+    "fixed_ylim",
     "nperseg",
     "overlap",
     "machine_speed",
