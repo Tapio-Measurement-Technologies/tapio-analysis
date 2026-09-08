@@ -221,7 +221,9 @@ TIME_DOMAIN_UNFILTERED_LINEWIDTH = 0.5
 TIME_DOMAIN_UNFILTERED_ALPHA = 0.45
 TIME_DOMAIN_FILTERED_LINEWIDTH = 1.3
 TIME_DOMAIN_FILTERED_SHADE = 0.6  # 1 keeps the colour, 0 is black
-TIME_DOMAIN_SHOW_LEGEND = True
+# The legend naming the filter and the two sigmas: off in the window, on in
+# the raw data report, whose template sets the analysis's show_legend.
+TIME_DOMAIN_SHOW_LEGEND = False
 
 TIME_DOMAIN_ANALYSIS_RANGE_LOW_DEFAULT = 0.00
 TIME_DOMAIN_ANALYSIS_RANGE_HIGH_DEFAULT = 0.10

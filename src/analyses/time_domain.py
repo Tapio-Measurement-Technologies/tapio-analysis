@@ -47,6 +47,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
         self.set_default('machine_speed', settings.PAPER_MACHINE_SPEED_DEFAULT)
         self.set_default('show_unfiltered_data', settings.TIME_DOMAIN_SHOW_UNFILTERED_DATA_DEFAULT)
         self.set_default('fixed_ylim', settings.TIME_DOMAIN_FIXED_YLIM_ALL_DATA)
+        self.set_default('show_legend', settings.TIME_DOMAIN_SHOW_LEGEND)
         self.set_default('show_time_labels', settings.TIME_DOMAIN_SHOW_TIME_LABELS_DEFAULT)
 
     def constrain_values(self):
@@ -130,7 +131,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
                     linewidth=settings.TIME_DOMAIN_FILTERED_LINEWIDTH,
                     label=(f"{self.filter_label()}, mean {np.mean(self.data):.4g} {unit}, "
                            f"σ {np.std(self.data):.3g} {unit}"))
-        if settings.TIME_DOMAIN_SHOW_LEGEND and ax.get_legend_handles_labels()[0]:
+        if self.show_legend and ax.get_legend_handles_labels()[0]:
             ax.legend(loc="upper right", fontsize=8, framealpha=0.85)
 
         if self.fixed_ylim:
