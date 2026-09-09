@@ -447,8 +447,16 @@ def test_relative_ash_finds_the_ash_channel_whatever_it_is_called(ash_column):
     """
     frame = pd.DataFrame({"BW": [100.0, 200.0], ash_column: [9.0, 24.0]})
     relative = settings.calc_relative_ash(frame)
-    assert relative.iloc[0] == pytest.approx(0.09)
-    assert relative.iloc[1] == pytest.approx(0.12)
+    assert relative.iloc[0] == pytest.approx(9.0)
+    assert relative.iloc[1] == pytest.approx(12.0)
+
+
+def test_relative_ash_is_declared_in_per_cent():
+    """The channel is a percentage, so it must carry the % unit: a bare ratio
+    plotted against an axis with no unit reads as an unlabelled fraction."""
+    declared = {channel["name"]: channel["unit"]
+                for channel in settings.CALCULATED_CHANNELS}
+    assert declared["Ash (relative)"] == "%"
 
 
 def test_relative_ash_reports_what_it_looked_for_when_there_is_no_ash():

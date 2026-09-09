@@ -607,27 +607,29 @@ def calc_bulk(dataframe):
     return dataframe[caliper_name] / dataframe[bw_name]
 
 def calc_relative_ash(dataframe):
-    """Ash as a fraction of basis weight.
+    """Ash content as a percentage of basis weight.
 
     Both channels are found by name the way the density channels find theirs,
     so a file that names its ash channel "Ash (abs)" gets a relative ash
-    channel like one that names it "Ash".
+    channel like one that names it "Ash". Ash and basis weight are both in
+    g/m^2, so their ratio is dimensionless; it is scaled by 100 because ash
+    content is read and reported in per cent, not as a bare fraction.
     """
     ash_name = find_ash_channel(dataframe)
     bw_name = find_basis_weight_channel(dataframe)
-    return dataframe[ash_name] / dataframe[bw_name]
+    return 100.0 * dataframe[ash_name] / dataframe[bw_name]
 
 # Original examples:
 # def calc_density(dataframe):
 #     return (dataframe['Basis Weight']) / dataframe['Caliper']
 
 # def calc_relative_ash(dataframe):
-#     return (dataframe['Ash']) / dataframe['Basis Weight']
+#     return 100 * (dataframe['Ash']) / dataframe['Basis Weight']
 
 CALCULATED_CHANNELS = [
     {"name": "Density", "unit": "g/cm^3", "function": calc_density},
     {"name": "Bulk", "unit": "cm^3/g", "function": calc_bulk},
-    {"name": "Ash (relative)", "unit": "", "function": calc_relative_ash}
+    {"name": "Ash (relative)", "unit": "%", "function": calc_relative_ash}
 ]
 
 
