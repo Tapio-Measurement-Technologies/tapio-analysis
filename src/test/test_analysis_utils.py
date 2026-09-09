@@ -33,7 +33,7 @@ def test_bandpass_filter_returns_short_data_unchanged():
 def test_wavelength_labels_do_not_divide_by_zero():
     labels = wavelength_labels_cm_from_frequencies([-1.0, 0.0, 2.0])
 
-    assert labels == ["", "", "50.00"]
+    assert labels == ["", "", "50.0"]
 
 
 def test_safe_spectral_params_clamps_overlap_and_window_length():
