@@ -11,6 +11,7 @@ import matplotlib.patches as mpatches
 from matplotlib.ticker import AutoMinorLocator, LogLocator
 from utils.plot_formatting import (wavelength_labels_cm_from_frequencies,
                                    machine_speed_is_known)
+from matplotlib.colors import to_rgb
 from scipy.signal import welch
 from gui.components import (
     AnalysisRangeMixin,
@@ -36,17 +37,40 @@ from utils import store
 analysis_name = "Spectrum"
 analysis_types = ["MD", "CD"]
 
+#: The two spectra a set of CD strips has, each with what it means. The mean of
+#: the strips' own spectra carries everything a strip varies by; the spectrum of
+#: the mean profile keeps only what every strip shares.
+CD_SPECTRUM_NAMES = {
+    "strips": ("Mean spectrum of strips", "total variation"),
+    "mean_profile": ("Mean CD profile spectrum", "repeatable CD variation"),
+}
 
-def tabular_legend(ax, col_labels, data, *args, **kwargs):
+
+def cd_spectrum_label(kind):
+    name, meaning = CD_SPECTRUM_NAMES[kind]
+    return f"{name} ({meaning})"
+
+
+def faded(color, fade):
+    """The colour blended towards grey, for the curve drawn behind the other."""
+    base = np.array(to_rgb(color))
+    return tuple(base + (0.5 - base) * fade)
+
+
+def tabular_legend(ax, col_labels, data, *args, handles=None, **kwargs):
     """
     Custom legend function
     Parameters:
     - ax : matplotlib.axes.Axes
     - col_labels : list of column labels
     - data : list of lists containing the values for each legend entry
+    - handles : the handles the rows belong to; the axes' own by default. A
+      window that names its curves in a legend of their own passes the
+      remaining handles here, so that a row still meets its handle.
     """
     # Get current legend handles
-    handles, _ = ax.get_legend_handles_labels()
+    if handles is None:
+        handles, _ = ax.get_legend_handles_labels()
 
     # Create a blank patch for column labels (no handle)
     blank_patch = mpatches.Rectangle(
@@ -144,6 +168,10 @@ class AnalysisController(AnalysisControllerBase, FrequencyMarksMixin, ExportMixi
         }
         config = spectrum_defaults[self.window_type]
         self.data = None
+        # The CD window's second curve; empty in MD, which has one spectrum.
+        self.secondary_amplitudes = np.array([])
+        self.primary_kind = None
+        self.secondary_kind = None
         self.spectral_window = settings.SPECTRUM_WELCH_WINDOW
 
         self.set_default('nperseg', config["nperseg"])
@@ -183,6 +211,9 @@ class AnalysisController(AnalysisControllerBase, FrequencyMarksMixin, ExportMixi
         ax = self.ax
         self.frequencies = np.array([])
         self.amplitudes = np.array([])
+        self.secondary_amplitudes = np.array([])
+        self.primary_kind = None
+        self.secondary_kind = None
         self.data = np.array([])
         self.reset_marks()
         ax.figure.set_constrained_layout(True)
@@ -204,6 +235,7 @@ class AnalysisController(AnalysisControllerBase, FrequencyMarksMixin, ExportMixi
 
 
         # Extract the segment of data for analysis
+        secondary_pxx = None
         if self.window_type == "MD":
             ylim = settings.MD_SPECTRUM_FIXED_YLIM.get(self.channel)
             self.low_index = np.searchsorted(
@@ -285,28 +317,40 @@ class AnalysisController(AnalysisControllerBase, FrequencyMarksMixin, ExportMixi
             # unfiltered_data = [np.sin(2 * np.pi * 5 * np.arange(len(self.measurement.segments[self.channel][sample_idx][self.low_index:self.high_index])) / self.fs) for sample_idx in self.selected_samples]
 
 
-            # Determine spectrum mode from settings, default to 'mean_spectrum_of_profiles'
-            spectrum_mode = getattr(
-                settings, 'SPECTRUM_MODE', 'mean_spectrum_of_profiles')
-            if spectrum_mode == 'spectrum_of_mean_profile':
-                # Take mean profile, then spectrum
-                mean_profile = np.mean(unfiltered_data, axis=0)
-                f, Pxx = welch(mean_profile, fs=self.fs, window='hann', nperseg=nperseg,
-                               noverlap=noverlap, scaling='spectrum')
-            else:
-                # Take spectrum of each, then mean spectrum
+            # Both spectra the strips have. The mean of their own spectra is
+            # the total variation a strip carries; the spectrum of the mean
+            # profile keeps only what every strip shares, the repeatable CD
+            # variation. Where the two meet, the wavelength is a streak across
+            # the width; where the strip curve stands above the profile curve,
+            # that wavelength is mostly not cross direction.
+            def strip_spectrum(y):
+                return welch(
+                    y,
+                    fs=self.fs,
+                    window=self.spectral_window,
+                    nperseg=nperseg,
+                    noverlap=noverlap,
+                    scaling='spectrum',
+                )
+
+            def spectrum_of(kind):
+                if kind == "mean_profile":
+                    return strip_spectrum(np.mean(unfiltered_data, axis=0))
                 spectra = []
                 for y in unfiltered_data:
-                    f, profile_pxx = welch(
-                        y,
-                        fs=self.fs,
-                        window='hann',
-                        nperseg=nperseg,
-                        noverlap=noverlap,
-                        scaling='spectrum',
-                    )
-                    spectra.append(profile_pxx)
-                Pxx = np.mean(spectra, axis=0)
+                    f, strip_pxx = strip_spectrum(y)
+                    spectra.append(strip_pxx)
+                return f, np.mean(spectra, axis=0)
+
+            self.primary_kind = (
+                "strips"
+                if getattr(settings, 'CD_SPECTRUM_PRIMARY', 'mean_profile') == "strips"
+                else "mean_profile")
+            f, Pxx = spectrum_of(self.primary_kind)
+            if getattr(settings, 'CD_SPECTRUM_SHOW_BOTH', True):
+                self.secondary_kind = (
+                    "strips" if self.primary_kind == "mean_profile" else "mean_profile")
+                _, secondary_pxx = spectrum_of(self.secondary_kind)
 
         f_low_index = np.searchsorted(f, self.frequency_range_low)
         f_high_index = np.searchsorted(
@@ -325,7 +369,28 @@ class AnalysisController(AnalysisControllerBase, FrequencyMarksMixin, ExportMixi
         self.frequencies = f[f_low_index:f_high_index]
         self.amplitudes = amplitude_spectrum[f_low_index:f_high_index]
 
-        ax.plot(self.frequencies, self.amplitudes)
+        curve_handles = []
+        if secondary_pxx is None:
+            ax.plot(self.frequencies, self.amplitudes)
+        else:
+            # One colour in two weights, so the pair reads as one channel seen
+            # two ways rather than as two curves: the secondary spectrum thin
+            # and faded, the emphasized one over it.
+            self.secondary_amplitudes = (
+                np.sqrt(secondary_pxx * 2)
+                * settings.SPECTRUM_AMPLITUDE_SCALING)[f_low_index:f_high_index]
+            color = settings.CD_SPECTRUM_COLOR
+            curve_handles += ax.plot(
+                self.frequencies, self.secondary_amplitudes,
+                color=faded(color, settings.CD_SPECTRUM_SECONDARY_FADE),
+                linewidth=settings.CD_SPECTRUM_SECONDARY_LINEWIDTH,
+                alpha=settings.CD_SPECTRUM_SECONDARY_ALPHA,
+                label=cd_spectrum_label(self.secondary_kind))
+            curve_handles += ax.plot(
+                self.frequencies, self.amplitudes,
+                color=color,
+                linewidth=settings.CD_SPECTRUM_PRIMARY_LINEWIDTH,
+                label=cd_spectrum_label(self.primary_kind))
 
         # A flat channel has no positive amplitude anywhere, and a log axis
         # cannot show it. The linear axis at least shows that it is flat.
@@ -384,10 +449,21 @@ class AnalysisController(AnalysisControllerBase, FrequencyMarksMixin, ExportMixi
         if settings.SPECTRUM_SHOW_LEGEND:
             if labels:  # This list will be non-empty if there are items to include in the legend
                 if settings.SPECTRUM_LEGEND_OUTSIDE_PLOT:
-                    leg = tabular_legend(ax, self.legend_columns(), self.legend_data, loc="upper left", bbox_to_anchor=(
-                        1.05, 1), borderaxespad=0.)
+                    # The table beside the plot has one row per marked
+                    # frequency, so the curves are named in a legend of their
+                    # own rather than taking a row each.
+                    if curve_handles:
+                        curve_labels = [handle.get_label()
+                                        for handle in curve_handles]
+                        ax.add_artist(ax.legend(
+                            curve_handles, curve_labels, loc="upper right"))
+                    mark_handles = [handle for handle in handles
+                                    if handle not in curve_handles]
+                    if self.legend_data:
+                        leg = tabular_legend(ax, self.legend_columns(), self.legend_data, handles=mark_handles, loc="upper left", bbox_to_anchor=(
+                            1.05, 1), borderaxespad=0.)
 
-                    leg.get_frame().set_alpha(0)
+                        leg.get_frame().set_alpha(0)
                 else:
                     ax.legend(handles, labels, loc="upper right")
 
@@ -488,10 +564,18 @@ class AnalysisController(AnalysisControllerBase, FrequencyMarksMixin, ExportMixi
         return stats
 
     def getExportData(self):
-        data = {
-            "Frequency [1/m]": self.frequencies,
-            f"{self.channel} amplitude [{self.measurement.units[self.channel]}]": self.amplitudes
-        }
+        unit = self.measurement.units[self.channel]
+        data = {"Frequency [1/m]": self.frequencies}
+        if len(self.secondary_amplitudes):
+            # Two spectra of the same strips, each named by what it is, so the
+            # columns cannot be read for one another.
+            for kind, amplitudes in ((self.primary_kind, self.amplitudes),
+                                     (self.secondary_kind, self.secondary_amplitudes)):
+                name = CD_SPECTRUM_NAMES[kind][0]
+                name = name[0].lower() + name[1:]
+                data[f"{self.channel} amplitude, {name} [{unit}]"] = amplitudes
+        else:
+            data[f"{self.channel} amplitude [{unit}]"] = self.amplitudes
 
         return pd.DataFrame(data)
 

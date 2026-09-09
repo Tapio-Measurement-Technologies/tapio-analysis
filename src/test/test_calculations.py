@@ -69,6 +69,64 @@ def test_spectrum_reports_zero_to_peak_amplitude(qt_app):
     assert peak == pytest.approx(amplitude, rel=0.01)
 
 
+def test_cd_spectrum_separates_the_repeatable_variation_from_the_total(qt_app):
+    """The CD window draws both spectra of the same strips.
+
+    The strips here share one wavelength and carry another in opposite phase,
+    so the shared one survives the mean profile and the other cancels in it.
+    The mean of the strips' own spectra keeps both, which is what makes it the
+    total variation and the profile spectrum the repeatable part.
+    """
+    nperseg = 2000
+    shared = 100 * FS / nperseg      # on a bin centre
+    per_strip = 300 * FS / nperseg
+    length = 8000
+    common = sine(length, shared, 2.0)
+    own = sine(length, per_strip, 3.0)
+    strips = np.array([common + own, common - own])
+    distances = np.arange(length) * SAMPLE_STEP
+
+    measurement = Measurement(
+        channel_df=pd.DataFrame({"BW": strips[0]}),
+        channels=["BW"],
+        units={"BW": "g/m2"},
+        distances=distances,
+        cd_distances=distances,
+        sample_step=SAMPLE_STEP,
+        selected_samples=[0, 1],
+        segments={"BW": strips},
+    )
+
+    controller = spectrum.AnalysisController(measurement, "CD")
+    controller.analysis_range_low = 0.0
+    controller.analysis_range_high = distances[-1]
+    controller.frequency_range_low = 0.0
+    controller.frequency_range_high = FS / 2
+    controller.nperseg = nperseg
+    controller.auto_detect_peaks = False
+    controller.plot()
+
+    assert controller.primary_kind == "mean_profile"
+    assert controller.secondary_kind == "strips"
+
+    def at(amplitudes, frequency):
+        return amplitudes[np.argmin(np.abs(controller.frequencies - frequency))]
+
+    # The wavelength every strip shares is in both curves at its own amplitude.
+    assert at(controller.amplitudes, shared) == pytest.approx(2.0, rel=0.01)
+    assert at(controller.secondary_amplitudes, shared) == pytest.approx(2.0, rel=0.01)
+    # The one each strip carries for itself is only in the strips' spectrum.
+    assert at(controller.secondary_amplitudes, per_strip) == pytest.approx(3.0, rel=0.01)
+    assert at(controller.amplitudes, per_strip) < 0.01
+
+    # Named in the legend, the strips' spectrum drawn behind the profile's.
+    lines = controller.figure.axes[0].lines[:2]
+    assert [line.get_label() for line in lines] == [
+        "Mean spectrum of strips (total variation)",
+        "Mean CD profile spectrum (repeatable CD variation)"]
+    assert lines[0].get_linewidth() < lines[1].get_linewidth()
+
+
 @pytest.mark.parametrize("nperseg", [5000, 20000])
 def test_spectrogram_amplitude_matches_spectrum_and_is_window_independent(qt_app, nperseg):
     """The spectrogram returns a PSD density; without the density-to-spectrum

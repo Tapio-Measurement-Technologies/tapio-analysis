@@ -272,6 +272,7 @@ The cepstrum resolves a constant step in *period* - one sampling interval. Expre
 
 ### CD Spectrum
 - Identify wavelengths and amplitudes of periodic components in the CD data, visualize the known actuator spacings of the production line.
+- Two spectra of the same strips are drawn. **Mean CD profile spectrum (repeatable CD variation)** is the spectrum of the mean profile, and keeps only what every strip shares. **Mean spectrum of strips (total variation)** is the mean of the strips' own spectra, drawn thin behind it, and keeps everything a strip varies by. Where the two curves meet, the wavelength is a streak across the width; where the strip curve stands above the profile curve, that wavelength is mostly not cross direction. Peak detection, the marks and the legend read the profile spectrum; `CD_SPECTRUM_PRIMARY` swaps which of the two they read, and `CD_SPECTRUM_SHOW_BOTH` draws one curve only.
 - **Use the middle mouse button to select a frequency**.
 - The selection, harmonics and peak detection controls work as in the MD spectrum.
 - Use the refine button to do fundamental frequency estimation (spectrum peak detection) in frequencies near the selected frequency. The refine button will adjust the selected frequency.

@@ -674,8 +674,30 @@ SPECTROGRAM_LOG_SCALE_DECADES = 3
 MD_SPECTRUM_SECONDARY_X_LABEL_EXPR = "f'Frequency [Hz] at machine speed {self.machine_speed:.1f} m/min'"
 
 
-# SPECTRUM_MODE = "spectrum_of_mean_profile"  # or "mean_spectrum_of_profiles"
+# Whether the CD spectrogram is the mean of the strips' own spectrograms or the
+# spectrogram of the mean profile. The CD spectrum window draws both of its
+# spectra, and CD_SPECTRUM_PRIMARY below says which of them it emphasizes.
 SPECTRUM_MODE = "mean_spectrum_of_profiles"  # or "spectrum_of_mean_profile"
+
+# A set of CD strips has two spectra, and the CD spectrum window draws both:
+# the mean of the strips' own spectra, which is the total variation a strip
+# carries, and the spectrum of the mean profile, which keeps only what every
+# strip shares - the repeatable CD variation. Where the two curves meet, the
+# wavelength is a streak across the width; where the strip curve stands above
+# the profile curve, that wavelength is mostly not cross direction.
+CD_SPECTRUM_SHOW_BOTH = True
+# Which of the two is the emphasized curve: the one peak detection searches,
+# the one the marks and the legend read their amplitudes from, and the first
+# amplitude column of the export. "mean_profile" or "strips".
+CD_SPECTRUM_PRIMARY = "mean_profile"
+# The pair is drawn as one colour in two weights, the way the time domain draws
+# a signal and its filtered trend: the secondary curve thin and faded behind
+# the primary one.
+CD_SPECTRUM_COLOR = "tab:blue"
+CD_SPECTRUM_PRIMARY_LINEWIDTH = 1.5
+CD_SPECTRUM_SECONDARY_LINEWIDTH = 0.8
+CD_SPECTRUM_SECONDARY_ALPHA = 0.8
+CD_SPECTRUM_SECONDARY_FADE = 0.55  # 0 keeps the colour, 1 is grey
 
 # Cepstrum: dynamic range in dB below the spectral peak at which the power
 # spectrum is floored before the log is taken. Bins quieter than this contribute
