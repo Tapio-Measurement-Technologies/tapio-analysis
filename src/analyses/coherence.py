@@ -647,6 +647,8 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.controller.addPlot(plotStatsLayout)
         self.controller.canvas.mpl_connect('button_press_event', self.onclick)
         self.connect_selection_stepping()
+        self.controller.canvas.set_context_menu_actions_provider(
+            self.contextMenuActions)
 
         self.refresh()
 
@@ -707,6 +709,19 @@ class AnalysisWindow(AnalysisWindowBase[AnalysisController], AnalysisRangeMixin,
         self.record_selection(float(xdata))
         self.refresh(restore_lim=True)
         return True
+
+    def contextMenuActions(self, event):
+        """Offer the same selection as the selector button on the canvas menu.
+
+        Contributed to the canvas menu rather than popped from here, so that the
+        annotation entries and this one share a single right-click menu.
+        """
+        return [(
+            "Select frequency",
+            lambda menu_event: self.select_frequency_at(
+                menu_event.inaxes, menu_event.xdata),
+            event.xdata is not None,
+        )]
 
     def onclick(self, event):
         if event.inaxes is not None and event.button == settings.FREQUENCY_SELECTOR_MOUSE_BUTTON:

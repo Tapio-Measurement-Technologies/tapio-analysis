@@ -1128,6 +1128,56 @@ def test_spectrum_menu_action_matches_selector_button(qt_app):
     assert len(controller.selected_freqs) == before
 
 
+def test_coherence_right_click_offers_select_frequency(qt_app):
+    """Coherence picks a frequency from the canvas menu like the other windows.
+
+    The coherence window had the selector button and the stepping keys but never
+    contributed its entry to the canvas menu, so right-clicking a coherence peak
+    offered only the annotation entries.
+    """
+    from matplotlib.backend_bases import MouseButton
+
+    rng = np.random.default_rng(3)
+    length = 200000
+    shared = sine(length, 5.0, 1.0, 100.0)
+    measurement = md_measurement({"A": shared + rng.normal(size=length),
+                                  "B": shared + rng.normal(size=length)})
+
+    controller = coherence.AnalysisController(measurement, "MD")
+    controller.analysis_range_low = 0.0
+    controller.analysis_range_high = measurement.distances[-1]
+    controller.frequency_range_low = 0.0
+    controller.frequency_range_high = FS / 2
+    controller.channel, controller.channel2 = "A", "B"
+    controller.nperseg = 4000
+    controller.plot()
+    window = coherence.AnalysisWindow(controller, "MD")
+    controller.selected_freqs = []
+
+    assert controller.canvas.context_menu_actions_provider == window.contextMenuActions
+
+    event = _FakeMouseEvent(controller.ax, MouseButton.RIGHT, xdata=7.5)
+    (label, callback, enabled), = window.contextMenuActions(event)
+    assert label == "Select frequency"
+    assert enabled
+
+    callback(event)
+    assert controller.selected_freqs[-1] == pytest.approx(7.5, abs=0.5)
+
+    # Without a position on the axis the entry is offered but disabled.
+    (_, _, enabled), = window.contextMenuActions(
+        _FakeMouseEvent(None, MouseButton.RIGHT))
+    assert not enabled
+
+    # The menu entry and the selector button reach the same selection.
+    controller.selected_freqs = []
+    window.onclick(_FakeMouseEvent(controller.ax, MouseButton.MIDDLE, xdata=5.0))
+    from_button = controller.selected_freqs[-1]
+    controller.selected_freqs = []
+    window.select_frequency_at(controller.ax, 5.0)
+    assert controller.selected_freqs[-1] == pytest.approx(from_button)
+
+
 def test_spectrogram_menu_selects_on_the_frequency_axis(qt_app):
     from matplotlib.backend_bases import MouseButton
 
