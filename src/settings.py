@@ -161,6 +161,13 @@ MAX_HARMONICS_DISPLAY = 10
 SPECTRUM_SHOW_HARMONICS_DEFAULT = True
 MAX_HARMONICS_FREQUENCY_ESTIMATOR = 1
 
+# "Subharmonic search": read the selected peak as the Nth harmonic of a lower
+# frequency and move the selection down to that fundamental, so the harmonic
+# ladder is drawn from it and the picked peak becomes one rung of the series.
+# 1 is off, the selection staying where it was picked.
+SUBHARMONIC_SEARCH_DEFAULT = 1
+MAX_SUBHARMONIC_SEARCH = 20
+
 # "Refine frequency selection" search window. The window is the smaller of a
 # fraction of the visible frequency axis and a fraction of the selected
 # frequency. The second cap matters for low-frequency peaks: without it a peak

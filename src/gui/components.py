@@ -751,6 +751,11 @@ class HarmonicsMixin:
         self.harmonicsCountSpinner.setEnabled(self.controller.show_harmonics)
         self.harmonicsCheckbox.blockSignals(False)
         self.harmonicsCountSpinner.blockSignals(False)
+        if hasattr(self, "subharmonicSpinner"):
+            self.subharmonicSpinner.blockSignals(True)
+            self.subharmonicSpinner.setValue(
+                int(self.controller.subharmonic_divisor))
+            self.subharmonicSpinner.blockSignals(False)
 
     def addHarmonicsControls(self, layout):
         row = QHBoxLayout()
@@ -771,6 +776,27 @@ class HarmonicsMixin:
         row.addWidget(self.harmonicsCountSpinner)
         layout.addLayout(row)
 
+        subharmonic = QHBoxLayout()
+        label = QLabel("Subharmonic search", self)
+        self.subharmonicSpinner = QSpinBox(self)
+        self.subharmonicSpinner.setRange(1, settings.MAX_SUBHARMONIC_SEARCH)
+        tooltip = ("Read the selected peak as this harmonic of a lower "
+                   "frequency.\n"
+                   "Set 2 and the selection moves to half of what was picked, "
+                   "so the harmonics are drawn from that fundamental and the "
+                   "picked peak becomes the second of them. Use it to test "
+                   "whether a peak is a multiple of something lower.\n"
+                   "1 leaves the selection where it was picked.")
+        label.setToolTip(tooltip)
+        self.subharmonicSpinner.setToolTip(tooltip)
+        self.initHarmonicsControls()
+        self.subharmonicSpinner.valueChanged.connect(
+            self.update_subharmonic_divisor)
+        subharmonic.addWidget(label)
+        subharmonic.addStretch()
+        subharmonic.addWidget(self.subharmonicSpinner)
+        layout.addLayout(subharmonic)
+
     def update_show_harmonics(self):
         self.controller.show_harmonics = self.harmonicsCheckbox.isChecked()
         self.harmonicsCountSpinner.setEnabled(self.controller.show_harmonics)
@@ -778,6 +804,24 @@ class HarmonicsMixin:
 
     def update_harmonics_count(self):
         self.controller.harmonics_count = int(self.harmonicsCountSpinner.value())
+        self.refresh(restore_lim=True)
+
+    def update_subharmonic_divisor(self):
+        """Move the selection to the fundamental the new divisor implies.
+
+        Rescaled from the divisor in force rather than from the frequency on
+        screen, so stepping 2, 3, 4 keeps dividing what was originally picked
+        instead of dividing what the last step already divided, and coming
+        back to 1 restores the picked frequency exactly.
+        """
+        self.takeManualControl()
+        previous = max(1, int(self.controller.subharmonic_divisor))
+        divisor = max(1, int(self.subharmonicSpinner.value()))
+        if divisor != previous:
+            scale = previous / divisor
+            self.controller.selected_freqs = [
+                frequency * scale for frequency in self.controller.selected_freqs]
+        self.controller.subharmonic_divisor = divisor
         self.refresh(restore_lim=True)
 
 
@@ -838,8 +882,15 @@ class FrequencyMarksControlsMixin(MultipleSelectMixin, HarmonicsMixin,
             self.controller.auto_detect_peaks = False
 
     def record_selection(self, frequency):
-        """A new selection adds to the others or replaces them, by mode."""
+        """A new selection adds to the others or replaces them, by mode.
+
+        A subharmonic search in force applies to what is picked next as well:
+        the click says which peak, the search says which harmonic of the
+        fundamental that peak is, and it is the fundamental that is selected.
+        """
         self.takeManualControl()
+        divisor = max(1, int(getattr(self.controller, "subharmonic_divisor", 1)))
+        frequency = frequency / divisor
         if self.controller.multiple_select:
             self.controller.selected_freqs.append(frequency)
         else:

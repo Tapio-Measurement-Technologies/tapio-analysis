@@ -46,6 +46,8 @@ class FrequencyMarksMixin:
         self.set_default('show_harmonics',
                          settings.SPECTRUM_SHOW_HARMONICS_DEFAULT)
         self.set_default('harmonics_count', settings.MAX_HARMONICS_DISPLAY)
+        self.set_default('subharmonic_divisor',
+                         settings.SUBHARMONIC_SEARCH_DEFAULT)
         self.current_vlines = []
         self.legend_data = []
 

@@ -369,3 +369,65 @@ def test_the_selection_buttons_lead_the_display_options(qt_app, module, build):
     assert [button.text() for button in leading] == [
         "Refine Frequency Selection", "Clear Frequency Selection",
         "Auto detect peaks"]
+
+
+# --------------------------------------------------------------------------
+# Subharmonic search: is the peak I picked a multiple of something lower?
+# --------------------------------------------------------------------------
+
+def test_subharmonic_search_moves_the_selection_to_the_fundamental(qt_app):
+    """Setting 2 reads the picked peak as the second harmonic.
+
+    The selection drops to half of it, so the ordinary harmonic ladder is
+    drawn from that fundamental and the picked peak is its second rung.
+    """
+    controller = plotted(spectrum, two_peak_measurement(), nperseg=2000,
+                         selected_freqs=[F2], show_harmonics=True,
+                         harmonics_count=3)
+    window = spectrum.AnalysisWindow(controller, "MD")
+
+    assert controller.subharmonic_divisor == settings.SUBHARMONIC_SEARCH_DEFAULT
+
+    window.subharmonicSpinner.setValue(2)
+    assert controller.selected_freqs == pytest.approx([F2 / 2])
+    assert line_positions(controller) == pytest.approx(
+        [F2 / 2, F2, 1.5 * F2])
+
+
+def test_subharmonic_search_divides_the_picked_value_not_the_last_one(qt_app):
+    """Stepping 2, 3, 4 keeps dividing the frequency that was picked."""
+    controller = plotted(spectrum, two_peak_measurement(), nperseg=2000,
+                         selected_freqs=[F2])
+    window = spectrum.AnalysisWindow(controller, "MD")
+
+    window.subharmonicSpinner.setValue(2)
+    assert controller.selected_freqs == pytest.approx([F2 / 2])
+    window.subharmonicSpinner.setValue(3)
+    assert controller.selected_freqs == pytest.approx([F2 / 3])
+    window.subharmonicSpinner.setValue(4)
+    assert controller.selected_freqs == pytest.approx([F2 / 4])
+
+    # Back to 1 and the picked frequency is restored exactly.
+    window.subharmonicSpinner.setValue(1)
+    assert controller.selected_freqs == pytest.approx([F2])
+
+
+def test_subharmonic_search_applies_to_the_next_pick_too(qt_app):
+    controller = plotted(spectrum, two_peak_measurement(), nperseg=2000)
+    window = spectrum.AnalysisWindow(controller, "MD")
+
+    window.subharmonicSpinner.setValue(3)
+    window.select_frequency_at(controller.ax, F2)
+    assert controller.selected_freqs[-1] == pytest.approx(F2 / 3)
+
+    window.subharmonicSpinner.setValue(1)
+    assert controller.selected_freqs[-1] == pytest.approx(F2)
+
+
+@pytest.mark.parametrize("module, build", SPECTRAL_WINDOWS)
+def test_every_spectral_window_offers_the_subharmonic_box(qt_app, module, build):
+    controller = build()
+    window = module.AnalysisWindow(controller, "MD")
+    assert hasattr(window, "subharmonicSpinner")
+    assert window.subharmonicSpinner.minimum() == 1
+    assert window.subharmonicSpinner.maximum() == settings.MAX_SUBHARMONIC_SEARCH
