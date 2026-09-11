@@ -18,7 +18,10 @@ import pandas as pd
 import io
 import traceback
 
+from PyQt6.QtWidgets import QDialog, QToolButton
+from gui.filter_aid import FilterAidDialog
 from gui.sample_selector import SampleSelectorWindow
+from utils.plot_formatting import distance_text
 
 
 class LoadingProgressDialog:
@@ -442,6 +445,12 @@ class SpectrumLengthMixin:
             self.controller.spectrum_length_slider_max)
         self.spectrumLengthSlider.setValue(self.controller.nperseg)
         self.spectrumLengthSlider.blockSignals(False)
+        self._update_spectrum_length_label()
+
+    def _update_spectrum_length_label(self, *_):
+        # The slider counts samples; the label says how long a window that is.
+        metres = self.spectrumLengthSlider.value() * self.controller.measurement.sample_step
+        self.spectrumLengthLabel.setText(f"Window length: {distance_text(metres)} m")
 
     def addSpectrumLengthSlider(self, layout, live_update=settings.UPDATE_ON_SLIDE):
         self.spectrumLengthLabel = QLabel("Window length")
@@ -450,6 +459,9 @@ class SpectrumLengthMixin:
             Qt.Orientation.Horizontal)
         self.initSpectrumLengthSlider()
         layout.addWidget(self.spectrumLengthSlider)
+        # The metres follow the slider as it moves, whether or not the plot does.
+        self.spectrumLengthSlider.valueChanged.connect(
+            self._update_spectrum_length_label)
 
         if live_update:
             self.spectrumLengthSlider.valueChanged.connect(
@@ -545,10 +557,33 @@ class BandPassFilterMixin:
         self.bandPassFilterSlider.blockSignals(False)
         self._update_wavelength_label()
 
+    def openFilterAid(self):
+        """Set the band from wavelengths, 1/m or Hz typed into the filter aid."""
+        machine_speed = (getattr(self.controller, "machine_speed", None)
+                         if self.controller.window_type == "MD" else None)
+        dialog = FilterAidDialog(self, self.bandPassFilterSlider.value(),
+                                 self.bandPassFilterSlider.maximum(), machine_speed)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        self.bandPassFilterSlider.blockSignals(True)
+        self.bandPassFilterSlider.setValue(dialog.band)
+        self.bandPassFilterSlider.blockSignals(False)
+        self.bandPassFilterRangeChanged()
+
     def addBandPassRangeSlider(self, layout, live_update=settings.UPDATE_ON_SLIDE):
         # Band pass filter range slider
         self.bandPassFilterLabel = QLabel("Band pass filter [1/m]")
-        layout.addWidget(self.bandPassFilterLabel)
+        self.filterAidButton = QToolButton()
+        self.filterAidButton.setText("λ")
+        self.filterAidButton.setToolTip(
+            "Filter aid: set the band from wavelengths, 1/m or Hz")
+        self.filterAidButton.setFixedSize(20, 18)
+        self.filterAidButton.clicked.connect(self.openFilterAid)
+        labelRow = QHBoxLayout()
+        labelRow.addWidget(self.bandPassFilterLabel)
+        labelRow.addStretch()
+        labelRow.addWidget(self.filterAidButton, alignment=Qt.AlignmentFlag.AlignTop)
+        layout.addLayout(labelRow)
         self.bandPassFilterSlider = ExtraQLabeledDoubleRangeSlider(
             Qt.Orientation.Horizontal)
         self.bandPassFilterSlider.setDecimals(
