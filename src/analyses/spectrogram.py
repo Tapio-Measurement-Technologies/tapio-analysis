@@ -152,6 +152,11 @@ class AnalysisController(AnalysisControllerBase, FrequencyMarksMixin):
                                                Fs=self.fs,
                                                noverlap=noverlap,
                                                window=np.hanning(nperseg))
+            # Only the numbers are kept: the image is drawn below, in amplitude.
+            im.remove()
+            # Segment centres count from the first sample handed in; the axis
+            # reads distance along the measurement, as the time domain plot does.
+            bins = bins + self.measurement.distances[self.low_index]
 
         elif self.window_type == "CD":
             self.low_index = np.searchsorted(
@@ -230,6 +235,7 @@ class AnalysisController(AnalysisControllerBase, FrequencyMarksMixin):
                     else:
                         Pxx_sum += Pxx_i
                 Pxx = Pxx_sum / len(unfiltered_data)
+            bins = bins + x[0]
 
         # scipy/matplotlib return a power spectral DENSITY here, whereas the
         # Spectrum window uses a power SPECTRUM. sqrt(2*P) is only an amplitude
