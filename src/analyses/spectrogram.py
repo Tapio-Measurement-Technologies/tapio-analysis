@@ -320,6 +320,7 @@ class AnalysisController(AnalysisControllerBase, FrequencyMarksMixin):
             ax.legend(handles, labels, loc="upper right",
                       facecolor='white', framealpha=1)
 
+        self.draw_plot_info(segment_samples=nperseg, overlap=self.overlap, method="")
         self.canvas.draw()
         self.updated.emit()
 

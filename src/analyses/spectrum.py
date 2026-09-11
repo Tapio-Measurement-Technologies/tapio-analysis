@@ -467,6 +467,7 @@ class AnalysisController(AnalysisControllerBase, FrequencyMarksMixin, ExportMixi
                 else:
                     ax.legend(handles, labels, loc="upper right")
 
+        self.draw_plot_info(segment_samples=nperseg)
         self.canvas.draw()
         self.updated.emit()
 

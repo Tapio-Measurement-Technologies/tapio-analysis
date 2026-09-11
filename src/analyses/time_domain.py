@@ -162,6 +162,7 @@ class AnalysisController(AnalysisControllerBase, ExportMixin):
             ax2.set_xticks(tick_positions)
             ax2.set_xticklabels([f"{time:.2f}" for time in tick_labels])
 
+        self.draw_plot_info()
         self.canvas.draw()
         self.updated.emit()
 

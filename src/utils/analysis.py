@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from gui.components import PlotMixin
 from utils.measurement import Measurement
 from utils.types import PlotAnnotation, AnalysisType, PreconfiguredAnalysis
+from utils.plot_formatting import (analysed_range_text, draw_plot_info,
+                                   sample_step_text, segment_text)
 import settings
 import json
 import numpy as np
@@ -38,6 +40,27 @@ class AnalysisControllerBase(QObject, PlotMixin):
     def getStatsTableData(self):
         """Rows for the report stats table. Subclasses override this."""
         return None
+
+    def draw_plot_info(self, segment_samples=None, overlap=None, method="Welch"):
+        """The faint line at the top right of the plot with its conditions.
+
+        The sample step, the analysed range of the measured length, how many
+        samples a CD analysis pools and, for a spectral analysis, the segment
+        length: settings that shape the result and that the plot does not show.
+        """
+        if not settings.PLOT_INFO_SHOW:
+            return None
+        step = self.measurement.sample_step
+        items = [sample_step_text(step)]
+        if hasattr(self, "analysis_range_low") and hasattr(self, "analysis_range_high"):
+            items.append(analysed_range_text(
+                self.analysis_range_low, self.analysis_range_high, self.max_dist))
+        samples = getattr(self, "selected_samples", None)
+        if self.window_type == "CD" and samples is not None and len(samples):
+            items.append(f"{len(samples)} samples")
+        if segment_samples:
+            items.append(segment_text(segment_samples, step, overlap, method))
+        return draw_plot_info(self.figure, *items)
 
     def set_default(self, key: str, value: Any):
         if not hasattr(self, key):

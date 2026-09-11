@@ -655,6 +655,11 @@ DOUBLE_SLIDER_HANDLE_RADIUS = 8  # px, adjust as needed
 
 SPECTRUM_TITLE_SHOW = True
 
+# A faint line at the top right of the time domain, spectrum, spectrogram,
+# coherence and cepstrum plots with the conditions each was made under: the
+# sample step, the analysed range of the measured length and the segment length.
+PLOT_INFO_SHOW = True
+
 # Peak detection in the Spectrum window ("Detect peaks" and the "Auto detect
 # peaks" button). A peak counts when it stands at least THRESHOLD times above
 # the broadband level around it, measured as a running median over FLOOR_BINS

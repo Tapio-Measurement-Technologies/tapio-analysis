@@ -254,3 +254,60 @@ def open_ended_length_axis(ax, tick_step, decimals=0, open_bin=None):
 
     ax.xaxis.set_major_locator(MultipleLocator(float(tick_step)))
     ax.xaxis.set_major_formatter(FuncFormatter(format_length))
+
+
+#: The items of a plot's information line are joined by this.
+PLOT_INFO_SEPARATOR = " · "
+PLOT_INFO_FONTSIZE = 8
+PLOT_INFO_COLOR = "0.45"
+
+
+def distance_text(metres):
+    """A distance in metres with the decimals its size is worth."""
+    value = float(metres)
+    if abs(value) >= 100:
+        return f"{value:.0f}"
+    decimals = 1 if abs(value) >= 10 else 2
+    return _strip_trailing_zeroes(f"{value:.{decimals}f}")
+
+
+def sample_step_text(sample_step):
+    """``12.8 mm step``, from a sample step in metres."""
+    return f"{_strip_trailing_zeroes(f'{1000.0 * float(sample_step):.3f}')} mm step"
+
+
+def analysed_range_text(low, high, measured):
+    """``600 - 1264 m of 1315 m measured``.
+
+    The measured length is only named when the range is a part of it at the
+    precision shown, so a whole record reads just ``0 - 1315 m``.
+    """
+    low_text, high_text = distance_text(low), distance_text(high)
+    measured_text = distance_text(measured)
+    text = f"{low_text} - {high_text} m"
+    if low_text != "0" or high_text != measured_text:
+        text += f" of {measured_text} m measured"
+    return text
+
+
+def segment_text(segment_samples, sample_step, overlap=None, method="Welch"):
+    """``Welch 256 m segments``: the length a spectrum is averaged over."""
+    length = distance_text(int(segment_samples) * float(sample_step))
+    text = f"{method} {length} m segments".strip()
+    if overlap is not None:
+        text += f", {float(overlap):.0%} overlap"
+    return text
+
+
+def draw_plot_info(figure, *items):
+    """The conditions a plot was made under, as one faint line at its top right.
+
+    Drawn as the figure's suptitle so that constrained layout gives it a row of
+    its own, above the axes title and any secondary axis on top. Empty items
+    are left out; with none left nothing is drawn.
+    """
+    text = PLOT_INFO_SEPARATOR.join(str(item) for item in items if item)
+    if not text:
+        return None
+    return figure.suptitle(text, x=0.995, ha="right",
+                           fontsize=PLOT_INFO_FONTSIZE, color=PLOT_INFO_COLOR)

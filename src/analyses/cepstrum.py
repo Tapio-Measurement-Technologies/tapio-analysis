@@ -123,6 +123,9 @@ class AnalysisController(AnalysisControllerBase, FrequencyMarksMixin, ExportMixi
         ax.set_xlabel("Frequency [1/m]")
         ax.set_ylabel("Cepstrum amplitude")
         ax.grid(True)
+        # As in the Spectrum window: the title, the wavelength axis on top and
+        # the information line above them each get their own room.
+        ax.figure.set_constrained_layout(True)
 
         if settings.SPECTRUM_TITLE_SHOW:
             ax.set_title(f"{self.measurement.measurement_label} ({self.channel}) - Cepstrum")
@@ -249,6 +252,7 @@ class AnalysisController(AnalysisControllerBase, FrequencyMarksMixin, ExportMixi
             else:
                 ax.legend(handles, labels, loc="upper right")
 
+        self.draw_plot_info(segment_samples=nperseg)
         return self._finish_plot()
 
     def addSecondaryAxis(self, ax):
