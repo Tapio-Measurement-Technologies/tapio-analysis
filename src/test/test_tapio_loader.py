@@ -57,19 +57,19 @@ def write_calibration_file(path):
         cal_file.write("\n".join(lines))
 
 
-def write_header_file(path):
+def write_header_file(path, info="Disabled channel test", encoding="iso-8859-1"):
     lines = [
         "[PMA Header]",
         "[Files]",
         row([6, 1]),
         "x.pk2", "x.da2", "x.ca2", "x.pm2",
-        "Disabled channel test",
+        info,
         "[Meas. Param.]",
         row([1, 7]),
         row([16.0, 0.1, 5000.0, 1.0, SAMPLE_STEP, 0.0, 0.0]),
         "[End]",
     ]
-    with open(path, "w", encoding="iso-8859-1") as header_file:
+    with open(path, "w", encoding=encoding) as header_file:
         header_file.write("\n".join(lines))
 
 
@@ -182,3 +182,36 @@ def test_sensor_distance_trimming_aligns_the_same_location_across_channels():
         np.argmax(aligned, axis=0),
         [expected_location] * len(ACQUIRED),
     )
+
+
+@pytest.mark.parametrize("encoding", ["cp1252", "utf-8", "utf-8-sig"])
+def test_header_is_read_in_the_encoding_it_was_saved_in(measurement_files, encoding):
+    """The analyzer writes Windows-1252; a header edited in Notepad is UTF-8.
+
+    Read as Windows-1252, the UTF-8 "Ää" would come out as "Ã„Ã¤". The dash
+    is a Windows-1252 character that ISO-8859-1 reads as a control code.
+    """
+    written_info = "Näyte Ää – pitkä 1"
+    write_header_file(measurement_files[".pk2"], info=written_info, encoding=encoding)
+
+    _, _, sample_step, info, pm_speed = tapio.parse_legacy_data(
+        measurement_files[".pk2"], measurement_files[".ca2"], measurement_files[".da2"])
+
+    assert info == written_info
+    assert sample_step == SAMPLE_STEP
+    assert pm_speed == 16.0
+
+
+@pytest.mark.parametrize("encoding", ["cp1252", "utf-8"])
+def test_calibration_units_are_read_in_the_encoding_the_file_was_saved_in(
+        measurement_files, encoding):
+    with open(measurement_files[".ca2"], encoding="iso-8859-1") as cal_file:
+        text = cal_file.read()
+    text = text.replace(row(SENSOR_ROWS[0]), row(("Alpha", "µm", "0")))
+    with open(measurement_files[".ca2"], "w", encoding=encoding) as cal_file:
+        cal_file.write(text)
+
+    _, units, _, _, _ = tapio.parse_legacy_data(
+        measurement_files[".pk2"], measurement_files[".ca2"], measurement_files[".da2"])
+
+    assert units["Alpha"] == "µm"

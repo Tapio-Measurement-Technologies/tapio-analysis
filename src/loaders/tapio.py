@@ -319,9 +319,30 @@ def read_binary_data(file_path, num_channels):
     return samples.reshape(num_data_points, num_channels)
 
 
+def text_file_encoding(path):
+    """The encoding a .pk2 or .ca2 file was saved in.
+
+    The analyzer writes Windows-1252, but a header edited afterwards, say to
+    name the sample, is often saved as UTF-8, which is Notepad's default. UTF-8
+    is tried first because UTF-8 text also decodes as Windows-1252, only into
+    mojibake ("Ã„" for "Ä"), whereas Windows-1252 text with letters outside
+    ASCII is practically never valid UTF-8. ISO-8859-1 maps every byte, so it
+    takes the rare file with a byte that Windows-1252 leaves undefined.
+    """
+    with open(path, 'rb') as text_file:
+        content = text_file.read()
+    for encoding in ('utf-8-sig', 'cp1252'):
+        try:
+            content.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+        return encoding
+    return 'iso-8859-1'
+
+
 def parse_legacy_data(header_file_path, cal_file_path, data_file_path):
     """Parse legacy Tapio data files and return processed data."""
-    with open(cal_file_path, 'r', encoding='iso-8859-1') as cal_file:
+    with open(cal_file_path, 'r', encoding=text_file_encoding(cal_file_path)) as cal_file:
         sensor_names, units, _logical_channel_numbers, sensor_columns = read_channel_names_units_from_ca(
             cal_file)
         channels_n, ad_factor, formation, transmission_channel, bw_channel = read_common_from_ca(
@@ -329,7 +350,7 @@ def parse_legacy_data(header_file_path, cal_file_path, data_file_path):
         calibrated, sensor_distances, sensor_scales, sensor_offsets, sensor_calibration_types, asymptotic_values = read_calibration_data_from_ca(
             cal_file, sensor_names, sensor_columns)
 
-    with open(header_file_path, 'r', encoding='iso-8859-1') as header_file:
+    with open(header_file_path, 'r', encoding=text_file_encoding(header_file_path)) as header_file:
         pm_speed, length, sample_step = read_meas_param(header_file)
         info = read_info_from_header(header_file)
 
