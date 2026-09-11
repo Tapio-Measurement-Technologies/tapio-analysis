@@ -10,6 +10,11 @@ DEBUG = False
 # Meters per minute
 PAPER_MACHINE_SPEED_DEFAULT = 1600.00
 FILTER_NUMTAPS = 2500
+# A band pass filter spans at least this many periods of its lowest cutoff, so
+# a cutoff at a long wavelength gets a filter long enough to resolve it: the
+# response falls from 90 % to 10 % between about 0.87 and 1.13 times the
+# cutoff. FILTER_NUMTAPS is the shortest filter, which high cutoffs keep.
+FILTER_CUTOFF_CYCLES = 10
 
 REPORT_ADDITIONAL_INFO_DEFAULT = f"Speed at reel: {PAPER_MACHINE_SPEED_DEFAULT:.0f} m/min\nGrammage:"
 MD_REPORT_TEMPLATE_DEFAULT = None

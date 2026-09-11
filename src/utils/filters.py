@@ -1,10 +1,10 @@
-from scipy.signal import firwin, convolve, freqz, fftconvolve
+from scipy.signal import firwin, fftconvolve
 import numpy as np
-import matplotlib.pyplot as plt
 
 from utils.signal_processing import interpolate_non_finite
 import settings
 import logging
+
 
 def mirror_pad(data, numtaps):
     """
@@ -17,6 +17,80 @@ def mirror_pad(data, numtaps):
     start_mirror = data[:numtaps][::-1]
     end_mirror = data[-numtaps:][::-1]
     return np.concatenate((start_mirror, data, end_mirror))
+
+
+def _band_kind(lowcut, highcut, fs):
+    """What a band asks for: "low", "high", "band", "all", or None when empty.
+
+    A band from zero is a low pass and a band reaching the Nyquist frequency a
+    high pass. Built as a band pass with its lower edge a hair above zero, a
+    low pass would leave the level and the longest waves on the slope of that
+    edge instead of passing them whole.
+    """
+    nyquist = fs / 2.0
+    low = max(0.0, float(lowcut))
+    high = min(float(highcut), nyquist)
+    if not low < high:
+        return None
+    reaches_nyquist = high >= nyquist * (1 - 0.0001)
+    if low <= 0:
+        return "all" if reaches_nyquist else "low"
+    return "high" if reaches_nyquist else "band"
+
+
+def filter_numtaps(lowcut, highcut, fs, data_length, numtaps=settings.FILTER_NUMTAPS):
+    """The length of the filter for a band: odd, and adapted to the band.
+
+    A windowed FIR filter tells frequencies apart about as finely as it holds
+    periods of them, so a length that is plenty for a cutoff at 10 1/m cannot
+    separate 0.05 1/m from 0.2 1/m at all. The filter spans at least
+    FILTER_CUTOFF_CYCLES periods of its lowest cutoff and never fewer than
+    ``numtaps`` samples. It is odd, so that its delay is a whole sample and
+    the output lines up with the input. Data too short for it get the longest
+    filter they hold, with a warning, because a cutoff whose wavelength the
+    data hold only a few times cannot be filtered sharply.
+    """
+    nyquist = fs / 2.0
+    cutoffs = [float(cut) for cut in (lowcut, highcut) if 0 < float(cut) < nyquist]
+    wanted = int(numtaps)
+    if cutoffs:
+        wanted = max(wanted, int(np.ceil(settings.FILTER_CUTOFF_CYCLES * fs / min(cutoffs))))
+    wanted |= 1
+    longest = max(3, data_length if data_length % 2 else data_length - 1)
+    if wanted <= longest:
+        return wanted
+    logging.warning(
+        "Data length too small for filter length: a %.4g 1/m cutoff needs %d samples "
+        "and the data have %d, so a %d tap filter is used.",
+        min(cutoffs) if cutoffs else float(highcut), wanted, data_length, longest)
+    return longest
+
+
+def _coefficients(kind, lowcut, highcut, fs, numtaps, window):
+    """FIR coefficients for a band of the given kind."""
+    low = max(0.0, float(lowcut))
+    high = min(float(highcut), fs / 2.0)
+    if kind == "low":
+        coefficients = firwin(numtaps, high, fs=fs)
+    elif kind == "high":
+        coefficients = firwin(numtaps, low, pass_zero=False, fs=fs)
+    else:
+        coefficients = firwin(numtaps, [low, high], pass_zero=False, fs=fs)
+
+    if window == "hamming":
+        coefficients = coefficients * np.hamming(numtaps)
+    if kind == "low":
+        # The second window takes a little off the gain at zero; a low pass
+        # passes the level and the longest waves whole.
+        coefficients = coefficients / np.sum(coefficients)
+
+    return coefficients
+
+
+def _warn_degenerate_band(lowcut, highcut, fs):
+    logging.warning(
+        "Band pass range [%s, %s] 1/m is not a valid band at fs=%s; returning mean level.",
+        lowcut, highcut, fs)
 
 
 def bandpass_filter_columns(data, lowcut, highcut, fs, numtaps=settings.FILTER_NUMTAPS,
@@ -47,10 +121,15 @@ def bandpass_filter_columns(data, lowcut, highcut, fs, numtaps=settings.FILTER_N
 
     original_means = filled.mean(axis=0)
 
-    numtaps = _adjusted_numtaps(numtaps, data_length)
-    coefficients = _bandpass_coefficients(lowcut, highcut, fs, numtaps, window)
-    if coefficients is None:
+    kind = _band_kind(lowcut, highcut, fs)
+    if kind is None:
+        _warn_degenerate_band(lowcut, highcut, fs)
         return np.broadcast_to(original_means, values.shape).copy()
+    if kind == "all":
+        return filled
+
+    numtaps = filter_numtaps(lowcut, highcut, fs, data_length, numtaps)
+    coefficients = _coefficients(kind, lowcut, highcut, fs, numtaps, window)
 
     padded = filled
     if mirror:
@@ -71,47 +150,19 @@ def bandpass_filter_columns(data, lowcut, highcut, fs, numtaps=settings.FILTER_N
     return filtered
 
 
-def _adjusted_numtaps(numtaps, data_length):
-    """Shrink the filter to fit short data, keeping the tap count odd."""
-    if data_length >= numtaps:
-        return numtaps
-
-    new_numtaps = max(3, data_length - (data_length % 2) - 1)
-    logging.warning(
-        "Data length too small for filter length. Using smaller filter window length.")
-    return new_numtaps
-
-
-def _bandpass_coefficients(lowcut, highcut, fs, numtaps, window):
-    """FIR band pass coefficients, or None when the band is degenerate."""
-    epsilon = 0.0001
-    nyquist = fs / 2.0
-    low_edge = max(0.0, float(lowcut)) + epsilon
-    high_edge = min(float(highcut), nyquist * (1 - epsilon))
-
-    if not (0 < low_edge < high_edge < nyquist):
-        logging.warning(
-            "Band pass range [%s, %s] 1/m is not a valid band at fs=%s; returning mean level.",
-            lowcut, highcut, fs)
-        return None
-
-    coefficients = firwin(numtaps, [low_edge, high_edge], pass_zero=False, fs=fs)
-    if window == "hamming":
-        coefficients = coefficients * np.hamming(numtaps)
-
-    return coefficients
-
-
 def bandpass_filter(data, lowcut, highcut, fs, numtaps=settings.FILTER_NUMTAPS, window="hamming", mirror=True, use_epsilon=True, correct_mean=True):
     """
     Applies a phase-correct FIR bandpass filter with Hamming windowing.
-    The number of taps is automatically adjusted if the input data is too short.
+
+    A band from zero is a low pass and a band reaching the Nyquist frequency a
+    high pass. The filter is as long as its lowest cutoff needs and shortened
+    to fit data that are shorter; see filter_numtaps.
 
     :param data: Array-like, the data to filter.
     :param lowcut: float, the low cutoff frequency.
     :param highcut: float, the high cutoff frequency.
     :param fs: float, the sampling rate.
-    :param numtaps: int, the number of taps in the filter.
+    :param numtaps: int, the shortest filter; a low cutoff lengthens it.
     :param mirror: bool, optional, if set to True, pads the data with a mirrored copy.
     :return: Array-like, the filtered data.
     """
@@ -128,66 +179,24 @@ def bandpass_filter(data, lowcut, highcut, fs, numtaps=settings.FILTER_NUMTAPS, 
 
     original_mean = np.mean(data)
 
-    # Adjust number of taps if data is too short
-    if data_length < numtaps:
-        # Calculate new number of taps that's smaller than data length
-        # Keep it odd for FIR filter
-        new_numtaps = data_length - (data_length % 2) - 1
-        # Ensure we have at least 3 taps for a meaningful filter
-        new_numtaps = max(3, new_numtaps)
-        numtaps = new_numtaps
-        logging.warning("Data length too small for filter length. Using smaller filter window length.")
-
-    epsilon = 0.0001
-    nyquist = fs / 2.0
-    low_edge = max(0.0, float(lowcut)) + epsilon
-    high_edge = min(float(highcut), nyquist * (1 - epsilon))
-    if not (0 < low_edge < high_edge < nyquist):
+    kind = _band_kind(lowcut, highcut, fs)
+    if kind is None:
         # Degenerate band (e.g. low == high). Return the mean level rather than
         # raising, so the caller still gets a well defined, clearly empty result.
-        logging.warning(
-            "Band pass range [%s, %s] 1/m is not a valid band at fs=%s; returning mean level.",
-            lowcut, highcut, fs)
+        _warn_degenerate_band(lowcut, highcut, fs)
         return np.full(data_length, original_mean)
+    if kind == "all":
+        return data.copy()
+
+    numtaps = filter_numtaps(lowcut, highcut, fs, data_length, numtaps)
+    coefficients = _coefficients(kind, lowcut, highcut, fs, numtaps, window)
 
     # Pad the data with a mirrored copy if mirror is True
     if mirror:
         data = mirror_pad(data, numtaps)
 
-    # Create the filter coefficients
-    fir_coeff = firwin(numtaps, [low_edge, high_edge], pass_zero=False, fs=fs)
-
-    if window == "hamming":
-        hamming_window = np.hamming(numtaps)
-        fir_coeff *= hamming_window
-
-    if False:
-        w, h = freqz(fir_coeff, worN=8000)
-        # Convert w to cy/m
-        freq = w * fs / (2 * np.pi)
-        # Plot the magnitude response
-        plt.figure(figsize=(12, 6))
-        plt.subplot(2, 1, 1)
-        plt.plot(freq, 20 * np.log10(np.abs(h)), 'b')
-        plt.title('Filter Frequency Response')
-        plt.xlabel('Frequency [Hz]')
-        plt.ylabel('Gain [dB]')
-        plt.grid()
-        plt.xlim(0, fs / 2)
-        plt.ylim(-100, 5)
-
-        # Plot the phase response
-        plt.subplot(2, 1, 2)
-        angles = np.unwrap(np.angle(h))
-        plt.plot(freq, angles, 'g')
-        plt.ylabel('Angle (radians)')
-        plt.xlabel('Frequency [Hz]')
-        plt.grid()
-        plt.xlim(0, fs / 2)
-        plt.show()
-
-    # Apply the filter
-    filtered_data = convolve(data, fir_coeff, mode='same')
+    # A long filter over a long record is only practical through the FFT.
+    filtered_data = fftconvolve(data, coefficients, mode='same')
 
     # Remove the mirrored padding if mirror is True
     if mirror:
